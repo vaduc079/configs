@@ -263,8 +263,9 @@ bindsym $mod+s layout stacking
 bindsym $mod+w layout tabbed
 bindsym $mod+e layout toggle split
 
-# toggle tiling / floating
-bindsym $mod+Shift+space floating toggle
+# toggle tiling/floating and auto resize when entering float mode
+set $auto_resize_apps "(?i)firefox"
+bindsym $mod+Shift+space floating toggle; [floating class=$auto_resize_apps] resize set 1600 900; move position center
 
 # change focus between tiling / floating windows
 bindsym $mod+space focus mode_toggle
@@ -353,7 +354,7 @@ set $ws10 "10"
 #assign [class="Xfce4-terminal"] $ws1
 #assign [class="(?i)firefox"] $ws1
 assign [class="discord"] $ws2
-assign [class="(?i)slack"] $ws2
+# assign [class="(?i)slack"] $ws2
 #assign [class="Thunar"] $ws3
 #assign [class="thunderbird"] $ws4
 #assign [class="TelegramDesktop"] $ws5
