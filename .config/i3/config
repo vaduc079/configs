@@ -264,7 +264,7 @@ bindsym $mod+w layout tabbed
 bindsym $mod+e layout toggle split
 
 # toggle tiling/floating and auto resize when entering float mode
-set $auto_resize_apps "(?i)firefox"
+set $auto_resize_apps "(?i)(firefox|google-chrome)"
 bindsym $mod+Shift+space floating toggle; [floating class=$auto_resize_apps] resize set 1600 900; move position center
 
 # change focus between tiling / floating windows
@@ -315,7 +315,7 @@ bindsym XF86AudioPrev exec playerctl previous
 bindsym $mod+p exec /usr/local/bin/switch-audio-port
 
 ## App shortcuts
-bindsym $mod+Shift+f exec /usr/bin/firefox
+bindsym $mod+Shift+f exec /usr/bin/google-chrome-stable
 bindsym $mod+Shift+p exec /usr/bin/thunar
 #bindsym Print exec scrot ~/%Y-%m-%d-%T-screenshot.png && notify-send "Screenshot saved to ~/$(date +"%Y-%m-%d-%T")-screenshot.png"
 bindsym Print exec --no-startup-id flameshot gui
