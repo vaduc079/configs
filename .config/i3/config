@@ -31,6 +31,7 @@ set $mod Mod4
 set $kitty ~/.local/kitty.app/bin/kitty
 set $picom_config ~/.config/picom/picom.conf
 set $blur_lock ~/.config/i3/scripts/blur-lock
+set $open_link_in_mpv ~/.config/i3/scripts/open_link_in_mpv.sh
 set $wallpaper /usr/share/endeavouros/backgrounds/tatami-galaxy.jpg
 
 #####################
@@ -320,6 +321,7 @@ bindsym $mod+Shift+p exec /usr/bin/thunar
 #bindsym Print exec scrot ~/%Y-%m-%d-%T-screenshot.png && notify-send "Screenshot saved to ~/$(date +"%Y-%m-%d-%T")-screenshot.png"
 bindsym Print exec --no-startup-id flameshot gui
 bindsym $mod+Ctrl+m exec pavucontrol
+bindsym $mod+Shift+m exec --no-startup-id $open_link_in_mpv
 
 # Power Profiles menu switcher (rofi)
 bindsym $mod+n exec ~/.config/i3/scripts/power-profiles
@@ -498,8 +500,9 @@ for_window [class="qt5ct" instance="qt5ct"] floating enable
 for_window [class="Blueberry.py" instance="blueberry.py"] floating enable
 for_window [class="Bluetooth-sendto" instance="bluetooth-sendto"] floating enable
 for_window [class="Pamac-manager"] floating enable
-for_window [window_role="About"] floating enable
 # for_window [class="Spotify"] floating enable, resize set 1600 900, move position center
+for_window [class="mpv"] floating enable, resize set 1600 900, move position center
+for_window [window_role="About"] floating enable
 
 # set border of floating window
 for_window [class="urxvt"] border pixel 1
