@@ -18,6 +18,6 @@ is_url "$url"
 
 show_notif 3000 "Open in MPV: $url"
 
-if ! mpv "$url"; then
+if ! mpv --ytdl-format="bestvideo[height<=?1080]+bestaudio/best" "$url"; then
 	show_notif 5000 "Error opening in MPV: $url"
 fi
