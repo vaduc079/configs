@@ -429,17 +429,16 @@ exec --no-startup-id ~/.screenlayout/monitor.sh
 exec --no-startup-id sleep 1 && feh --bg-fill $wallpaper
 
 # set powersavings for display:
-exec --no-startup-id xset s 480 dpms 600 600 600
+exec --no-startup-id xset s 480 +dpms dpms 1800 1800 1800
 
 # disable power saving (for example if using xscreensaver)
 #exec --no-startup-id xset -dpms
 
 # use xautolock to use autosuspend rules for mobile devices
 # https://wiki.archlinux.org/title/Session_lock#xautolock
-#exec --no-startup-id xautolock -time 60 -locker "systemctl suspend"
+exec --no-startup-id xautolock -time 60 -locker "systemctl suspend"
 
 # Setup xss-lock daemon
-exec_always --no-startup-id xset +dpms dpms 300 300 300
 exec_always --no-startup-id xss-lock --transfer-sleep-lock -- $blur_lock
 
 # xscreensaver
