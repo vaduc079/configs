@@ -37,3 +37,8 @@ eval "`fnm env`"
 
 # starship prompt
 eval "$(starship init zsh)"
+
+# autocomplete
+autoload -U +X bashcompinit && bashcompinit
+complete -o nospace -C /usr/bin/terraform terraform
+complete -C '/usr/bin/aws_completer' aws
