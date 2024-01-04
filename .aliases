@@ -1,7 +1,7 @@
 #!/bin/sh
 alias ls='ls --color=auto'
-alias ll='ls -lav'
-alias l='ls -lav --ignore=.\?\*'
+alias ll='ls -lavh'
+alias l='ls -lavh --ignore=.\?\*'
 
 # vim
 alias vim='nvim'
