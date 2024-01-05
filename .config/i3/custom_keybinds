@@ -1,0 +1,8 @@
+#######
+# MPV #
+#######
+
+bindsym ctrl+d mpv change window size
+bindsym ctrl+f mpv toggle youtube quality
+bindsym [+] mpv playback speed
+bindsym shift+q mpv quit and save progress
