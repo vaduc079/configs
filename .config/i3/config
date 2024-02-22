@@ -503,6 +503,9 @@ for_window [class="Pamac-manager"] floating enable
 # for_window [class="Spotify"] floating enable, resize set 1600 900, move position center
 for_window [class="mpv"] floating enable, resize set 1600 900, move position center
 for_window [window_role="About"] floating enable
+# Anki
+set $anki_title "^Browse |Add|Statistics|Edit Current"
+for_window [class="(?i)anki" title=$anki_title] floating enable, resize set 1600 900, move position center
 
 # set border of floating window
 for_window [class="urxvt"] border pixel 1
