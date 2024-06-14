@@ -11,6 +11,9 @@ alias load_zshrc='source ~/.zshrc'
 
 # kitty
 alias update_kitty='curl -L https://sw.kovidgoyal.net/kitty/installer.sh | sh /dev/stdin'
+alias kssh='kitten ssh'
+
+# starship
 alias update_starship='curl -sS https://starship.rs/install.sh | sh'
 
 # greenclip
