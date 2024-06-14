@@ -1,0 +1,7 @@
+ipc_socket = true
+
+[window]
+opacity = 0.4
+
+[font]
+normal = { family = "CaskaydiaCove Nerd Font Mono", style = "Regular" }
