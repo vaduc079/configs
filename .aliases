@@ -9,12 +9,11 @@ alias vi='nvim'
 
 alias load_zshrc='source ~/.zshrc'
 
-# kitty
-alias update_kitty='curl -L https://sw.kovidgoyal.net/kitty/installer.sh | sh /dev/stdin'
-alias kssh='kitten ssh'
-
 # starship
 alias update_starship='curl -sS https://starship.rs/install.sh | sh'
 
 # greenclip
 alias greenclip_clear='pkill greenclip && greenclip clear && greenclip daemon &'
+
+# fnm
+alias update_fnm='curl -fsSL https://fnm.vercel.app/install | bash -s -- --skip-shell'
