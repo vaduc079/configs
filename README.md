@@ -1,27 +1,30 @@
 # Configs
 
-My personal configs. Currently includes:
+My personal configs for Wayland. Currently include:
 
-- alacritty
-- sway (need `python-i3ipc>=2.0.1` for autotiling)
+- foot
+- sway
 - zsh
 - starship
 
+## Other dependencies
+
+- [autotiling](https://github.com/nwg-piotr/autotiling)
+- [CaskaydiaCove Nerd Font](https://www.nerdfonts.com/font-downloads)
+- [fnm](https://github.com/Schniz/fnm)
+- [GNU Stow](https://www.gnu.org/software/stow/)
+
 ## Install
-
-Install any included packages.
-
-Install GNU `stow`.
 
 Clone or download the repo to `$HOME`
 
 ```bash
-git clone https://github.com/vaduc079/configs.git ~/configs
+git clone https://github.com/vaduc079/configs.git $HOME/configs
 ```
 
-Run `stow` to symlink everything to `$HOME`
+Use `stow` to symlink everything to `$HOME`
 
 ```bash
-cd ~/configs
+cd $HOME/configs
 stow .
 ```
