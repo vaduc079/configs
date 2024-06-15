@@ -224,9 +224,5 @@ bindsym $mod+r mode "resize"
 #    }
 #}
 
-# Auto start
-exec autotiling
-exec_always ! pidof foot && foot --server
-
 include /etc/sway/config.d/*.conf
 include ~/.config/sway/config.d/*
