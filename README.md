@@ -2,19 +2,19 @@
 
 My personal configs for Wayland. Currently include:
 
-- foot
-- sway
+- [foot](https://codeberg.org/dnkl/foot) - Wayland terminal emulator
+- [sway](https://github.com/swaywm/sway) - i3-compatible Wayland compositor
 - zsh
 
 ## Other dependencies
 
 - [CaskaydiaCove Nerd Font](https://www.nerdfonts.com/font-downloads)
-- [starship](starship.rs)
-- [autotiling](https://github.com/nwg-piotr/autotiling)
-- [waybar](https://github.com/Alexays/Waybar)
-- [flameshot](https://github.com/flameshot-org/flameshot)
-- [fnm](https://github.com/Schniz/fnm)
-- [GNU Stow](https://www.gnu.org/software/stow/)
+- [starship](starship.rs) - Shell prompt
+- [autotiling](https://github.com/nwg-piotr/autotiling) - Automatically switch sway/i3 window split orientation script
+- [waybar](https://github.com/Alexays/Waybar) - Wayland bar for Sway and Wlroots based compositors
+- [flameshot](https://github.com/flameshot-org/flameshot) - Screenshot software
+- [fnm](https://github.com/Schniz/fnm) - Node.js version manager,
+- [GNU Stow](https://www.gnu.org/software/stow/) - Symlink farm manager
 
 ## Install
 
