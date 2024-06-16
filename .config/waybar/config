@@ -16,6 +16,7 @@
         "custom/zypper",
         "network",
         "bluetooth",
+        "disk",
         "cpu",
         "memory",
         "temperature",
@@ -93,6 +94,11 @@
         },
         "interval": 10
     },
+    "disk": {
+        "interval": 60,
+        "format": "{free} ",
+        "path": "/"
+    },
     "cpu": {
         "format": "{usage}% ",
         "tooltip": false,
@@ -103,7 +109,7 @@
         "interval": 10
     },
     "memory": {
-        "format": "{percentage}%/{swapPercentage}% ",
+        "format": "{percentage}%/{swapPercentage}% ",
         "tooltip-format": "{used:0.1f}GiB/{swapUsed:0.1f}GiB used",
         "states": {
             "warning": 65,

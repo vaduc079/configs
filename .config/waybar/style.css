@@ -46,6 +46,7 @@ window#waybar.solo {
 
 #mode,
 #battery,
+#disk,
 #cpu,
 #memory,
 #network,
