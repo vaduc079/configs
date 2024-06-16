@@ -1,0 +1,21 @@
+#
+# Status Bar:
+#
+bar {
+    swaybar_command waybar
+}
+
+# openSUSE theme
+set $green          #6da741
+set $medium_green   #73ba25
+set $blue           #173f4f
+set $ligh_teal      #00a489
+set $teal           #35b9ab
+set $white          #ffffff
+set $urgentred		#e53935
+
+#class		        	border			bground			text		    indicator		child_border
+client.focused          $green          $blue           $medium_green
+client.unfocused        $ligh_teal      $blue           $teal
+client.focused_inactive $green          $ligh_teal      $blue
+client.urgent           $urgentred      $urgentred      $white

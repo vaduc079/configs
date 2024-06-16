@@ -1,0 +1,100 @@
+# Home row direction keys, like vim
+set $left h
+set $down j
+set $up k
+set $right l
+
+# Lockscreen configuration
+set $screenlock 'swaylock --config /etc/swaylock/openSUSEway.conf'
+
+#
+# System mode menu
+#
+set $mode_system "What to do? (l) lock, (e) logout, (r) reboot, (s) suspend, (Shift+s) shutdown"
+mode $mode_system {
+	bindsym l exec $screenlock; mode "default"
+	bindsym e exec swaymsg exit; mode "default"
+	bindsym r exec systemctl reboot; mode "default"
+	bindsym s exec systemctl suspend; mode "default"
+	bindsym Shift+s exec systemctl poweroff; mode "default"
+
+	# back to normal: Enter or Escape
+	bindsym Return mode "default"
+	bindsym Escape mode "default"
+}
+bindsym $mod+Shift+e mode $mode_system
+
+#
+# Resizing containers:
+#
+mode "resize" {
+    # left will shrink the containers width
+    # right will grow the containers width
+    # up will shrink the containers height
+    # down will grow the containers height
+    bindsym $left resize shrink width 10 px or 10 ppt
+    bindsym $down resize grow height 10 px or 10 ppt
+    bindsym $up resize shrink height 10 px or 10 ppt
+    bindsym $right resize grow width 10 px or 10 ppt
+
+    # Ditto, with arrow keys
+    bindsym Left resize shrink width 10 px or 10 ppt 
+    bindsym Down resize grow height 10 px or 10 ppt  
+    bindsym Up resize shrink height 10 px or 10 ppt  
+    bindsym Right resize grow width 10 px or 10 ppt  
+
+    # Return to default mode
+    bindsym Return mode "default"
+    bindsym Escape mode "default"
+}
+bindsym $mod+r mode "resize"
+
+#
+# Screenshots
+#
+## Area selection shortcuts
+set $selected_window swaymsg -t get_tree | jq -r '.. | select(.pid? and .visible?) | .rect | "\(.x),\(.y) \(.width)x\(.height)"' | slurp
+set $focused_window swaymsg -t get_tree | jq -j '.. | select(.type?) | select(.focused).rect | "\(.x),\(.y) \(.width)x\(.height)"'
+set $focused_output swaymsg -t get_outputs | jq -r '.[] | select(.focused) | .name'
+## Screenshot commands
+### Full
+set $screenshot_full grim
+set $screenshot_full_clipboard grim - | wl-copy
+### Selected window
+set $screenshot_selected_window $selected_window | grim -g-
+set $screenshot_selected_window_clipboard $selected_window | grim -g- - | wl-copy
+### Selected area
+set $screenshot_selected_area slurp | grim -g-
+set $screenshot_selected_area_clipboard slurp | grim -g- - | wl-copy
+### Focused window
+set $screenshot_focused_window $focused_window | grim -g-
+set $screenshot_focused_window_clipboard $focused_window | grim -g- - | wl-copy
+### Focused output
+set $screenshot_focused_output grim -o $($focused_output)
+set $screenshot_focused_output_clipboard grim -o $($focused_output) - | wl-copy
+
+## Screenshot mode menu
+set $screenshot "Screenshot: (f) full, (s) select window, (a) select area, (w) focused window, (o) focused output [Ctrl+ saves to clipboard]"
+mode $screenshot {
+    # Full
+    bindsym f exec $screenshot_full; mode "default"
+    bindsym Ctrl+f exec $screenshot_full_clipboard; mode "default"
+    # Selected window
+    bindsym s exec $screenshot_selected_window; mode "default"
+    bindsym Ctrl+s exec $screenshot_selected_window_clipboard; mode "default"
+    # Selected area
+    bindsym a exec $screenshot_selected_area; mode "default"
+    bindsym Ctrl+a exec $screenshot_selected_area_clipboard; mode "default"
+    # Focused window
+    bindsym w exec $screenshot_focused_window; mode "default"
+    bindsym Ctrl+w exec $screenshot_focused_window_clipboard; mode "default"
+    # Focused output
+    bindsym o exec $screenshot_focused_output; mode "default"
+    bindsym Ctrl+o exec $screenshot_focused_output_clipboard; mode "default"
+
+    # Exit screenshot mode menu
+    bindsym Return mode "default"
+    bindsym Escape mode "default"
+    bindsym $mod+Print mode "default"
+}
+bindsym $mod+Print mode $screenshot

@@ -5,12 +5,14 @@ My personal configs for Wayland. Currently include:
 - foot
 - sway
 - zsh
-- starship
 
 ## Other dependencies
 
-- [autotiling](https://github.com/nwg-piotr/autotiling)
 - [CaskaydiaCove Nerd Font](https://www.nerdfonts.com/font-downloads)
+- [starship](starship.rs)
+- [autotiling](https://github.com/nwg-piotr/autotiling)
+- [waybar](https://github.com/Alexays/Waybar)
+- [flameshot](https://github.com/flameshot-org/flameshot)
 - [fnm](https://github.com/Schniz/fnm)
 - [GNU Stow](https://www.gnu.org/software/stow/)
 
