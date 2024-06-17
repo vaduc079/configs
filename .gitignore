@@ -1,3 +1,4 @@
 .zcomet
 *.zcompdump*
+.zcompcache
 .histfile
