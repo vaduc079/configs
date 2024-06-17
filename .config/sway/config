@@ -29,6 +29,8 @@ set $screenlock 'swaylock --config /etc/swaylock/openSUSEway.conf'
 # Update Waybar scratchpad module
 set $update_waybar_scratchpad 'pkill -SIGRTMIN+10 waybar'
 
+set $smart-paste '~/.config/sway/scripts/smart-paste.sh'
+
 #
 ### Idle configuration
 #
@@ -65,6 +67,9 @@ exec swayidle -w \
 
     # Start volume control
     bindsym $mod+Ctrl+m exec pavucontrol
+
+    # Open clipboard manager
+    bindsym $mod+c exec cliphist list | wofi -S dmenu | cliphist decode | wl-copy && exec $smart-paste
 
     # Drag floating windows by holding down $mod and left mouse button.
     # Resize them with right mouse button + $mod.

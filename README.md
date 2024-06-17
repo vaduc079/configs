@@ -14,6 +14,8 @@ My personal configs for Wayland. Currently include:
 - [starship](starship.rs) - Shell prompt
 - [autotiling](https://github.com/nwg-piotr/autotiling) - Automatically switch sway/i3 window split orientation script
 - [flameshot](https://github.com/flameshot-org/flameshot) - Screenshot software
+- [cliphist](https://github.com/sentriz/cliphist) - Wayland clipboard manager
+- [wtype](https://github.com/atx/wtype) - xdotool type for wayland
 - [fnm](https://github.com/Schniz/fnm) - Node.js version manager,
 - [GNU Stow](https://www.gnu.org/software/stow/) - Symlink farm manager
 

@@ -8,6 +8,8 @@ set $wob wob --config ~/.config/sway/wob/wob.ini
 #
 exec autotiling
 exec_always ! pidof foot && foot --server
+# Clipboard manager
+exec wl-paste --watch cliphist store
 
 # Get auth work with polkit-gnome
 exec /usr/libexec/polkit-gnome-authentication-agent-1
