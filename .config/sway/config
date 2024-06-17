@@ -15,7 +15,7 @@ set $browser google-chrome
 set $file_manager nemo
 
 # Your preferred application launcher
-set $menu wofi --conf=/etc/wofi/config --style=/etc/wofi/style.css
+set $menu wofi -I
 
 # Auto resize floating apps command
 set $auto_resize_apps "(?i)(firefox|google-chrome)"

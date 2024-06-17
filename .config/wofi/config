@@ -1,0 +1,19 @@
+hide_scroll=true
+show=drun
+width=600
+lines=10
+line_wrap=word
+term=foot
+allow_markup=true
+layer=top
+allow_images=true
+insensitive=true
+# prompt=
+image_size=15
+location=center
+
+run-always_parse_args=true
+run-show_all=true
+run-print_command=true
+
+drun-display_generic=true
