@@ -10,6 +10,7 @@ My personal configs for Wayland. Currently include:
 
 ## Other dependencies
 
+- [fcitx5](https://fcitx-im.org/wiki/Fcitx_5) - Input method
 - [CaskaydiaCove Nerd Font](https://www.nerdfonts.com/font-downloads)
 - [starship](starship.rs) - Shell prompt
 - [autotiling](https://github.com/nwg-piotr/autotiling) - Automatically switch sway/i3 window split orientation script
