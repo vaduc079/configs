@@ -1,5 +1,5 @@
 hide_scroll=true
-show=drun
+show=drun,run
 width=600
 lines=10
 line_wrap=word
@@ -14,6 +14,6 @@ location=center
 
 run-always_parse_args=true
 run-show_all=true
-run-print_command=true
+run-print_command=false
 
 drun-display_generic=true
