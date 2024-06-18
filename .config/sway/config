@@ -9,13 +9,17 @@
 # Logo key. Use Mod1 for Alt.
 set $mod Mod4
 
+# Script path
+set $scripts "~/.config/sway/scripts"
+set $smart-paste "$scripts/smart-paste.sh"
+
+# Your preferred application launcher
+set $menu wofi -I
 # Your preferred terminal emulator
 set $term footclient
 set $browser google-chrome
 set $file_manager nemo
-
-# Your preferred application launcher
-set $menu wofi -I
+set $clipboard_manager "cliphist list | wofi -S dmenu | cliphist decode | wl-copy && exec $smart-paste"
 
 # Auto resize floating apps command
 set $auto_resize_apps "(?i)(firefox|google-chrome)"
@@ -24,12 +28,10 @@ set $resize_on_float \
     move position center
 
 # Lockscreen configuration
-set $screenlock 'swaylock --config /etc/swaylock/openSUSEway.conf'
+set $screenlock "swaylock --config /etc/swaylock/openSUSEway.conf"
 
 # Update Waybar scratchpad module
-set $update_waybar_scratchpad 'pkill -SIGRTMIN+10 waybar'
-
-set $smart-paste '~/.config/sway/scripts/smart-paste.sh'
+set $update_waybar_scratchpad "pkill -SIGRTMIN+10 waybar"
 
 #
 ### Idle configuration
@@ -69,7 +71,7 @@ exec swayidle -w \
     bindsym $mod+Ctrl+m exec pavucontrol
 
     # Open clipboard manager
-    bindsym $mod+c exec cliphist list | wofi -S dmenu | cliphist decode | wl-copy && exec $smart-paste
+    bindsym $mod+c exec $clipboard_manager
 
     # Drag floating windows by holding down $mod and left mouse button.
     # Resize them with right mouse button + $mod.
