@@ -1,6 +1,9 @@
 #!/bin/zsh
 export ZDOTDIR=$HOME/.config/zsh
 
+# For gnome-keyring and gcr-ssh-agent
+export SSH_AUTH_SOCK=$XDG_RUNTIME_DIR/gcr/ssh
+
 # history
 HISTFILE=~/.config/zsh/.histfile
 HISTSIZE=1000
