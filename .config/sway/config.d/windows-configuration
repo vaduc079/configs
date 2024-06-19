@@ -43,6 +43,8 @@ for_window [urgent=latest] focus
 # Bind window to workspace
 #
 assign [app_id="discord"] $ws2
+assign [class="discord"] $ws2
 assign [app_id="(?i)slack"] $ws2
+assign [class="(?i)slack"] $ws2
 assign [app_id="DBeaver"] $ws4
 assign [title="Spotify Premium"] $ws10
