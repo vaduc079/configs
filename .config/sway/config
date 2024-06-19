@@ -19,7 +19,7 @@ set $menu wofi -I
 set $term footclient
 set $browser GTK_IM_MODULE=fcitx firefox
 set $file_manager nemo
-set $clipboard_manager "cliphist list | wofi -S dmenu | cliphist decode | wl-copy && exec $smart-paste"
+set $clipboard_manager "cliphist list | wofi -d | cliphist decode | wl-copy && exec $smart-paste"
 
 # Auto resize floating apps command
 set $auto_resize_apps "(?i)(firefox|google-chrome)"

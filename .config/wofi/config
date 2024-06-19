@@ -1,14 +1,14 @@
 hide_scroll=true
 show=drun,run
-width=600
-lines=10
-line_wrap=word
+width=550
+height=400
+line_wrap=char
 term=foot
-allow_markup=true
+allow_markup=false
 layer=overlay
 allow_images=true
-insensitive=false
-# prompt=
+insensitive=true
+prompt=
 image_size=15
 location=center
 
