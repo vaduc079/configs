@@ -12,7 +12,6 @@
 
 @define-color cc-bg rgba(30, 30, 46, 0.9);
 
-/* @define-color noti-text-color rgba(205, 214, 244, 1); */
 @define-color noti-text-color #f8f8f8;
 @define-color noti-border-color-hex #cdd6f4;
 @define-color noti-border-color rgba(205, 214, 244, 0.4);
