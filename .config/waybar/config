@@ -8,48 +8,47 @@
     "modules-left": [
         "sway/workspaces",
         "custom/scratchpad",
-        "sway/mode",
-        "tray"
+        "tray",
+        "sway/mode"
     ],
     "modules-center": ["sway/window"],
     "modules-right": [
-        "custom/zypper",
         "network",
         "bluetooth",
-        "disk",
+        "custom/zypper",
         "cpu",
         "memory",
-        "temperature",
         "backlight",
-        "battery",
-        "battery#bat2",
         "pulseaudio",
-        "custom/layout",
         "clock",
+        "battery",
         "custom/notification"
     ],
     "sway/mode": {
-        "format": " {}"
+        "format": "{}"
     },
     "sway/workspaces": {
         "all-outputs": false,
         "disable-scroll": true,
-        "format": "{name} {icon}",
+        "format": "{icon}",
         "format-icons": {
+            "1": "󰈹",
+            "2": "",
+            "3": "",
+            "4": "",
+            "5": "",
+            "6": "6",
+            "7": "7",
+            "8": "8",
+            "9": "9",
             "10": "",
             "urgent": "󱈸",
-            "focused": "",
             "default": ""
         }
     },
     "sway/window": {
-        "format": "{title} [{shell}]",
-        "max-length": 80,
-        "tooltip": false
-    },
-    "custom/layout": {
-        "tooltip": false,
-        "exec": "swaymsg -mrt subscribe '[\"input\"]' | jq -r --unbuffered \"select(.change == \\\"xkb_layout\\\") | .input | select(.type == \\\"keyboard\\\") | .xkb_active_layout_name | .[0:2]\""
+        "format": "{shell}",
+        "tooltip": true
     },
     "custom/zypper": {
         "format": "{} ",
@@ -72,7 +71,7 @@
     },
     "clock": {
         // "timezone": "America/New_York",
-        "format": " {:%b %d %Y %R}",
+        "format": " {:%R}",
         "format-alt": "{:%a %d %b w:%V %H:%M}",
         "tooltip-format": "<span color='#35b9ab'><tt><small>{calendar}</small></tt></span>",
         "calendar": {
@@ -109,7 +108,7 @@
         "interval": 10
     },
     "memory": {
-        "format": "{percentage}%/{swapPercentage}% ",
+        "format": "{percentage}% ",
         "tooltip-format": "{used:0.1f}GiB/{swapUsed:0.1f}GiB used",
         "states": {
             "warning": 65,
@@ -127,7 +126,8 @@
     "backlight": {
         // "device": "acpi_video1",
         "format": "{percent}% {icon}",
-        "format-icons": ["󰖔", ""]
+        "format-icons": ["󰖔", ""],
+        "tooltip": false
     },
     "battery": {
         "states": {
@@ -137,7 +137,7 @@
         },
         "format": "{capacity}% {icon}",
         "format-charging": "{capacity}% ",
-        "format-plugged": "{capacity}% ",
+        "format-plugged": "",
         "format-icons": ["", "", "", "", ""]
     },
     "battery#bat2": {
@@ -153,19 +153,19 @@
     },
     "bluetooth": {
 	    "format": "",
-	    "format-disabled": "",
-	    "format-off": "",
-	    "format-connected": " {num_connections}",
+	    "format-disabled": "󰂲",
+	    "format-off": "󰂲",
+	    "format-connected": "󰂱 {num_connections}",
 	    // "format-connected": " {device_alias}",
 	    "tooltip-format": "{controller_address} {status}\n\n{num_connections} connected",
 	    "tooltip-format-disabled": "{status}",
 	    "tooltip-format-connected": "{controller_address}\n\n{num_connections} connected\n\n{device_enumerate}",
 	    "tooltip-format-enumerate-connected": "{device_alias}\t{device_address}",
-	    "format-connected-battery": " {device_alias} {device_battery_percentage}%",
+	    "format-connected-battery": "󰂱 {device_alias} {device_battery_percentage}%",
 	    "tooltip-format-enumerate-connected-battery": "{device_alias}\t{device_address}\t{device_battery_percentage}%",
 	    // "format-device-preference": [ "device1", "device2" ], // preference list deciding the displayed device
 	    "on-click": "bluetooth toggle; pkill -SIGRTMIN+8 waybar",
-	    "on-click-right": "exec alacritty -e sh -c 'bluetoothctl'"
+	    "on-click-right": "exec foot zsh -c 'bluetoothctl'"
     },
     "pulseaudio": {
         "format": "{volume}% {icon}",
