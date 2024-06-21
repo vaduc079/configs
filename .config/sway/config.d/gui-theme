@@ -5,17 +5,10 @@ bar {
     swaybar_command waybar
 }
 
-# openSUSE theme
-set $green          #6da741
-set $medium_green   #73ba25
-set $blue           #173f4f
-set $ligh_teal      #00a489
-set $teal           #35b9ab
-set $white          #ffffff
-set $urgentred		#e53935
-
-#class		        	border			bground			text		    indicator		child_border
-client.focused          $green          $blue           $medium_green
-client.unfocused        $ligh_teal      $blue           $teal
-client.focused_inactive $green          $ligh_teal      $blue
-client.urgent           $urgentred      $urgentred      $white
+# class                 border  bground text    indicator child_border
+client.focused          #6272A4 #6272A4 #F8F8F2 #6272A4   #6272A4
+client.focused_inactive #44475A #44475A #F8F8F2 #44475A   #44475A
+client.unfocused        #282A36 #282A36 #BFBFBF #282A36   #282A36
+client.urgent           #44475A #FF5555 #F8F8F2 #FF5555   #FF5555
+client.placeholder      #282A36 #282A36 #F8F8F2 #282A36   #282A36
+client.background       #F8F8F2
