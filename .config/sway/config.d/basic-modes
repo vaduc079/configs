@@ -5,7 +5,7 @@ set $up k
 set $right l
 
 # Lockscreen configuration
-set $screenlock 'swaylock --config /etc/swaylock/openSUSEway.conf'
+set $screenlock "swaylock"
 
 #
 # System mode menu

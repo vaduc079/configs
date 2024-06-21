@@ -29,7 +29,7 @@ set $resize_on_float \
     move position center
 
 # Lockscreen configuration
-set $screenlock "swaylock --config /etc/swaylock/openSUSEway.conf"
+set $screenlock "swaylock"
 
 # Update Waybar scratchpad module
 set $update_waybar_scratchpad "pkill -SIGRTMIN+10 waybar"
