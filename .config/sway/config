@@ -14,12 +14,13 @@ set $scripts "~/.config/sway/scripts"
 set $smart-paste "$scripts/smart-paste.sh"
 
 # Your preferred application launcher
-set $menu wofi -I
+set $menu fuzzel
 # Your preferred terminal emulator
 set $term footclient
 set $browser GTK_IM_MODULE=fcitx firefox
 set $file_manager nemo
-set $clipboard_manager "cliphist list | wofi -d | cliphist decode | wl-copy && exec $smart-paste"
+set $clipboard_manager "cliphist list | fuzzel -d -w 50 | cliphist decode | wl-copy && exec $smart-paste"
+set $emoji_picker 'BEMOJI_PICKER_CMD="fuzzel -d -w 40" bemoji -tn'
 
 # Auto resize floating apps command
 set $auto_resize_apps "(?i)(firefox|google-chrome)"
@@ -72,6 +73,9 @@ exec swayidle -w \
 
     # Open clipboard manager
     bindsym $mod+c exec $clipboard_manager
+
+    # Open emoji picker
+    bindsym $mod+period exec $emoji_picker
 
     # Drag floating windows by holding down $mod and left mouse button.
     # Resize them with right mouse button + $mod.

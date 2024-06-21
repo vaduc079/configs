@@ -5,7 +5,7 @@ My personal configs for Wayland. Currently include:
 - [foot](https://codeberg.org/dnkl/foot) - Wayland terminal emulator
 - [sway](https://github.com/swaywm/sway) - i3-compatible Wayland compositor
 - [waybar](https://github.com/Alexays/Waybar) - Wayland bar for Sway and Wlroots based compositors
-- [wofi](https://hg.sr.ht/~scoopta/wofi) - A launcher/menu program for wlroots based wayland compositors
+- [fuzzel](https://codeberg.org/dnkl/fuzzel) - A launcher/menu program for wlroots based wayland compositors
 - [swaync](https://github.com/ErikReider/SwayNotificationCenter) - GTK based notification daemon for SwayWM
 - zsh
 
