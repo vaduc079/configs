@@ -55,7 +55,7 @@
         "interval": 3600,
         "exec": "zypper lu | grep 'v |' | wc -l; echo 'packages to update'",
         "exec-if": "exit 0",
-        "on-click": "exec foot sudo sh -c 'zypper ref; zypper dup; pkill -SIGRTMIN+8 waybar'",
+        "on-click": "exec footclient sudo zsh -c 'zypper ref; zypper dup; pkill -SIGRTMIN+8 waybar; read -sk \"?Press any key to continue...\"'",
         "signal": 8
     },
     "idle_inhibitor": {
@@ -165,7 +165,7 @@
 	    "tooltip-format-enumerate-connected-battery": "{device_alias}\t{device_address}\t{device_battery_percentage}%",
 	    // "format-device-preference": [ "device1", "device2" ], // preference list deciding the displayed device
 	    "on-click": "bluetooth toggle; pkill -SIGRTMIN+8 waybar",
-	    "on-click-right": "exec foot zsh -c 'bluetoothctl'"
+	    "on-click-right": "exec footclient zsh -c 'bluetoothctl'"
     },
     "pulseaudio": {
         "format": "{volume}% {icon}",
