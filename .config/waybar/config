@@ -9,18 +9,20 @@
         "sway/workspaces",
         "custom/scratchpad",
         "tray",
+        "sway/window",
         "sway/mode"
     ],
-    "modules-center": ["sway/window"],
+    "modules-center": [
+        "clock"
+    ],
     "modules-right": [
         "network",
         "bluetooth",
+        "backlight",
+        "pulseaudio",
         "custom/zypper",
         "cpu",
         "memory",
-        "backlight",
-        "pulseaudio",
-        "clock",
         "battery",
         "custom/notification"
     ],
@@ -48,7 +50,11 @@
     },
     "sway/window": {
         "format": "{shell}",
-        "tooltip": true
+        "tooltip": true,
+        "rewrite": {
+            "xwayland": "<span color='#ee2e24'></span>",
+            "xdg_shell": "<span color='#ffbd00'></span>"
+        }
     },
     "custom/zypper": {
         "format": "{} ",
@@ -71,7 +77,7 @@
     },
     "clock": {
         // "timezone": "America/New_York",
-        "format": " {:%R}",
+        "format": "{:%b %d %Y - %R}",
         "format-alt": "{:%a %d %b w:%V %H:%M}",
         "tooltip-format": "<span color='#35b9ab'><tt><small>{calendar}</small></tt></span>",
         "calendar": {

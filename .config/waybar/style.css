@@ -80,6 +80,7 @@ window#waybar.solo {
   border-bottom: 1px solid @white;
 }
 
+#window,
 #tray,
 #network,
 #bluetooth,
