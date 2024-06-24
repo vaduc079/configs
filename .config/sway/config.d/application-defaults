@@ -20,7 +20,7 @@ for_window [app_id="org.gnome.(Nautilus|Weather)"] floating enable
 for_window [app_id="nm-connection-editor"] floating enable
 for_window [app_id="psensor"] floating enable
 for_window [app_id="evolution-alarm-notify"] floating enable
-for_window [app_id="nemo"] floating enable
+for_window [app_id="nemo"] floating enable, resize set 1200 900
 for_window [app_id="evolution" title="Compose Message"] floating enable
 for_window [app_id="evolution" title="Re(.*)"] floating enable
 for_window [app_id="evolution" title="Fwd(.*)"] floating enable
@@ -55,11 +55,14 @@ for_window [urgent=latest] focus
 #
 # Bind window to workspace
 #
+assign [app_id="firefox"] $ws1
+assign [app_id="google-chrome"] $ws1
 assign [app_id="discord"] $ws2
 assign [class="discord"] $ws2
 assign [app_id="(?i)slack"] $ws2
 assign [class="(?i)slack"] $ws2
 assign [app_id="DBeaver"] $ws4
+assign [class="Postman"] $ws5
 assign [title="Spotify Premium"] $ws10
 
 #
