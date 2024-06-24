@@ -47,9 +47,20 @@ bindsym $mod+Shift+Right move right
 # Workspaces:
 #
 
-# Cycle through workspaces
+# Cycle through workspaces on output
 bindsym $mod+tab workspace next_on_output
 bindsym $mod+Shift+tab workspace prev_on_output
+
+# Move workspace to output
+bindsym $mod+Ctrl+$left move workspace to output left
+bindsym $mod+Ctrl+$down move workspace to output down
+bindsym $mod+Ctrl+$up move workspace to output up
+bindsym $mod+Ctrl+$right move workspace to output right
+# with arrow keys
+bindsym $mod+Ctrl+Left move workspace to output left
+bindsym $mod+Ctrl+Down move workspace to output down
+bindsym $mod+Ctrl+Up move workspace to output up
+bindsym $mod+Ctrl+Right move workspace to output right
 
 # Switch to workspace
 bindsym $mod+1 workspace $ws1
