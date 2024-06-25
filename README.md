@@ -13,9 +13,10 @@ My personal configs for Wayland. Currently include:
 
 - [fcitx5](https://fcitx-im.org/wiki/Fcitx_5) - Input method
 - [CaskaydiaCove Nerd Font](https://www.nerdfonts.com/font-downloads)
-- [starship](starship.rs) - Shell prompt
+- [starship](https://starship.rs) - Shell prompt
 - [autotiling](https://github.com/nwg-piotr/autotiling) - Automatically switch sway/i3 window split orientation script
 - [flameshot](https://github.com/flameshot-org/flameshot) - Screenshot software
+- [bemoji](https://github.com/marty-oehme/bemoji) - Emoji picker with support for fuzzel
 - [cliphist](https://github.com/sentriz/cliphist) - Wayland clipboard manager
 - [wtype](https://github.com/atx/wtype) - xdotool type for wayland
 - [fnm](https://github.com/Schniz/fnm) - Node.js version manager,
