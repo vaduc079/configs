@@ -7,6 +7,7 @@ My personal configs for Wayland. Currently include:
 - [waybar](https://github.com/Alexays/Waybar) - Wayland bar for Sway and Wlroots based compositors
 - [fuzzel](https://codeberg.org/dnkl/fuzzel) - A launcher/menu program for wlroots based wayland compositors
 - [swaync](https://github.com/ErikReider/SwayNotificationCenter) - GTK based notification daemon for SwayWM
+- [lazygit](https://github.com/jesseduffield/lazygit) - A simple terminal UI for git commands
 - zsh
 
 ## Other dependencies
