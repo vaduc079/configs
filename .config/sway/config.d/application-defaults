@@ -14,6 +14,7 @@ set $ws10 "10"
 #
 # Set floating for apps needing it
 #
+
 # Wayland default floats
 for_window [app_id="(Calendar|Calculator|Power-statistics|Control-center)"] floating enable
 for_window [app_id="org.gnome.(Nautilus|Weather)"] floating enable
@@ -31,7 +32,6 @@ for_window [app_id="firefox" title="Picture-in-Picture"] floating enable
 for_window [app_id="firefox" title="Pushbullet – Mozilla Firefox"] floating enable
 for_window [app_id="firefox" title="About Mozilla Firefox"] floating enable
 for_window [app_id="firefox" title="^Library$"] floating enable
-for_window [app_id="nwg-displays"] floating enable
 
 # set floating for window roles
 for_window [window_role="pop-up"] floating enable
@@ -46,10 +46,14 @@ for_window [window_role="About"] floating enable
 for_window [title="Picture-in-picture"] floating enable
 
 # Set floating for special apps
+for_window [app_id="nwg-displays"] floating enable
 for_window [app_id="pavucontrol"] floating enable, resize set 800 600, move position center
 for_window [app_id="mpv"] floating enable, resize set 1600 900, move position center
-# Ensure that Flameshot is correctly positioned on multiple outputs (monitors)
+## Ensure that Flameshot is correctly positioned on multiple outputs (monitors)
 for_window [app_id="flameshot"] border pixel 0, floating enable, fullscreen disable, move absolute position 0 0
+
+for_window [app_id="xdg-desktop-portal-gtk" title="Open Files"] floating enable, resize set 1200 900
+for_window [class="Xdg-desktop-portal-gtk" title="Open Files"] floating enable, resize set 1200 900
 
 # Switch to workspace with urgent window automatically
 for_window [urgent=latest] focus
