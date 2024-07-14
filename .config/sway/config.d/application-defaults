@@ -23,6 +23,7 @@ for_window [app_id="psensor"] floating enable
 for_window [app_id="evolution-alarm-notify"] floating enable
 for_window [app_id="nemo"] floating enable, resize set 1200 900
 for_window [app_id="file-roller"] floating enable
+for_window [app_id="org.gnome.FileRoller"] floating enable
 for_window [app_id="evolution" title="Compose Message"] floating enable
 for_window [app_id="evolution" title="Re(.*)"] floating enable
 for_window [app_id="evolution" title="Fwd(.*)"] floating enable
