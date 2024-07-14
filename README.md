@@ -12,6 +12,7 @@ My personal configs for Wayland. Currently include:
 
 ## Other dependencies
 
+- [kanshi](https://sr.ht/~emersion/kanshi/) - Dynamic display configuration
 - [fcitx5](https://fcitx-im.org/wiki/Fcitx_5) - Input method
 - [CaskaydiaCove Nerd Font](https://www.nerdfonts.com/font-downloads)
 - [starship](https://starship.rs) - Shell prompt
