@@ -59,7 +59,7 @@
     "custom/zypper": {
         "format": "{} ",
         "interval": 3600,
-        "exec": "zypper lu | grep 'v |' | wc -l; echo 'packages to update'",
+        "exec": "zypper lu | grep 'v  |' | wc -l; echo 'packages to update'",
         "exec-if": "exit 0",
         "on-click": "exec footclient sudo zsh -c 'zypper ref; zypper dup; pkill -SIGRTMIN+8 waybar; read -sk \"?Press any key to continue...\"'",
         "signal": 8
