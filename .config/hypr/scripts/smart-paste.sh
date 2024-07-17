@@ -1,5 +1,9 @@
 #!/bin/sh
 
+if [ ! "$(wl-paste)" ]; then
+	exit 0
+fi
+
 # Get the focused app_id
 class=$(hyprctl activewindow -j | jq -r '.class')
 
