@@ -22,7 +22,6 @@ My personal configs for Wayland. Currently this setup includes:
     - [autotiling](https://github.com/nwg-piotr/autotiling) - Automatically switch sway/i3 window split orientation script
   - [hyprland](https://hyprland.org/) - Dynamic tiling Wayland compositor based on wlroots that doesn't sacrifice on its looks.
     - [hypridle](https://github.com/hyprwm/hypridle) - Hyprland's idle daemon
-    - [hy3](https://github.com/outfoxxed/hy3) - Hyprland plugin for an i3 / sway like manual tiling layout
     - [swaybg](https://github.com/swaywm/swaybg) - Wallpaper tool for Wayland compositors
 
 ## Other dependencies
