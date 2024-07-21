@@ -1,19 +1,25 @@
 #!/bin/sh
+
 alias ls='ls --color=auto'
 alias ll='ls -lavh'
 alias l='ls -lAvh --ignore=.\?\*'
 
-# vim
+alias load_zshrc='source ~/.zshrc'
+
+#######
+# vim #
+#######
+
 alias vim='nvim'
 alias vi='nvim'
 
-alias load_zshrc='source ~/.zshrc'
+##########################
+# Update/install scripts #
+##########################
 
-# starship
+# starship - shell prompt
 alias update_starship='curl -sS https://starship.rs/install.sh | sh'
-
-# greenclip
-alias greenclip_clear='pkill greenclip && greenclip clear && greenclip daemon &'
-
-# fnm
+# fnm - node version manager
 alias update_fnm='curl -fsSL https://fnm.vercel.app/install | bash -s -- --skip-shell'
+# uosc - mpv UI
+alias update_uosc='/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/tomasklaen/uosc/HEAD/installers/unix.sh)"'
