@@ -80,7 +80,7 @@
     },
     "clock": {
         // "timezone": "America/New_York",
-        "format": "{:%b %d %Y - %R}",
+        "format": "{:%a, %b %d, %Y - %R}",
         "format-alt": "{:%a %d %b w:%V %H:%M}",
         "tooltip-format": "<span color='#35b9ab'><tt><small>{calendar}</small></tt></span>",
         "calendar": {
