@@ -1,12 +1,11 @@
 #!/bin/zsh
 
 export EDITOR=nvim
-export XMODIFIERS=@im=fcitx
-export QT_IM_MODULE=fcitx
-# Fix firefox flickering with fcitx5, set until fcitx5 v5.1.10
-# Might want to remove gtk-im-module set in .config/gtk-4.0/settings.ini too
-# export GTK_IM_MODULE=fcitx
+export HOMEBREW_NO_ANALYTICS=1
 
-# typeset -U path PATH
-# [ -d "$HOME/.local/bin" ] && path=($path $HOME/.local/bin)
-# export PATH
+typeset -U path PATH
+# rancher desktop
+[ -d "$HOME/.rd/bin" ] && path=($path $HOME/.rd/bin)
+export PATH
+
+eval "$(/opt/homebrew/bin/brew shellenv)"

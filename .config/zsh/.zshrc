@@ -1,9 +1,6 @@
 #!/bin/zsh
 export ZDOTDIR=$HOME/.config/zsh
 
-# For gnome-keyring and gcr-ssh-agent
-export SSH_AUTH_SOCK=$XDG_RUNTIME_DIR/gcr/ssh
-
 # history
 HISTFILE=~/.config/zsh/.histfile
 HISTSIZE=1000
@@ -16,7 +13,13 @@ setopt INC_APPEND_HISTORY
 bindkey -v
 # End of lines configured by zsh-newuser-install
 # The following lines were added by compinstall
-zstyle :compinstall filename '/home/ducv/.zshrc'
+zstyle :compinstall filename '$HOME/.zshrc'
+
+# brew shell completion
+if type brew &>/dev/null
+then
+  FPATH="$(brew --prefix)/share/zsh/site-functions:${FPATH}"
+fi
 
 autoload -Uz compinit
 compinit
@@ -36,15 +39,14 @@ source $ZDOTDIR/.plugins
 
 # autocomplete
 autoload -U +X bashcompinit && bashcompinit
-complete -o nospace -C /usr/bin/terraform terraform
-complete -C '/usr/bin/aws_completer' aws
+# complete -o nospace -C /usr/bin/terraform terraform
+# complete -C '/usr/bin/aws_completer' aws
 
-# fnm
-FNM_PATH="/home/ducva/.local/share/fnm"
-if [ -d "$FNM_PATH" ]; then
-  export PATH="/home/ducva/.local/share/fnm:$PATH"
-  eval "`fnm env --use-on-cd`"
-fi
+# let gpg know where to read input from
+export GPG_TTY=$(tty)
+
+# use mise tools without prefix
+eval "$(/opt/homebrew/bin/mise activate zsh)"
 
 # starship prompt
 eval "$(starship init zsh)"
