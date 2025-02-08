@@ -161,6 +161,7 @@ backspace = ['close-all-windows-but-current', 'mode main']
 #s = ['layout sticky tiling', 'mode main']
 
 [mode.join.binding]
+esc = 'mode main'
 alt-shift-h = ['join-with left', 'mode main']
 alt-shift-j = ['join-with down', 'mode main']
 alt-shift-k = ['join-with up', 'mode main']
@@ -195,6 +196,14 @@ if.app-id = 'com.apple.ActivityMonitor'
 run = 'layout floating'
 
 [[on-window-detected]]
+if.app-id = 'io.rancherdesktop.app'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.jumpcloud.pwm.desktop.live'
+run = 'layout floating'
+
+[[on-window-detected]]
 if.app-id = 'org.mozilla.firefox'
 run = 'move-node-to-workspace 1'
 
@@ -217,10 +226,6 @@ run = 'move-node-to-workspace 4'
 [[on-window-detected]]
 if.app-id = 'com.proxyman.NSProxy'
 run = 'move-node-to-workspace 4'
-
-[[on-window-detected]]
-if.app-id = 'io.rancherdesktop.app'
-run = 'layout floating'
 
 [[on-window-detected]]
 if.app-id = 'com.spotify.client'
