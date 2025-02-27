@@ -3,3 +3,4 @@
 \.zcompdump*
 \.zcomcache
 README.md
+.*\.code-profile
