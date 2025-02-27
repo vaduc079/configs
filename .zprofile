@@ -2,6 +2,8 @@
 
 export EDITOR=nvim
 export HOMEBREW_NO_ANALYTICS=1
+# for shopback repositories
+export SB_GIT_HOOKS_DIR=$HOME/.sb-git-hooks
 
 typeset -U path PATH
 # rancher desktop
