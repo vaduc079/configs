@@ -1,128 +1,129 @@
 {
-  "profiles": [
-    {
-      "complex_modifications": {
-        "rules": [
-          {
-            "description": "Change button5 + mouse movement to scroll",
-            "manipulators": [
-              {
-                "from": {
-                  "modifiers": { "optional": ["any"] },
-                  "pointing_button": "button5"
-                },
-                "to": [
-                  {
-                    "set_variable": {
-                      "key_up_value": false,
-                      "name": "enable_mouse_motion_to_scroll",
-                      "value": true
+    "global": { "show_in_menu_bar": false },
+    "profiles": [
+        {
+            "complex_modifications": {
+                "rules": [
+                    {
+                        "description": "Change button5 + mouse movement to scroll",
+                        "manipulators": [
+                            {
+                                "from": {
+                                    "modifiers": { "optional": ["any"] },
+                                    "pointing_button": "button5"
+                                },
+                                "to": [
+                                    {
+                                        "set_variable": {
+                                            "key_up_value": false,
+                                            "name": "enable_mouse_motion_to_scroll",
+                                            "value": true
+                                        }
+                                    }
+                                ],
+                                "to_if_alone": [{ "pointing_button": "button5" }],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "name": "enable_mouse_motion_to_scroll",
+                                        "type": "variable_if",
+                                        "value": true
+                                    }
+                                ],
+                                "from": { "modifiers": { "optional": ["any"] } },
+                                "options": {
+                                    "momentum_scroll_enabled": true,
+                                    "speed_multiplier": 1.0
+                                },
+                                "type": "mouse_motion_to_scroll"
+                            }
+                        ]
+                    },
+                    {
+                        "manipulators": [
+                            {
+                                "description": "Change caps_lock to escape if pressed alone, hypr if pressed with other keys",
+                                "from": {
+                                    "key_code": "caps_lock",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "left_shift",
+                                        "modifiers": ["left_command", "left_control", "left_option"]
+                                    }
+                                ],
+                                "to_if_alone": [{ "key_code": "escape" }],
+                                "type": "basic"
+                            }
+                        ]
+                    },
+                    {
+                        "enabled": false,
+                        "manipulators": [
+                            {
+                                "description": "Change fn + caps_lock to caps_lock",
+                                "from": {
+                                    "key_code": "caps_lock",
+                                    "modifiers": ["fn"]
+                                },
+                                "to": [{ "key_code": "caps_lock" }],
+                                "type": "basic"
+                            }
+                        ]
                     }
-                  }
-                ],
-                "to_if_alone": [{ "pointing_button": "button5" }],
-                "type": "basic"
-              },
-              {
-                "conditions": [
-                  {
-                    "name": "enable_mouse_motion_to_scroll",
-                    "type": "variable_if",
-                    "value": true
-                  }
-                ],
-                "from": { "modifiers": { "optional": ["any"] } },
-                "type": "mouse_motion_to_scroll",
-                "options": {
-                  "momentum_scroll_enabled": true,
-                  "speed_multiplier": 1.2
+                ]
+            },
+            "devices": [
+                {
+                    "identifiers": {
+                        "is_keyboard": true,
+                        "product_id": 20811,
+                        "vendor_id": 20307
+                    },
+                    "ignore": true
+                },
+                {
+                    "disable_built_in_keyboard_if_exists": true,
+                    "identifiers": {
+                        "is_keyboard": true,
+                        "is_pointing_device": true,
+                        "product_id": 20811,
+                        "vendor_id": 20307
+                    }
+                },
+                {
+                    "identifiers": {
+                        "is_keyboard": true,
+                        "product_id": 647,
+                        "vendor_id": 64562
+                    },
+                    "ignore": true
+                },
+                {
+                    "identifiers": {
+                        "is_keyboard": true,
+                        "product_id": 24926,
+                        "vendor_id": 7504
+                    },
+                    "ignore": true
+                },
+                {
+                    "identifiers": {
+                        "is_keyboard": true,
+                        "is_pointing_device": true,
+                        "product_id": 64,
+                        "vendor_id": 6421
+                    },
+                    "ignore": false,
+                    "manipulate_caps_lock_led": false
                 }
-              }
-            ]
-          },
-          {
-            "manipulators": [
-              {
-                "description": "Change caps_lock to escape if pressed alone, hypr if pressed with other keys",
-                "from": {
-                  "key_code": "caps_lock",
-                  "modifiers": { "optional": ["any"] }
-                },
-                "to": [
-                  {
-                    "key_code": "left_shift",
-                    "modifiers": ["left_command", "left_control", "left_option"]
-                  }
-                ],
-                "to_if_alone": [{ "key_code": "escape" }],
-                "type": "basic"
-              }
-            ]
-          },
-          {
-            "enabled": false,
-            "manipulators": [
-              {
-                "description": "Change fn + caps_lock to caps_lock",
-                "from": {
-                  "key_code": "caps_lock",
-                  "modifiers": ["fn"]
-                },
-                "to": [{ "key_code": "caps_lock" }],
-                "type": "basic"
-              }
-            ]
-          }
-        ]
-      },
-      "devices": [
-        {
-          "identifiers": {
-            "is_keyboard": true,
-            "product_id": 20811,
-            "vendor_id": 20307
-          },
-          "ignore": true
-        },
-        {
-          "disable_built_in_keyboard_if_exists": true,
-          "identifiers": {
-            "is_keyboard": true,
-            "is_pointing_device": true,
-            "product_id": 20811,
-            "vendor_id": 20307
-          }
-        },
-        {
-          "identifiers": {
-            "is_keyboard": true,
-            "product_id": 647,
-            "vendor_id": 64562
-          },
-          "ignore": true
-        },
-        {
-          "identifiers": {
-            "is_keyboard": true,
-            "product_id": 24926,
-            "vendor_id": 7504
-          },
-          "ignore": true
-        },
-        {
-          "identifiers": {
-            "is_keyboard": true,
-            "is_pointing_device": true,
-            "product_id": 64,
-            "vendor_id": 6421
-          },
-          "ignore": false,
-          "manipulate_caps_lock_led": false
+            ],
+            "name": "Default profile",
+            "selected": true,
+            "virtual_hid_keyboard": { "keyboard_type_v2": "ansi" }
         }
-      ],
-      "name": "Default profile",
-      "selected": true,
-      "virtual_hid_keyboard": { "keyboard_type_v2": "ansi" }
-    }
-  ]
+    ]
 }
