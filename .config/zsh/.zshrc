@@ -50,3 +50,5 @@ eval "$(/opt/homebrew/bin/mise activate zsh)"
 
 # starship prompt
 eval "$(starship init zsh)"
+
+eval "$(zoxide init zsh)"

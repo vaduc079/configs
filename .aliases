@@ -1,10 +1,13 @@
 #!/bin/sh
 
-alias ls='ls --color=auto'
-alias ll='ls -lavh'
-alias l='ls -lAvh --ignore=.\?\*'
+# eza, better ls
+alias ls='eza'
+alias ll='eza --icons --group-directories-first --color always -lahog'
 
 alias load_zshrc='source ~/.zshrc'
+
+# zoxide, better cd
+alias cd='z'
 
 #######
 # vim #
