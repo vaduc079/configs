@@ -9,10 +9,27 @@ local config = wezterm.config_builder()
 -- config.initial_rows = 60
 
 config.color_scheme = "Kanagawa (Gogh)"
-config.font_size = 11
+config.font_size = 13
 config.font = wezterm.font("CaskaydiaCove Nerd Font Mono")
+config.font_rules = {
+	{
+		intensity = "Half",
+		font = wezterm.font({
+			family = "CaskaydiaCove Nerd Font Mono",
+			weight = "DemiLight",
+		}),
+	},
+	{
+		intensity = "Bold",
+		font = wezterm.font({
+			family = "CaskaydiaCove Nerd Font Mono",
+			weight = "Bold",
+		}),
+	},
+}
 
 config.tab_bar_at_bottom = true
+config.use_fancy_tab_bar = false
 config.hide_tab_bar_if_only_one_tab = true
 
 config.window_decorations = "RESIZE"
@@ -20,6 +37,7 @@ config.window_background_opacity = 0.85
 config.macos_window_background_blur = 10
 
 config.pane_focus_follows_mouse = true
+config.scrollback_lines = 10000
 
 -- Open wezterm at center of screen
 wezterm.on("gui-startup", function(cmd)
@@ -33,57 +51,93 @@ wezterm.on("gui-startup", function(cmd)
 	window:gui_window():set_inner_size(width, height)
 end)
 
-local act = wezterm.action
-config.keys = {
-	-- Make Option + Backspace = backward-kill-word
-	{
-		key = "Backspace",
-		mods = "OPT",
-		action = act.SendKey({
-			key = "w",
-			mods = "CTRL",
-		}),
-	},
-	{
-		key = "Enter",
-		mods = "CMD",
-		action = wezterm.action.SplitHorizontal({ domain = "CurrentPaneDomain" }),
-	},
-	{
-		key = "Enter",
-		mods = "CMD|SHIFT",
-		action = wezterm.action.SplitVertical({ domain = "CurrentPaneDomain" }),
-	},
-	{
-		key = "h",
-		mods = "CMD|SHIFT",
-		action = wezterm.action.ActivatePaneDirection("Left"),
-	},
-	{
-		key = "j",
-		mods = "CMD|SHIFT",
-		action = wezterm.action.ActivatePaneDirection("Down"),
-	},
-	{
-		key = "k",
-		mods = "CMD|SHIFT",
-		action = wezterm.action.ActivatePaneDirection("Up"),
-	},
-	{
-		key = "l",
-		mods = "CMD|SHIFT",
-		action = wezterm.action.ActivatePaneDirection("Right"),
-	},
+-- Show which key table is active in the status area
+wezterm.on("update-right-status", function(window, pane)
+	local name = window:active_key_table()
+	if name then
+		name = "TABLE: " .. name
+	end
+	window:set_right_status(name or "")
+end)
 
-	{
-		key = "w",
-		mods = "CMD",
-		action = wezterm.action.CloseCurrentPane({ confirm = false }),
-	},
-	{
-		key = "w",
-		mods = "CMD|SHIFT",
-		action = wezterm.action.CloseCurrentTab({ confirm = false }),
+config.leader = { key = "a", mods = "CTRL" }
+-- General helper function to create key bindings
+local function keyMap(key, mods, action)
+	return {
+		key = key,
+		mods = mods,
+		action = action,
+	}
+end
+
+-- Helper function to create ActivatePaneDirection key bindings
+local function activatePaneDirectionKey(key, direction)
+	return keyMap(key, "CMD|SHIFT", wezterm.action.ActivatePaneDirection(direction))
+end
+
+local function activateTabKey(key, tab)
+	return keyMap(key, "CTRL", wezterm.action.ActivateTab(tab))
+end
+
+local function activateKeyTable(key, table)
+	return keyMap(
+		key,
+		"LEADER",
+		wezterm.action.ActivateKeyTable({
+			name = table,
+			one_shot = false,
+		})
+	)
+end
+
+config.keys = {
+	-- Pane navigation using helper function
+	activatePaneDirectionKey("h", "Left"),
+	activatePaneDirectionKey("j", "Down"),
+	activatePaneDirectionKey("k", "Up"),
+	activatePaneDirectionKey("l", "Right"),
+	-- Tab navigation
+	activateTabKey("1", 0),
+	activateTabKey("2", 1),
+	activateTabKey("3", 2),
+	activateTabKey("4", 3),
+	activateTabKey("5", 4),
+	activateTabKey("6", 5),
+	activateTabKey("7", 6),
+	activateTabKey("8", 7),
+	activateTabKey("9", 8),
+	activateTabKey("0", 9),
+	-- Make Option + Backspace = backward-kill-word
+	keyMap("Backspace", "OPT", wezterm.action.SendKey({ key = "w", mods = "CTRL" })),
+	-- Scroll to prompt
+	keyMap("UpArrow", "SHIFT", wezterm.action.ScrollToPrompt(-1)),
+	keyMap("DownArrow", "SHIFT", wezterm.action.ScrollToPrompt(1)),
+	-- Split panes
+	keyMap("Enter", "CTRL", wezterm.action.SplitHorizontal({ cwd = wezterm.home_dir })),
+	keyMap("Enter", "CTRL|SHIFT", wezterm.action.SplitVertical({ cwd = wezterm.home_dir })),
+	-- Close pane and tab
+	keyMap("w", "CMD", wezterm.action.CloseCurrentPane({ confirm = false })),
+	keyMap("w", "CMD|SHIFT", wezterm.action.CloseCurrentTab({ confirm = false })),
+	-- Key tables
+	activateKeyTable("r", "resize_pane"),
+}
+
+config.key_tables = {
+	resize_pane = {
+		{ key = "LeftArrow",  action = wezterm.action.AdjustPaneSize({ "Left", 1 }) },
+		{ key = "h",          action = wezterm.action.AdjustPaneSize({ "Left", 1 }) },
+
+		{ key = "RightArrow", action = wezterm.action.AdjustPaneSize({ "Right", 1 }) },
+		{ key = "l",          action = wezterm.action.AdjustPaneSize({ "Right", 1 }) },
+
+		{ key = "UpArrow",    action = wezterm.action.AdjustPaneSize({ "Up", 1 }) },
+		{ key = "k",          action = wezterm.action.AdjustPaneSize({ "Up", 1 }) },
+
+		{ key = "DownArrow",  action = wezterm.action.AdjustPaneSize({ "Down", 1 }) },
+		{ key = "j",          action = wezterm.action.AdjustPaneSize({ "Down", 1 }) },
+
+		-- Cancel the mode by pressing escape
+		{ key = "Escape",     action = "PopKeyTable" },
 	},
 }
 

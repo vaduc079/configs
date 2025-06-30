@@ -9,6 +9,9 @@ alias load_zshrc='source ~/.zshrc'
 # zoxide, better cd
 alias cd='z'
 
+alias lzg='lazygit'
+alias lzd='lazydocker'
+
 #######
 # vim #
 #######
