@@ -33,8 +33,8 @@ config.use_fancy_tab_bar = false
 config.hide_tab_bar_if_only_one_tab = true
 
 config.window_decorations = "RESIZE"
-config.window_background_opacity = 0.85
-config.macos_window_background_blur = 10
+config.window_background_opacity = 0.75
+config.macos_window_background_blur = 15
 
 config.pane_focus_follows_mouse = true
 config.scrollback_lines = 10000
@@ -42,10 +42,14 @@ config.scrollback_lines = 10000
 -- Open wezterm at center of screen
 wezterm.on("gui-startup", function(cmd)
 	local screen = wezterm.gui.screens().main
-	local ratio = 0.8
+	local ratio = 0.7
 	local width, height = screen.width * ratio, screen.height * ratio
-	local tab, pane, window = wezterm.mux.spawn_window(cmd or {
-		position = { x = (screen.width - width) / 2, y = (screen.height - height) / 2 },
+	local _tab, _pane, window = wezterm.mux.spawn_window({
+		position = {
+			x = (screen.width - width) / 2,
+			y = (screen.height - height) / 2,
+			origin = "MainScreen",
+		},
 	})
 	-- window:gui_window():maximize()
 	window:gui_window():set_inner_size(width, height)
@@ -115,6 +119,8 @@ config.keys = {
 	-- Split panes
 	keyMap("Enter", "CTRL", wezterm.action.SplitHorizontal({ cwd = wezterm.home_dir })),
 	keyMap("Enter", "CTRL|SHIFT", wezterm.action.SplitVertical({ cwd = wezterm.home_dir })),
+	keyMap("Enter", "CMD", wezterm.action.SplitHorizontal({ cwd = wezterm.home_dir })),
+	keyMap("Enter", "CMD|SHIFT", wezterm.action.SplitVertical({ cwd = wezterm.home_dir })),
 	-- Close pane and tab
 	keyMap("w", "CMD", wezterm.action.CloseCurrentPane({ confirm = false })),
 	keyMap("w", "CMD|SHIFT", wezterm.action.CloseCurrentTab({ confirm = false })),
