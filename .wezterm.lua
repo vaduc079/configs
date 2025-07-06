@@ -33,7 +33,7 @@ config.use_fancy_tab_bar = false
 config.hide_tab_bar_if_only_one_tab = true
 
 config.window_decorations = "RESIZE"
-config.window_background_opacity = 0.75
+config.window_background_opacity = 0.8
 config.macos_window_background_blur = 15
 
 config.pane_focus_follows_mouse = true
@@ -44,10 +44,16 @@ wezterm.on("gui-startup", function(cmd)
 	local screen = wezterm.gui.screens().main
 	local ratio = 0.7
 	local width, height = screen.width * ratio, screen.height * ratio
-	local _tab, _pane, window = wezterm.mux.spawn_window({
+	local _tab, _pane, window = wezterm.mux.spawn_window(cmd or {
 		position = {
 			x = (screen.width - width) / 2,
 			y = (screen.height - height) / 2,
+			-- Optional origin to use for x and y.
+			-- Possible values:
+			-- * "ScreenCoordinateSystem" (this is the default)
+			-- * "MainScreen" (the primary or main screen)
+			-- * "ActiveScreen" (whichever screen hosts the active/focused window)
+			-- * {Named="HDMI-1"} - uses a screen by name. See wezterm.gui.screens()
 			origin = "MainScreen",
 		},
 	})
@@ -76,7 +82,7 @@ end
 
 -- Helper function to create ActivatePaneDirection key bindings
 local function activatePaneDirectionKey(key, direction)
-	return keyMap(key, "CMD|SHIFT", wezterm.action.ActivatePaneDirection(direction))
+	return keyMap(key, "CTRL|SHIFT", wezterm.action.ActivatePaneDirection(direction))
 end
 
 local function activateTabKey(key, tab)
@@ -113,6 +119,9 @@ config.keys = {
 	activateTabKey("0", 9),
 	-- Make Option + Backspace = backward-kill-word
 	keyMap("Backspace", "OPT", wezterm.action.SendKey({ key = "w", mods = "CTRL" })),
+	-- Move to next/previous word
+	keyMap("RightArrow", "OPT", wezterm.action.SendString "\x1bf"),
+	keyMap("LeftArrow", "OPT", wezterm.action.SendString "\x1bb"),
 	-- Scroll to prompt
 	keyMap("UpArrow", "SHIFT", wezterm.action.ScrollToPrompt(-1)),
 	keyMap("DownArrow", "SHIFT", wezterm.action.ScrollToPrompt(1)),
