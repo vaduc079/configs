@@ -6,3 +6,4 @@
 Library/Application Support/lazygit/state.yml
 .config/karabiner/automatic_backups/*
 .config/karabiner/assets/*
+*.sb

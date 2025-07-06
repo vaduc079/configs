@@ -16,8 +16,7 @@ bindkey -v
 zstyle :compinstall filename '$HOME/.zshrc'
 
 # brew shell completion
-if type brew &>/dev/null
-then
+if type brew &>/dev/null; then
   FPATH="$(brew --prefix)/share/zsh/site-functions:${FPATH}"
 fi
 
@@ -30,6 +29,7 @@ zstyle ':completion:*' menu select
 
 # set aliases
 source $HOME/.aliases
+source $HOME/.aliases.sb
 
 # load keybindings
 source $ZDOTDIR/.keybindings
