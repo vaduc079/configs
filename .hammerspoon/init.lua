@@ -94,7 +94,29 @@ local focusFollowMouse = hs.eventtap.new({ hs.eventtap.event.types.mouseMoved },
 	-- print("not in frame of any window")
 end)
 
-focusFollowMouse:start()
+-- Left mouse click through
+local leftMouseClickThrough = hs.eventtap.new({ hs.eventtap.event.types.leftMouseDown }, function(event)
+	-- { x, y }
+	local point = hs.mouse.absolutePosition()
+	local currentWindow = hs.window.focusedWindow()
+	if currentWindow and currentWindow:isFullScreen() then
+		return
+	end
+
+	if currentWindow and isPointInFrame(point, currentWindow:frame()) then
+		return
+	end
+
+	local candidateWindows = WindowFilter:getWindows()
+	for _, window in ipairs(candidateWindows) do
+		if isPointInFrame(point, window:frame()) then
+			window:focus()
+			return
+		end
+	end
+end)
+
+leftMouseClickThrough:start()
 
 -- Global functions for cli
 require("hs.ipc")
@@ -110,6 +132,16 @@ function ToggleFocusFollowMouse()
 	else
 		focusFollowMouse:start()
 		hs.alert.show("Focus follow mouse enabled")
+	end
+end
+
+function ToggleLeftMouseClickThrough()
+	if leftMouseClickThrough:isEnabled() then
+		leftMouseClickThrough:stop()
+		hs.alert.show("Left mouse click through disabled")
+	else
+		leftMouseClickThrough:start()
+		hs.alert.show("Left mouse click through enabled")
 	end
 end
 
