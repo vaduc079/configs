@@ -1,4 +1,24 @@
--- Hammerspoon script for directional window focus
+-- Utils
+local function isWindowFocusable(window)
+	return window:isStandard() and window:isVisible() and not (window:isMinimized() or window:isFullScreen())
+end
+
+local function isPointInFrame(point, frame)
+	return point.x >= frame.x and point.x <= frame.x + frame.w and
+			point.y >= frame.y and point.y <= frame.y + frame.h
+end
+
+local function createFocusableWindowsFilter()
+	return hs.window.filter
+			.new(function(window)
+				return isWindowFocusable(window)
+			end)
+			:setCurrentSpace(true)
+end
+
+WindowFilter = createFocusableWindowsFilter()
+
+-- Directional window focus
 
 local function focusDirection(direction)
 	local currentWindow = hs.window.focusedWindow()
@@ -6,36 +26,25 @@ local function focusDirection(direction)
 		return
 	end
 
-	local windowFilter = hs.window.filter
-		.new(function(window)
-			if window:id() == currentWindow:id() then
-				return false
-			end
-
-			return window:isVisible() and not (window:isMinimized() or window:isFullScreen())
-		end)
-		:setCurrentSpace(true)
-		:setScreens(currentWindow:screen():id())
-
 	local strict = true
 	local frontMost = true
 	if direction == "left" then
-		windowFilter:focusWindowWest(currentWindow, frontMost, strict)
+		WindowFilter:focusWindowWest(currentWindow, frontMost, strict)
 		return
 	end
 
 	if direction == "right" then
-		windowFilter:focusWindowEast(currentWindow, frontMost, strict)
+		WindowFilter:focusWindowEast(currentWindow, frontMost, strict)
 		return
 	end
 
 	if direction == "up" then
-		windowFilter:focusWindowNorth(currentWindow, frontMost, strict)
+		WindowFilter:focusWindowNorth(currentWindow, frontMost, strict)
 		return
 	end
 
 	if direction == "down" then
-		windowFilter:focusWindowSouth(currentWindow, frontMost, strict)
+		WindowFilter:focusWindowSouth(currentWindow, frontMost, strict)
 		return
 	end
 end
@@ -53,3 +62,70 @@ end)
 hs.hotkey.bind({ "cmd", "shift" }, "j", function()
 	focusDirection("down")
 end)
+
+-- Focus follow mouse (only frontmost windows)
+LastEventTimestamp = nil
+FocusFollowMouseIntervalNs = 150 * 1000000 -- 150ms
+local focusFollowMouse = hs.eventtap.new({ hs.eventtap.event.types.mouseMoved }, function(event)
+	if LastEventTimestamp and event:timestamp() - LastEventTimestamp < FocusFollowMouseIntervalNs then
+		return
+	end
+
+	LastEventTimestamp = event:timestamp()
+	-- { x, y }
+	local point = hs.mouse.absolutePosition()
+	local currentWindow = hs.window.focusedWindow()
+	if currentWindow and currentWindow:isFullScreen() then
+		return
+	end
+
+	if currentWindow and isWindowFocusable(currentWindow) and isPointInFrame(point, currentWindow:frame()) then
+		return
+	end
+
+	local candidateWindows = WindowFilter:getWindows()
+	for _, window in ipairs(candidateWindows) do
+		if isPointInFrame(point, window:frame()) then
+			window:focus()
+			return
+		end
+	end
+
+	-- print("not in frame of any window")
+end)
+
+focusFollowMouse:start()
+
+-- Global functions for cli
+require("hs.ipc")
+
+function SetFocusFollowMouseInterval(intervalMs)
+	FocusFollowMouseIntervalNs = intervalMs * 1000000
+end
+
+function ToggleFocusFollowMouse()
+	if focusFollowMouse:isEnabled() then
+		focusFollowMouse:stop()
+		hs.alert.show("Focus follow mouse disabled")
+	else
+		focusFollowMouse:start()
+		hs.alert.show("Focus follow mouse enabled")
+	end
+end
+
+function PrintCurrentWindowInfo()
+	local currentWindow = hs.window.focusedWindow()
+	if not currentWindow then
+		print("No window focused")
+		return
+	end
+
+	print("id: ", currentWindow:id())
+	print("title: ", currentWindow:title())
+	print("isMinimized: ", currentWindow:isMinimized())
+	print("isVisible: ", currentWindow:isVisible())
+	print("isFullScreen: ", currentWindow:isFullScreen())
+	print("screen: ", currentWindow:screen())
+	print("frame: ", currentWindow:frame())
+	print("isStandard: ", currentWindow:isStandard())
+end
