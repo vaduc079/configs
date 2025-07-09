@@ -82,7 +82,7 @@ end
 
 -- Helper function to create ActivatePaneDirection key bindings
 local function activatePaneDirectionKey(key, direction)
-	return keyMap(key, "CTRL|SHIFT", wezterm.action.ActivatePaneDirection(direction))
+	return keyMap(key, "CTRL", wezterm.action.ActivatePaneDirection(direction))
 end
 
 local function activateTabKey(key, tab)
@@ -119,9 +119,6 @@ config.keys = {
 	activateTabKey("0", 9),
 	-- Make Option + Backspace = backward-kill-word
 	keyMap("Backspace", "OPT", wezterm.action.SendKey({ key = "w", mods = "CTRL" })),
-	-- Move to next/previous word
-	keyMap("RightArrow", "OPT", wezterm.action.SendString "\x1bf"),
-	keyMap("LeftArrow", "OPT", wezterm.action.SendString "\x1bb"),
 	-- Scroll to prompt
 	keyMap("UpArrow", "SHIFT", wezterm.action.ScrollToPrompt(-1)),
 	keyMap("DownArrow", "SHIFT", wezterm.action.ScrollToPrompt(1)),
