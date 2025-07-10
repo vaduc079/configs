@@ -116,7 +116,6 @@ local leftMouseClickThrough = hs.eventtap.new({ hs.eventtap.event.types.leftMous
 	end
 end)
 
-leftMouseClickThrough:start()
 
 -- Global functions for cli
 require("hs.ipc")

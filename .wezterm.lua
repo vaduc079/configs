@@ -44,19 +44,21 @@ wezterm.on("gui-startup", function(cmd)
 	local screen = wezterm.gui.screens().main
 	local ratio = 0.7
 	local width, height = screen.width * ratio, screen.height * ratio
-	local _tab, _pane, window = wezterm.mux.spawn_window(cmd or {
-		position = {
-			x = (screen.width - width) / 2,
-			y = (screen.height - height) / 2,
-			-- Optional origin to use for x and y.
-			-- Possible values:
-			-- * "ScreenCoordinateSystem" (this is the default)
-			-- * "MainScreen" (the primary or main screen)
-			-- * "ActiveScreen" (whichever screen hosts the active/focused window)
-			-- * {Named="HDMI-1"} - uses a screen by name. See wezterm.gui.screens()
-			origin = "MainScreen",
-		},
-	})
+	cmd = cmd or {}
+	cmd.position = {
+		x = (screen.width - width) / 2,
+		y = (screen.height - height) / 2,
+		-- Optional origin to use for x and y.
+		-- Possible values:
+		-- * "ScreenCoordinateSystem" (this is the default)
+		-- * "MainScreen" (the primary or main screen)
+		-- * "ActiveScreen" (whichever screen hosts the active/focused window)
+		-- * {Named="HDMI-1"} - uses a screen by name. See wezterm.gui.screens()
+		origin = "MainScreen",
+	}
+	local _tab, _pane, window = wezterm.mux.spawn_window(cmd)
+	wezterm.log_warn(width, height)
+	wezterm.log_warn(screen.width, screen.height)
 	-- window:gui_window():maximize()
 	window:gui_window():set_inner_size(width, height)
 end)
