@@ -116,6 +116,49 @@ local leftMouseClickThrough = hs.eventtap.new({ hs.eventtap.event.types.leftMous
 	end
 end)
 
+-- Mouse follow focus
+local mouseFollowFocus = {}
+mouseFollowFocus.isEnabled = false
+function mouseFollowFocus:start()
+	WindowFilter:subscribe(hs.window.filter.windowFocused, function(window)
+		self:moveMouseToWindow(window)
+	end)
+
+	WindowFilter:subscribe(hs.window.filter.windowMoved, function(window)
+		if window ~= hs.window.focusedWindow() then
+			return
+		end
+
+		if #hs.mouse.getButtons() ~= 0 then
+			return
+		end
+
+		self:moveMouseToWindow(window)
+	end)
+	self.isEnabled = true
+end
+
+function mouseFollowFocus:stop()
+	WindowFilter:unsubscribe({ hs.window.filter.windowFocused, hs.window.filter.windowMoved })
+	self.isEnabled = false
+end
+
+function mouseFollowFocus:moveMouseToWindow(window)
+	local point = hs.mouse.absolutePosition()
+	local frame = window:frame()
+	if (isPointInFrame(point, frame)) then
+		return
+	end
+
+	-- local currentScreen = hs.mouse.getCurrentScreen()
+	-- local windowScreen = window:screen()
+	-- if currentScreen and windowScreen and currentScreen ~= windowScreen then
+	-- 	-- avoid getting the mouse stuck on a screen corner by moving through the center of each screen
+	-- 	hs.mouse.absolutePosition(currentScreen:frame().center)
+	-- 	hs.mouse.absolutePosition(windowScreen:frame().center)
+	-- end
+	hs.mouse.absolutePosition(frame.center)
+end
 
 -- Global functions for cli
 require("hs.ipc")
@@ -141,6 +184,16 @@ function ToggleLeftMouseClickThrough()
 	else
 		leftMouseClickThrough:start()
 		hs.alert.show("Left mouse click through enabled")
+	end
+end
+
+function ToggleMouseFollowFocus()
+	if mouseFollowFocus.isEnabled then
+		mouseFollowFocus:stop()
+		hs.alert.show("Mouse follow focus disabled")
+	else
+		mouseFollowFocus:start()
+		hs.alert.show("Mouse follow focus enabled")
 	end
 end
 

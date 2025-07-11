@@ -8,7 +8,10 @@ local config = wezterm.config_builder()
 -- config.initial_cols = 200
 -- config.initial_rows = 60
 
-config.color_scheme = "Kanagawa (Gogh)"
+-- config.color_scheme = "Kanagawa (Gogh)"
+config.color_scheme = "Gruvbox Dark (Gogh)"
+-- config.color_scheme = "Everforest Dark (Gogh)"
+
 config.font_size = 13
 config.font = wezterm.font("CaskaydiaCove Nerd Font Mono")
 config.font_rules = {
