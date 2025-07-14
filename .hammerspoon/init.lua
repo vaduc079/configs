@@ -16,7 +16,15 @@ local function createFocusableWindowsFilter()
 			:setCurrentSpace(true)
 end
 
-WindowFilter = createFocusableWindowsFilter()
+local function createVisibleWindowsFilter()
+	return hs.window.filter
+			.new(function(window)
+				return window:isVisible() and window:isStandard()
+			end)
+end
+
+FocusableWindowFilter = createFocusableWindowsFilter()
+VisibleWindowFilter = createVisibleWindowsFilter()
 
 -- Directional window focus
 
@@ -29,22 +37,22 @@ local function focusDirection(direction)
 	local strict = true
 	local frontMost = true
 	if direction == "left" then
-		WindowFilter:focusWindowWest(currentWindow, frontMost, strict)
+		FocusableWindowFilter:focusWindowWest(currentWindow, frontMost, strict)
 		return
 	end
 
 	if direction == "right" then
-		WindowFilter:focusWindowEast(currentWindow, frontMost, strict)
+		FocusableWindowFilter:focusWindowEast(currentWindow, frontMost, strict)
 		return
 	end
 
 	if direction == "up" then
-		WindowFilter:focusWindowNorth(currentWindow, frontMost, strict)
+		FocusableWindowFilter:focusWindowNorth(currentWindow, frontMost, strict)
 		return
 	end
 
 	if direction == "down" then
-		WindowFilter:focusWindowSouth(currentWindow, frontMost, strict)
+		FocusableWindowFilter:focusWindowSouth(currentWindow, frontMost, strict)
 		return
 	end
 end
@@ -83,7 +91,7 @@ local focusFollowMouse = hs.eventtap.new({ hs.eventtap.event.types.mouseMoved },
 		return
 	end
 
-	local candidateWindows = WindowFilter:getWindows()
+	local candidateWindows = FocusableWindowFilter:getWindows()
 	for _, window in ipairs(candidateWindows) do
 		if isPointInFrame(point, window:frame()) then
 			window:focus()
@@ -107,7 +115,7 @@ local leftMouseClickThrough = hs.eventtap.new({ hs.eventtap.event.types.leftMous
 		return
 	end
 
-	local candidateWindows = WindowFilter:getWindows()
+	local candidateWindows = FocusableWindowFilter:getWindows()
 	for _, window in ipairs(candidateWindows) do
 		if isPointInFrame(point, window:frame()) then
 			window:focus()
@@ -120,11 +128,11 @@ end)
 local mouseFollowFocus = {}
 mouseFollowFocus.isEnabled = false
 function mouseFollowFocus:start()
-	WindowFilter:subscribe(hs.window.filter.windowFocused, function(window)
+	VisibleWindowFilter:subscribe(hs.window.filter.windowFocused, function(window)
 		self:moveMouseToWindow(window)
 	end)
 
-	WindowFilter:subscribe(hs.window.filter.windowMoved, function(window)
+	VisibleWindowFilter:subscribe(hs.window.filter.windowMoved, function(window)
 		if window ~= hs.window.focusedWindow() then
 			return
 		end
@@ -139,7 +147,7 @@ function mouseFollowFocus:start()
 end
 
 function mouseFollowFocus:stop()
-	WindowFilter:unsubscribe({ hs.window.filter.windowFocused, hs.window.filter.windowMoved })
+	VisibleWindowFilter:unsubscribe({ hs.window.filter.windowFocused, hs.window.filter.windowMoved })
 	self.isEnabled = false
 end
 
