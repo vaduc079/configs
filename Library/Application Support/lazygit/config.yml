@@ -5,3 +5,6 @@ os:
   editPreset: "vscode"
 git:
   overrideGpg: true
+  paging:
+    colorArg: always
+    pager: delta --dark --syntax-theme=gruvbox-dark --paging=never --line-numbers --true-color=always --hyperlinks --hyperlinks-file-link-format="lazygit-edit://{path}:{line}"
