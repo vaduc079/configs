@@ -8,7 +8,12 @@ local function isPointInFrame(point, frame)
 			point.y >= frame.y and point.y <= frame.y + frame.h
 end
 
-local function createFocusableWindowsFilter()
+FocusableWindowFilter = nil
+local function getFocusableWindowsFilter()
+	if FocusableWindowFilter then
+		return FocusableWindowFilter
+	end
+
 	return hs.window.filter
 			.new(function(window)
 				return isWindowFocusable(window)
@@ -16,15 +21,17 @@ local function createFocusableWindowsFilter()
 			:setCurrentSpace(true)
 end
 
-local function createVisibleWindowsFilter()
+StandardWindowFilter = nil
+local function getStandardWindowsFilter()
+	if StandardWindowFilter then
+		return StandardWindowFilter
+	end
+
 	return hs.window.filter
 			.new(function(window)
-				return window:isVisible() and window:isStandard()
+				return window:isStandard()
 			end)
 end
-
-FocusableWindowFilter = createFocusableWindowsFilter()
-VisibleWindowFilter = createVisibleWindowsFilter()
 
 -- Directional window focus
 
@@ -37,22 +44,22 @@ local function focusDirection(direction)
 	local strict = true
 	local frontMost = true
 	if direction == "left" then
-		FocusableWindowFilter:focusWindowWest(currentWindow, frontMost, strict)
+		getFocusableWindowsFilter():focusWindowWest(currentWindow, frontMost, strict)
 		return
 	end
 
 	if direction == "right" then
-		FocusableWindowFilter:focusWindowEast(currentWindow, frontMost, strict)
+		getFocusableWindowsFilter():focusWindowEast(currentWindow, frontMost, strict)
 		return
 	end
 
 	if direction == "up" then
-		FocusableWindowFilter:focusWindowNorth(currentWindow, frontMost, strict)
+		getFocusableWindowsFilter():focusWindowNorth(currentWindow, frontMost, strict)
 		return
 	end
 
 	if direction == "down" then
-		FocusableWindowFilter:focusWindowSouth(currentWindow, frontMost, strict)
+		getFocusableWindowsFilter():focusWindowSouth(currentWindow, frontMost, strict)
 		return
 	end
 end
@@ -91,7 +98,7 @@ local focusFollowMouse = hs.eventtap.new({ hs.eventtap.event.types.mouseMoved },
 		return
 	end
 
-	local candidateWindows = FocusableWindowFilter:getWindows()
+	local candidateWindows = getFocusableWindowsFilter():getWindows()
 	for _, window in ipairs(candidateWindows) do
 		if isPointInFrame(point, window:frame()) then
 			window:focus()
@@ -115,7 +122,7 @@ local leftMouseClickThrough = hs.eventtap.new({ hs.eventtap.event.types.leftMous
 		return
 	end
 
-	local candidateWindows = FocusableWindowFilter:getWindows()
+	local candidateWindows = getFocusableWindowsFilter():getWindows()
 	for _, window in ipairs(candidateWindows) do
 		if isPointInFrame(point, window:frame()) then
 			window:focus()
@@ -128,11 +135,11 @@ end)
 local mouseFollowFocus = {}
 mouseFollowFocus.isEnabled = false
 function mouseFollowFocus:start()
-	VisibleWindowFilter:subscribe(hs.window.filter.windowFocused, function(window)
+	getStandardWindowsFilter():subscribe(hs.window.filter.windowFocused, function(window)
 		self:moveMouseToWindow(window)
 	end)
 
-	VisibleWindowFilter:subscribe(hs.window.filter.windowMoved, function(window)
+	getStandardWindowsFilter():subscribe(hs.window.filter.windowMoved, function(window)
 		if window ~= hs.window.focusedWindow() then
 			return
 		end
@@ -147,7 +154,7 @@ function mouseFollowFocus:start()
 end
 
 function mouseFollowFocus:stop()
-	VisibleWindowFilter:unsubscribe({ hs.window.filter.windowFocused, hs.window.filter.windowMoved })
+	getStandardWindowsFilter():unsubscribe({ hs.window.filter.windowFocused, hs.window.filter.windowMoved })
 	self.isEnabled = false
 end
 
