@@ -14,11 +14,13 @@ local function getFocusableWindowsFilter()
 		return FocusableWindowFilter
 	end
 
-	return hs.window.filter
+	FocusableWindowFilter = hs.window.filter
 			.new(function(window)
 				return isWindowFocusable(window)
 			end)
 			:setCurrentSpace(true)
+
+	return FocusableWindowFilter
 end
 
 StandardWindowFilter = nil
@@ -27,10 +29,12 @@ local function getStandardWindowsFilter()
 		return StandardWindowFilter
 	end
 
-	return hs.window.filter
+	StandardWindowFilter = hs.window.filter
 			.new(function(window)
 				return window:isStandard()
 			end)
+
+	return StandardWindowFilter
 end
 
 -- Directional window focus
@@ -41,7 +45,7 @@ local function focusDirection(direction)
 		return
 	end
 
-	local strict = true
+	local strict = false
 	local frontMost = true
 	if direction == "left" then
 		getFocusableWindowsFilter():focusWindowWest(currentWindow, frontMost, strict)
@@ -228,3 +232,8 @@ function PrintCurrentWindowInfo()
 	print("frame: ", currentWindow:frame())
 	print("isStandard: ", currentWindow:isStandard())
 end
+
+-- Enable by default
+-- ToggleFocusFollowMouse()
+-- ToggleLeftMouseClickThrough()
+ToggleMouseFollowFocus()
