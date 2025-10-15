@@ -6,9 +6,6 @@ alias ll='eza --icons --group-directories-first --color always -lahog'
 
 alias load_zshrc='source ~/.zshrc'
 
-# zoxide, better cd
-alias cd='z'
-
 # short alias
 alias lzg='lazygit'
 alias lzd='lazydocker'
@@ -19,4 +16,3 @@ alias lzd='lazydocker'
 
 alias vim='nvim'
 alias vi='nvim'
-

@@ -128,10 +128,14 @@ config.keys = {
 	keyMap("UpArrow", "SHIFT", wezterm.action.ScrollToPrompt(-1)),
 	keyMap("DownArrow", "SHIFT", wezterm.action.ScrollToPrompt(1)),
 	-- Split panes
-	keyMap("Enter", "CTRL", wezterm.action.SplitHorizontal({ cwd = wezterm.home_dir })),
-	keyMap("Enter", "CTRL|SHIFT", wezterm.action.SplitVertical({ cwd = wezterm.home_dir })),
-	keyMap("Enter", "CMD", wezterm.action.SplitHorizontal({ cwd = wezterm.home_dir })),
-	keyMap("Enter", "CMD|SHIFT", wezterm.action.SplitVertical({ cwd = wezterm.home_dir })),
+	-- keyMap("Enter", "CTRL", wezterm.action.SplitHorizontal({ cwd = wezterm.home_dir })),
+	-- keyMap("Enter", "CTRL|SHIFT", wezterm.action.SplitVertical({ cwd = wezterm.home_dir })),
+	-- keyMap("Enter", "CMD", wezterm.action.SplitHorizontal({ cwd = wezterm.home_dir })),
+	-- keyMap("Enter", "CMD|SHIFT", wezterm.action.SplitVertical({ cwd = wezterm.home_dir })),
+	keyMap("Enter", "CTRL", wezterm.action.SplitHorizontal({})),
+	keyMap("Enter", "CTRL|SHIFT", wezterm.action.SplitVertical({})),
+	keyMap("Enter", "CMD", wezterm.action.SplitHorizontal({})),
+	keyMap("Enter", "CMD|SHIFT", wezterm.action.SplitVertical({})),
 	-- Close pane and tab
 	keyMap("w", "CMD", wezterm.action.CloseCurrentPane({ confirm = false })),
 	keyMap("w", "CMD|SHIFT", wezterm.action.CloseCurrentTab({ confirm = false })),

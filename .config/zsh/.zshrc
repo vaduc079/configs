@@ -28,9 +28,11 @@ compinit
 # completion
 zstyle ':completion:*' menu select
 
+# load local env
+source $ZDOTDIR/.shenv
+
 # set aliases
 source $HOME/.aliases
-source $HOME/.aliases.sb
 
 # load keybindings
 source $ZDOTDIR/.keybindings
