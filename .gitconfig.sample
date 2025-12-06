@@ -1,0 +1,4 @@
+[include]
+	path = ~/.config/delta.gitconfig
+[alias]
+    tidy = "!git fetch --prune && for branch in $(git branch -vv | awk '/: gone]/{print $1}'); do git branch -D $branch; done"

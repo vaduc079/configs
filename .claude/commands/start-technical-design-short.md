@@ -1,0 +1,1 @@
+.cursor/commands/start-technical-design-short.md

@@ -23,5 +23,5 @@ else
   input="$1"
 fi
 
-echo "$input" | base64 | pbcopy
+echo -n "$input" | base64 | pbcopy
 echo "Copied to clipboard"

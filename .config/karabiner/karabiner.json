@@ -61,13 +61,13 @@
                         ]
                     },
                     {
+                        "description": "Map Fn + Caps Lock to Caps Lock",
                         "enabled": false,
                         "manipulators": [
                             {
-                                "description": "Change fn + caps_lock to caps_lock",
                                 "from": {
                                     "key_code": "caps_lock",
-                                    "modifiers": ["fn"]
+                                    "modifiers": { "mandatory": ["fn"] }
                                 },
                                 "to": [{ "key_code": "caps_lock" }],
                                 "type": "basic"
