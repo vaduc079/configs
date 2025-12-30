@@ -123,7 +123,12 @@ config.keys = {
 	activateTabKey("9", 8),
 	activateTabKey("0", 9),
 	-- Make Option + Backspace = backward-kill-word
-	keyMap("Backspace", "OPT", wezterm.action.SendKey({ key = "w", mods = "CTRL" })),
+	keyMap("Backspace", "OPT", wezterm.action.SendKey({ key = "w", mods = "CTRL"})),
+	-- Make Shift + Enter = new line
+	keyMap("Enter", "SHIFT", wezterm.action.SendString("\x1b\r")),
+	-- Make Alt + t = Alt + t instead of "†"
+	keyMap("t", "ALT", wezterm.action.SendKey({ key = "t", mods = "ALT" })),
+
 	-- Scroll to prompt
 	keyMap("UpArrow", "SHIFT", wezterm.action.ScrollToPrompt(-1)),
 	keyMap("DownArrow", "SHIFT", wezterm.action.ScrollToPrompt(1)),
