@@ -16,6 +16,7 @@ export FZF_DEFAULT_OPTS=" \
 typeset -U path PATH
 # rancher desktop
 [ -d "$HOME/.rd/bin" ] && path=($path $HOME/.rd/bin)
+[ -d "$HOME/.local/bin" ] && path=($path $HOME/.local/bin)
 export PATH
 
 eval "$(/opt/homebrew/bin/brew shellenv)"
