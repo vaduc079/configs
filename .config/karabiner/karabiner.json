@@ -1,129 +1,167 @@
 {
-    "global": { "show_in_menu_bar": false },
-    "profiles": [
-        {
-            "complex_modifications": {
-                "rules": [
-                    {
-                        "description": "Change button5 + mouse movement to scroll",
-                        "manipulators": [
-                            {
-                                "from": {
-                                    "modifiers": { "optional": ["any"] },
-                                    "pointing_button": "button5"
-                                },
-                                "to": [
-                                    {
-                                        "set_variable": {
-                                            "key_up_value": false,
-                                            "name": "enable_mouse_motion_to_scroll",
-                                            "value": true
-                                        }
-                                    }
-                                ],
-                                "to_if_alone": [{ "pointing_button": "button5" }],
-                                "type": "basic"
-                            },
-                            {
-                                "conditions": [
-                                    {
-                                        "name": "enable_mouse_motion_to_scroll",
-                                        "type": "variable_if",
-                                        "value": true
-                                    }
-                                ],
-                                "from": { "modifiers": { "optional": ["any"] } },
-                                "options": {
-                                    "momentum_scroll_enabled": true,
-                                    "speed_multiplier": 1.0
-                                },
-                                "type": "mouse_motion_to_scroll"
-                            }
-                        ]
-                    },
-                    {
-                        "manipulators": [
-                            {
-                                "description": "Change caps_lock to escape if pressed alone, hypr if pressed with other keys",
-                                "from": {
-                                    "key_code": "caps_lock",
-                                    "modifiers": { "optional": ["any"] }
-                                },
-                                "to": [
-                                    {
-                                        "key_code": "left_shift",
-                                        "modifiers": ["left_command", "left_control", "left_option"]
-                                    }
-                                ],
-                                "to_if_alone": [{ "key_code": "escape" }],
-                                "type": "basic"
-                            }
-                        ]
-                    },
-                    {
-                        "description": "Map Fn + Caps Lock to Caps Lock",
-                        "enabled": false,
-                        "manipulators": [
-                            {
-                                "from": {
-                                    "key_code": "caps_lock",
-                                    "modifiers": { "mandatory": ["fn"] }
-                                },
-                                "to": [{ "key_code": "caps_lock" }],
-                                "type": "basic"
-                            }
-                        ]
-                    }
-                ]
-            },
-            "devices": [
-                {
-                    "identifiers": {
-                        "is_keyboard": true,
-                        "product_id": 20811,
-                        "vendor_id": 20307
-                    },
-                    "ignore": true
-                },
-                {
-                    "disable_built_in_keyboard_if_exists": true,
-                    "identifiers": {
-                        "is_keyboard": true,
-                        "is_pointing_device": true,
-                        "product_id": 20811,
-                        "vendor_id": 20307
-                    }
-                },
-                {
-                    "identifiers": {
-                        "is_keyboard": true,
-                        "product_id": 647,
-                        "vendor_id": 64562
-                    },
-                    "ignore": true
-                },
-                {
-                    "identifiers": {
-                        "is_keyboard": true,
-                        "product_id": 24926,
-                        "vendor_id": 7504
-                    },
-                    "ignore": true
-                },
-                {
-                    "identifiers": {
-                        "is_keyboard": true,
-                        "is_pointing_device": true,
-                        "product_id": 64,
-                        "vendor_id": 6421
-                    },
-                    "ignore": false,
-                    "manipulate_caps_lock_led": false
-                }
+  "global": { "show_in_menu_bar": false },
+  "profiles": [
+    {
+      "complex_modifications": {
+        "rules": [
+          {
+            "conditions": [
+              {
+                "identifiers": [{ "is_built_in_keyboard": true }],
+                "type": "device_if"
+              }
             ],
-            "name": "Default profile",
-            "selected": true,
-            "virtual_hid_keyboard": { "keyboard_type_v2": "ansi" }
+            "description": "Change caps_lock to escape if pressed alone, hypr if pressed with other keys",
+            "manipulators": [
+              {
+                "from": {
+                  "key_code": "caps_lock",
+                  "modifiers": { "optional": ["any"] }
+                },
+                "to": [
+                  {
+                    "key_code": "left_shift",
+                    "modifiers": ["left_command", "left_control", "left_option"]
+                  }
+                ],
+                "to_if_alone": [{ "key_code": "escape" }],
+                "type": "basic"
+              }
+            ]
+          },
+          {
+            "conditions": [
+              {
+                "identifiers": [
+                  {
+                    "is_pointing_device": true,
+                    "product_id": 32980,
+                    "vendor_id": 1149
+                  }
+                ],
+                "type": "device_if"
+              }
+            ],
+            "description": "SlimBlade Pro: Button3 + Button4 → Button5",
+            "manipulators": [
+              {
+                "from": {
+                  "modifiers": {
+                    "mandatory": [],
+                    "optional": []
+                  },
+                  "simultaneous": [
+                    { "pointing_button": "button3" },
+                    { "pointing_button": "button4" }
+                  ],
+                  "simultaneous_options": { "key_up_when": "all" }
+                },
+                "to": [
+                  {
+                    "modifiers": [],
+                    "pointing_button": "button5"
+                  }
+                ],
+                "type": "basic"
+              }
+            ]
+          },
+          {
+            "conditions": [
+              {
+                "identifiers": [
+                  {
+                    "is_pointing_device": true,
+                    "product_id": 32980,
+                    "vendor_id": 1149
+                  }
+                ],
+                "type": "device_if"
+              }
+            ],
+            "description": "SlimBlade Pro: Button1 + Button4 → Command + `",
+            "manipulators": [
+              {
+                "from": {
+                  "modifiers": {
+                    "mandatory": [],
+                    "optional": []
+                  },
+                  "simultaneous": [
+                    { "pointing_button": "button1" },
+                    { "pointing_button": "button4" }
+                  ],
+                  "simultaneous_options": { "key_up_when": "all" }
+                },
+                "to": [
+                  {
+                    "key_code": "grave_accent_and_tilde",
+                    "modifiers": ["left_command"]
+                  }
+                ],
+                "type": "basic"
+              }
+            ]
+          }
+        ]
+      },
+      "devices": [
+        {
+          "identifiers": {
+            "is_keyboard": true,
+            "product_id": 20811,
+            "vendor_id": 20307
+          },
+          "ignore": true
+        },
+        {
+          "disable_built_in_keyboard_if_exists": true,
+          "identifiers": {
+            "is_keyboard": true,
+            "is_pointing_device": true,
+            "product_id": 20811,
+            "vendor_id": 20307
+          }
+        },
+        {
+          "identifiers": {
+            "is_keyboard": true,
+            "product_id": 647,
+            "vendor_id": 64562
+          },
+          "ignore": true
+        },
+        {
+          "identifiers": {
+            "is_keyboard": true,
+            "product_id": 24926,
+            "vendor_id": 7504
+          },
+          "ignore": true
+        },
+        {
+          "identifiers": {
+            "is_keyboard": true,
+            "is_pointing_device": true,
+            "product_id": 64,
+            "vendor_id": 6421
+          },
+          "ignore": false,
+          "manipulate_caps_lock_led": false
+        },
+        {
+          "identifiers": {
+            "is_pointing_device": true,
+            "product_id": 32980,
+            "vendor_id": 1149
+          },
+          "ignore": false,
+          "ignore_vendor_events": true
         }
-    ]
+      ],
+      "name": "Default profile",
+      "selected": true,
+      "virtual_hid_keyboard": { "keyboard_type_v2": "ansi" }
+    }
+  ]
 }
