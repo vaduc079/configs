@@ -42,7 +42,7 @@
                 "type": "device_if"
               }
             ],
-            "description": "SlimBlade Pro: Button3 + Button4 → Button5",
+            "description": "SlimBlade Pro: Button3 + Button4 → Forward (Button5)",
             "manipulators": [
               {
                 "from": {
@@ -79,7 +79,7 @@
                 "type": "device_if"
               }
             ],
-            "description": "SlimBlade Pro: Button1 + Button4 → Command + `",
+            "description": "SlimBlade Pro: Button1 + Button4 → Mission Control (Command + `)",
             "manipulators": [
               {
                 "from": {
@@ -99,6 +99,29 @@
                     "modifiers": ["left_command"]
                   }
                 ],
+                "type": "basic"
+              }
+            ]
+          },
+          {
+            "conditions": [
+              {
+                "identifiers": [
+                  {
+                    "is_pointing_device": true,
+                    "product_id": 32980,
+                    "vendor_id": 1149
+                  }
+                ],
+                "type": "device_if"
+              }
+            ],
+            "description": "SlimBlade Pro: Button4 held → Shift",
+            "manipulators": [
+              {
+                "from": { "pointing_button": "button4" },
+                "to_if_alone": [{ "pointing_button": "button4" }],
+                "to_if_held_down": [{ "key_code": "left_shift" }],
                 "type": "basic"
               }
             ]
