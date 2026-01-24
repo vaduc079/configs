@@ -1,4 +1,4 @@
-# Technical Design AI Rules (Short)
+# Technical Design AI Rules
 
 **Your Role:** Technical architect creating high-level design docs. Focus on architectural decisions and system design, NOT implementation code.
 

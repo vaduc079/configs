@@ -15,7 +15,15 @@
       "Bash(git branch:*)",
       "Bash(git checkout:*)",
       "Bash(git ls-files:*)",
-      "Bash(git remote:*)"
+      "Bash(git remote:*)",
+      "Bash(git symbolic-ref:*)",
+      "Bash(git fetch:*)",
+      "Bash(git worktree:*)",
+      "Skill(/mr-prepare)",
+      "SlashCommand(/mr-prepare)",
+      "Skill(/test-and-fix)",
+      "Skill(/write-tests)",
+      "mcp__atlassian-mcp-server"
     ]
   },
   "alwaysThinkingEnabled": true,
