@@ -36,7 +36,7 @@ config.use_fancy_tab_bar = false
 config.hide_tab_bar_if_only_one_tab = true
 
 config.window_decorations = "RESIZE"
-config.window_background_opacity = 0.8
+config.window_background_opacity = 0.9
 config.macos_window_background_blur = 15
 
 config.pane_focus_follows_mouse = true
@@ -45,7 +45,7 @@ config.scrollback_lines = 10000
 -- Open wezterm at center of screen
 wezterm.on("gui-startup", function(cmd)
 	local screen = wezterm.gui.screens().main
-	local ratio = 0.7
+	local ratio = 0.8
 	local width, height = screen.width * ratio, screen.height * ratio
 	cmd = cmd or {}
 	cmd.position = {

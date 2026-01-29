@@ -19,11 +19,13 @@
       "Bash(git symbolic-ref:*)",
       "Bash(git fetch:*)",
       "Bash(git worktree:*)",
-      "Skill(/mr-prepare)",
-      "SlashCommand(/mr-prepare)",
-      "Skill(/test-and-fix)",
-      "Skill(/write-tests)",
-      "mcp__atlassian-mcp-server"
+      "Bash(kubectl logs:*)",
+      "Bash(kubectl describe:*)",
+      "Bash(kubectl get:*)",
+      "Bash(kubectl top:*)",
+      "Skill",
+      "mcp__atlassian-mcp-server",
+      "mcp__trino-mcp"
     ]
   },
   "alwaysThinkingEnabled": true,
