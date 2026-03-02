@@ -12,6 +12,7 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
+      "Bash(git pull:*)",
       "Bash(git branch:*)",
       "Bash(git checkout:*)",
       "Bash(git ls-files:*)",
@@ -19,18 +20,23 @@
       "Bash(git symbolic-ref:*)",
       "Bash(git fetch:*)",
       "Bash(git worktree:*)",
-      "Bash(kubectl logs:*)",
-      "Bash(kubectl describe:*)",
-      "Bash(kubectl get:*)",
-      "Bash(kubectl top:*)",
+      "Bash(kubectl:*)",
+      "Bash(docker:*)",
       "Skill",
+      "Glob",
+      "Grep",
+      "Task",
+      "TodoWrite",
+      "AskUserQuestion",
+      "EnterPlanMode",
+      "ExitPlanMode",
+      "Skill",
+      "NotebookEdit",
+      "KillShell",
+      "TaskOutput",
       "mcp__atlassian-mcp-server",
       "mcp__trino-mcp"
     ]
-  },
-  "alwaysThinkingEnabled": true,
-  "feedbackSurveyState": {
-    "lastShownTime": 1754208364998
   },
   "hooks": {
     "Notification": [
@@ -44,5 +50,10 @@
         ]
       }
     ]
-  }
+  },
+  "alwaysThinkingEnabled": true,
+  "feedbackSurveyState": {
+    "lastShownTime": 1754208364998
+  },
+  "skipDangerousModePermissionPrompt": true
 }

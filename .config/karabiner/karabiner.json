@@ -1,190 +1,225 @@
 {
-  "global": { "show_in_menu_bar": false },
-  "profiles": [
-    {
-      "complex_modifications": {
-        "rules": [
-          {
-            "conditions": [
-              {
-                "identifiers": [{ "is_built_in_keyboard": true }],
-                "type": "device_if"
-              }
-            ],
-            "description": "Change caps_lock to escape if pressed alone, hypr if pressed with other keys",
-            "manipulators": [
-              {
-                "from": {
-                  "key_code": "caps_lock",
-                  "modifiers": { "optional": ["any"] }
+    "global": { "show_in_menu_bar": false },
+    "profiles": [
+        {
+            "complex_modifications": {
+                "rules": [
+                    {
+                        "conditions": [
+                            {
+                                "identifiers": [{ "is_built_in_keyboard": true }],
+                                "type": "device_if"
+                            }
+                        ],
+                        "description": "Change caps_lock to escape if pressed alone, hypr if pressed with other keys",
+                        "manipulators": [
+                            {
+                                "from": {
+                                    "key_code": "caps_lock",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "left_shift",
+                                        "modifiers": ["left_command", "left_control", "left_option"]
+                                    }
+                                ],
+                                "to_if_alone": [{ "key_code": "escape" }],
+                                "type": "basic"
+                            }
+                        ]
+                    },
+                    {
+                        "conditions": [
+                            {
+                                "identifiers": [
+                                    {
+                                        "is_pointing_device": true,
+                                        "product_id": 32980,
+                                        "vendor_id": 1149
+                                    },
+                                    {
+                                        "is_pointing_device": true,
+                                        "product_id": 32983,
+                                        "vendor_id": 1149
+                                    }
+                                ],
+                                "type": "device_if"
+                            }
+                        ],
+                        "description": "SlimBlade Pro: Button3 + Button4 → Forward (Button5)",
+                        "manipulators": [
+                            {
+                                "from": {
+                                    "modifiers": {
+                                        "mandatory": [],
+                                        "optional": []
+                                    },
+                                    "simultaneous": [
+                                        { "pointing_button": "button3" },
+                                        { "pointing_button": "button4" }
+                                    ],
+                                    "simultaneous_options": { "key_up_when": "all" }
+                                },
+                                "to": [
+                                    {
+                                        "modifiers": [],
+                                        "pointing_button": "button5"
+                                    }
+                                ],
+                                "type": "basic"
+                            }
+                        ]
+                    },
+                    {
+                        "conditions": [
+                            {
+                                "identifiers": [
+                                    {
+                                        "is_pointing_device": true,
+                                        "product_id": 32980,
+                                        "vendor_id": 1149
+                                    },
+                                    {
+                                        "is_pointing_device": true,
+                                        "product_id": 32983,
+                                        "vendor_id": 1149
+                                    }
+                                ],
+                                "type": "device_if"
+                            }
+                        ],
+                        "description": "SlimBlade Pro: Button1 + Button4 → Mission Control (Command + `)",
+                        "manipulators": [
+                            {
+                                "from": {
+                                    "modifiers": {
+                                        "mandatory": [],
+                                        "optional": []
+                                    },
+                                    "simultaneous": [
+                                        { "pointing_button": "button1" },
+                                        { "pointing_button": "button4" }
+                                    ],
+                                    "simultaneous_options": { "key_up_when": "all" }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "grave_accent_and_tilde",
+                                        "modifiers": ["left_command"]
+                                    }
+                                ],
+                                "type": "basic"
+                            }
+                        ]
+                    },
+                    {
+                        "conditions": [
+                            {
+                                "identifiers": [
+                                    {
+                                        "is_pointing_device": true,
+                                        "product_id": 32980,
+                                        "vendor_id": 1149
+                                    },
+                                    {
+                                        "is_pointing_device": true,
+                                        "product_id": 32983,
+                                        "vendor_id": 1149
+                                    }
+                                ],
+                                "type": "device_if"
+                            }
+                        ],
+                        "description": "SlimBlade Pro: Button4 held → Shift",
+                        "manipulators": [
+                            {
+                                "from": { "pointing_button": "button4" },
+                                "to_if_alone": [{ "pointing_button": "button4" }],
+                                "to_if_held_down": [{ "key_code": "left_shift" }],
+                                "type": "basic"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "devices": [
+                {
+                    "identifiers": {
+                        "is_keyboard": true,
+                        "product_id": 20811,
+                        "vendor_id": 20307
+                    },
+                    "ignore": true
                 },
-                "to": [
-                  {
-                    "key_code": "left_shift",
-                    "modifiers": ["left_command", "left_control", "left_option"]
-                  }
-                ],
-                "to_if_alone": [{ "key_code": "escape" }],
-                "type": "basic"
-              }
-            ]
-          },
-          {
-            "conditions": [
-              {
-                "identifiers": [
-                  {
-                    "is_pointing_device": true,
-                    "product_id": 32980,
-                    "vendor_id": 1149
-                  }
-                ],
-                "type": "device_if"
-              }
-            ],
-            "description": "SlimBlade Pro: Button3 + Button4 → Forward (Button5)",
-            "manipulators": [
-              {
-                "from": {
-                  "modifiers": {
-                    "mandatory": [],
-                    "optional": []
-                  },
-                  "simultaneous": [
-                    { "pointing_button": "button3" },
-                    { "pointing_button": "button4" }
-                  ],
-                  "simultaneous_options": { "key_up_when": "all" }
+                {
+                    "disable_built_in_keyboard_if_exists": true,
+                    "identifiers": {
+                        "is_keyboard": true,
+                        "is_pointing_device": true,
+                        "product_id": 20811,
+                        "vendor_id": 20307
+                    }
                 },
-                "to": [
-                  {
-                    "modifiers": [],
-                    "pointing_button": "button5"
-                  }
-                ],
-                "type": "basic"
-              }
-            ]
-          },
-          {
-            "conditions": [
-              {
-                "identifiers": [
-                  {
-                    "is_pointing_device": true,
-                    "product_id": 32980,
-                    "vendor_id": 1149
-                  }
-                ],
-                "type": "device_if"
-              }
-            ],
-            "description": "SlimBlade Pro: Button1 + Button4 → Mission Control (Command + `)",
-            "manipulators": [
-              {
-                "from": {
-                  "modifiers": {
-                    "mandatory": [],
-                    "optional": []
-                  },
-                  "simultaneous": [
-                    { "pointing_button": "button1" },
-                    { "pointing_button": "button4" }
-                  ],
-                  "simultaneous_options": { "key_up_when": "all" }
+                {
+                    "identifiers": {
+                        "is_keyboard": true,
+                        "product_id": 647,
+                        "vendor_id": 64562
+                    },
+                    "ignore": true
                 },
-                "to": [
-                  {
-                    "key_code": "grave_accent_and_tilde",
-                    "modifiers": ["left_command"]
-                  }
-                ],
-                "type": "basic"
-              }
-            ]
-          },
-          {
-            "conditions": [
-              {
-                "identifiers": [
-                  {
-                    "is_pointing_device": true,
-                    "product_id": 32980,
-                    "vendor_id": 1149
-                  }
-                ],
-                "type": "device_if"
-              }
+                {
+                    "identifiers": {
+                        "is_keyboard": true,
+                        "product_id": 24926,
+                        "vendor_id": 7504
+                    },
+                    "ignore": true
+                },
+                {
+                    "identifiers": {
+                        "is_keyboard": true,
+                        "is_pointing_device": true,
+                        "product_id": 64,
+                        "vendor_id": 6421
+                    },
+                    "ignore": false,
+                    "manipulate_caps_lock_led": false
+                },
+                {
+                    "identifiers": {
+                        "is_pointing_device": true,
+                        "product_id": 32980,
+                        "vendor_id": 1149
+                    },
+                    "ignore": false,
+                    "ignore_vendor_events": true
+                },
+                {
+                    "identifiers": {
+                        "is_keyboard": true,
+                        "product_id": 32983,
+                        "vendor_id": 1149
+                    },
+                    "manipulate_caps_lock_led": false
+                },
+                {
+                    "identifiers": {
+                        "is_pointing_device": true,
+                        "product_id": 32983,
+                        "vendor_id": 1149
+                    },
+                    "ignore": false
+                },
+                {
+                    "identifiers": { "is_keyboard": true },
+                    "manipulate_caps_lock_led": false
+                }
             ],
-            "description": "SlimBlade Pro: Button4 held → Shift",
-            "manipulators": [
-              {
-                "from": { "pointing_button": "button4" },
-                "to_if_alone": [{ "pointing_button": "button4" }],
-                "to_if_held_down": [{ "key_code": "left_shift" }],
-                "type": "basic"
-              }
-            ]
-          }
-        ]
-      },
-      "devices": [
-        {
-          "identifiers": {
-            "is_keyboard": true,
-            "product_id": 20811,
-            "vendor_id": 20307
-          },
-          "ignore": true
-        },
-        {
-          "disable_built_in_keyboard_if_exists": true,
-          "identifiers": {
-            "is_keyboard": true,
-            "is_pointing_device": true,
-            "product_id": 20811,
-            "vendor_id": 20307
-          }
-        },
-        {
-          "identifiers": {
-            "is_keyboard": true,
-            "product_id": 647,
-            "vendor_id": 64562
-          },
-          "ignore": true
-        },
-        {
-          "identifiers": {
-            "is_keyboard": true,
-            "product_id": 24926,
-            "vendor_id": 7504
-          },
-          "ignore": true
-        },
-        {
-          "identifiers": {
-            "is_keyboard": true,
-            "is_pointing_device": true,
-            "product_id": 64,
-            "vendor_id": 6421
-          },
-          "ignore": false,
-          "manipulate_caps_lock_led": false
-        },
-        {
-          "identifiers": {
-            "is_pointing_device": true,
-            "product_id": 32980,
-            "vendor_id": 1149
-          },
-          "ignore": false,
-          "ignore_vendor_events": true
+            "name": "Default profile",
+            "selected": true,
+            "virtual_hid_keyboard": { "keyboard_type_v2": "ansi" }
         }
-      ],
-      "name": "Default profile",
-      "selected": true,
-      "virtual_hid_keyboard": { "keyboard_type_v2": "ansi" }
-    }
-  ]
+    ]
 }
