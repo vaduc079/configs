@@ -45,6 +45,11 @@ autoload -U +X bashcompinit && bashcompinit
 # complete -o nospace -C /usr/bin/terraform terraform
 complete -C '/usr/local/bin/aws_completer' aws
 
+##################
+# custom scripts #
+##################
+source $ZDOTDIR/scripts/yazi_wrapper.sh
+
 # let gpg know where to read input from
 export GPG_TTY=$(tty)
 

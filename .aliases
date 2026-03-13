@@ -10,8 +10,6 @@ alias load_zshrc='source ~/.zshrc'
 alias lzg='lazygit'
 alias lzd='lazydocker'
 
-alias claude='ENABLE_TOOL_SEARCH=true claude'
-
 #######
 # vim #
 #######
