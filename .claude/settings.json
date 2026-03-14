@@ -44,7 +44,10 @@
       "Bash(glab mr approve:*)",
       "Bash(glab mr merge:*)"
     ],
-    "defaultMode": "acceptEdits"
+    "defaultMode": "acceptEdits",
+    "additionalDirectories": [
+      "~/projects/shopback/"
+    ]
   },
   "hooks": {
     "Notification": [
@@ -59,18 +62,22 @@
       }
     ]
   },
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline.sh"
+  },
+  "enabledPlugins": {},
   "sandbox": {
     "enabled": true,
     "autoAllowBashIfSandboxed": true,
-    "dangerouslyDisableSandbox": true,
     "network": {
-      "allowUnixSockets": [
-        "~/.gnupg/S.gpg-agent"
-      ],
       "allowedDomains": [
         "gitlab.com",
         "*.shopback.com",
         "shopback.com"
+      ],
+      "allowUnixSockets": [
+        "~/.gnupg/S.gpg-agent"
       ],
       "allowLocalBinding": true
     },
@@ -85,15 +92,13 @@
       "npm",
       "yarn",
       "gpg"
-    ]
-  },
-  "statusLine": {
-    "type": "command",
-    "command": "~/.claude/statusline.sh"
+    ],
+    "dangerouslyDisableSandbox": true
   },
   "alwaysThinkingEnabled": true,
   "skipDangerousModePermissionPrompt": true,
   "feedbackSurveyState": {
     "lastShownTime": 1754208364998
-  }
+  },
+  "model": "sonnet[1m]"
 }

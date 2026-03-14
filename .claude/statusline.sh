@@ -100,7 +100,11 @@ if [ "$SHOW_CONTEXT" = true ]; then
       bar_colored=$(printf "${COLOR_BAR_OK}%s${COLOR_RESET}" "$bar")
     fi
 
-    bar_part=$(printf "%s %s %d%%" "$ICON_CONTEXT" "$bar_colored" "$pct_int")
+    exceeds_200k=$(echo "$input" | jq -r '.exceeds_200k_tokens // false')
+    over200k_indicator=""
+    [ "$exceeds_200k" = "true" ] && over200k_indicator=$(printf " ${COLOR_BAR_WARN}%s${COLOR_RESET}" "(>200k)")
+
+    bar_part=$(printf "%s %s %d%%%s" "$ICON_CONTEXT" "$bar_colored" "$pct_int" "$over200k_indicator")
   else
     bar_part=$(printf "%s ${COLOR_BAR_OK}░░░░░░░░░░${COLOR_RESET} 0%%" "$ICON_CONTEXT")
   fi
