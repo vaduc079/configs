@@ -26,10 +26,7 @@
       "Grep",
       "Task",
       "TodoWrite",
-      "AskUserQuestion",
-      "EnterPlanMode",
       "ExitPlanMode",
-      "Skill",
       "NotebookEdit",
       "KillShell",
       "TaskOutput",
@@ -93,7 +90,7 @@
       "yarn",
       "gpg"
     ],
-    "dangerouslyDisableSandbox": true
+    "allowUnsandboxedCommands": true
   },
   "alwaysThinkingEnabled": true,
   "skipDangerousModePermissionPrompt": true,
