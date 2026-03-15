@@ -4,6 +4,7 @@
 # Outputs a single-line status display for the Agent project
 
 input=$(cat)
+# echo "$input" > ~/configs/.claude/statusline.json
 
 # --- Config ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -100,11 +101,30 @@ if [ "$SHOW_CONTEXT" = true ]; then
       bar_colored=$(printf "${COLOR_BAR_OK}%s${COLOR_RESET}" "$bar")
     fi
 
-    exceeds_200k=$(echo "$input" | jq -r '.exceeds_200k_tokens // false')
-    over200k_indicator=""
-    [ "$exceeds_200k" = "true" ] && over200k_indicator=$(printf " ${COLOR_BAR_WARN}%s${COLOR_RESET}" "(>200k)")
+    # Calculate current token usage from current_usage object
+    current_input=$(echo "$input" | jq -r '.context_window.current_usage.input_tokens // 0')
+    cache_creation=$(echo "$input" | jq -r '.context_window.current_usage.cache_creation_input_tokens // 0')
+    cache_read=$(echo "$input" | jq -r '.context_window.current_usage.cache_read_input_tokens // 0')
+    current_tokens=$(( current_input + cache_creation + cache_read ))
 
-    bar_part=$(printf "%s %s %d%%%s" "$ICON_CONTEXT" "$bar_colored" "$pct_int" "$over200k_indicator")
+    # Format token count (e.g., 72.6k or 205k)
+    if [ "$current_tokens" -ge 1000 ]; then
+      tokens_display=$(awk -v t="$current_tokens" 'BEGIN {printf "%.1fk", t/1000}' | sed 's/\.0k/k/')
+    else
+      tokens_display="${current_tokens}"
+    fi
+
+    # Color code the token display based on thresholds
+    tokens_colored=""
+    if [ "$current_tokens" -gt 200000 ]; then
+      tokens_colored=$(printf "${COLOR_BAR_CRIT}%s${COLOR_RESET}" "$tokens_display")
+    elif [ "$current_tokens" -ge 140000 ]; then
+      tokens_colored=$(printf "${COLOR_BAR_WARN}%s${COLOR_RESET}" "$tokens_display")
+    else
+      tokens_colored="$tokens_display"
+    fi
+
+    bar_part=$(printf "%s %s %d%% (%s)" "$ICON_CONTEXT" "$bar_colored" "$pct_int" "$tokens_colored")
   else
     bar_part=$(printf "%s ${COLOR_BAR_OK}░░░░░░░░░░${COLOR_RESET} 0%%" "$ICON_CONTEXT")
   fi
@@ -138,7 +158,6 @@ if [ "$SHOW_DURATION" = true ]; then
       now_ts=$(date +%s)
       elapsed=$(( now_ts - file_mtime ))
       minutes=$(( elapsed / 60 ))
-      seconds=$(( elapsed % 60 ))
       hours=$(( minutes / 60 ))
       days=$(( hours / 24 ))
       if [ "$days" -ge 1 ]; then
@@ -148,7 +167,7 @@ if [ "$SHOW_DURATION" = true ]; then
         remaining_mins=$(( minutes % 60 ))
         duration_str=$(printf "%dh %dm" "$hours" "$remaining_mins")
       else
-        duration_str=$(printf "%dm %ds" "$minutes" "$seconds")
+        duration_str=$(printf "%dm" "$minutes")
       fi
     fi
   fi
