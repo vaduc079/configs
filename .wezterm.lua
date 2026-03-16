@@ -42,6 +42,10 @@ config.macos_window_background_blur = 15
 config.pane_focus_follows_mouse = true
 config.scrollback_lines = 10000
 
+-- Disable macos Option key composition
+config.send_composed_key_when_left_alt_is_pressed = false
+config.send_composed_key_when_right_alt_is_pressed = false
+
 -- Open wezterm at center of screen
 wezterm.on("gui-startup", function(cmd)
 	local screen = wezterm.gui.screens().main
@@ -85,10 +89,34 @@ local function keyMap(key, mods, action)
 	}
 end
 
+local function isNvim(pane)
+	return pane:get_user_vars().IS_NVIM == "true" or pane:get_foreground_process_name():find("n?vim")
+end
+
 -- Helper function to create ActivatePaneDirection key bindings
 local function activatePaneDirectionKey(key, direction)
-	return keyMap(key, "CTRL", wezterm.action.ActivatePaneDirection(direction))
+	local event = "ActivatePaneDirection:" .. direction
+	local mods = "CTRL"
+	wezterm.on(event, function(window, pane)
+		if isNvim(pane) then
+			-- Pass the key bindings to nvim
+			window:perform_action({ SendKey = { key = key, mods = mods } }, pane)
+		end
+
+		window:perform_action({ ActivatePaneDirection = direction }, pane)
+	end)
+
+	return keyMap(key, mods, wezterm.action.EmitEvent(event))
 end
+
+local smartPaneSplitAction = wezterm.action_callback(function(window, pane)
+	local dimensions = pane:get_dimensions()
+	if dimensions.pixel_height > dimensions.pixel_width then
+		window:perform_action(wezterm.action.SplitVertical({ domain = "CurrentPaneDomain" }), pane)
+	else
+		window:perform_action(wezterm.action.SplitHorizontal({ domain = "CurrentPaneDomain" }), pane)
+	end
+end)
 
 local function activateTabKey(key, tab)
 	return keyMap(key, "CTRL", wezterm.action.ActivateTab(tab))
@@ -111,6 +139,19 @@ config.keys = {
 	activatePaneDirectionKey("j", "Down"),
 	activatePaneDirectionKey("k", "Up"),
 	activatePaneDirectionKey("l", "Right"),
+
+	-- Split panes
+	keyMap("Enter", "CTRL", smartPaneSplitAction),
+	keyMap("Enter", "CMD", smartPaneSplitAction),
+	keyMap("/", "CTRL", wezterm.action.SplitHorizontal({})),
+	keyMap("/", "CMD", wezterm.action.SplitHorizontal({})),
+	keyMap("/", "CTRL|SHIFT", wezterm.action.SplitVertical({})),
+	keyMap("/", "CMD|SHIFT", wezterm.action.SplitVertical({})),
+
+	-- Close pane and tab
+	keyMap("w", "CMD", wezterm.action.CloseCurrentPane({ confirm = false })),
+	keyMap("w", "CMD|SHIFT", wezterm.action.CloseCurrentTab({ confirm = false })),
+
 	-- Tab navigation
 	activateTabKey("1", 0),
 	activateTabKey("2", 1),
@@ -122,29 +163,16 @@ config.keys = {
 	activateTabKey("8", 7),
 	activateTabKey("9", 8),
 	activateTabKey("0", 9),
+
 	-- Make Option + Backspace = backward-kill-word
 	keyMap("Backspace", "OPT", wezterm.action.SendKey({ key = "w", mods = "CTRL" })),
 	-- Make Shift + Enter = new line
 	keyMap("Enter", "SHIFT", wezterm.action.SendString("\x1b\r")),
-	-- Make Alt + t = Alt + t instead of "†"
-	keyMap("t", "ALT", wezterm.action.SendKey({ key = "t", mods = "ALT" })),
-	keyMap("i", "ALT", wezterm.action.SendKey({ key = "i", mods = "ALT" })),
 
 	-- Scroll to prompt
 	keyMap("UpArrow", "SHIFT", wezterm.action.ScrollToPrompt(-1)),
 	keyMap("DownArrow", "SHIFT", wezterm.action.ScrollToPrompt(1)),
-	-- Split panes
-	-- keyMap("Enter", "CTRL", wezterm.action.SplitHorizontal({ cwd = wezterm.home_dir })),
-	-- keyMap("Enter", "CTRL|SHIFT", wezterm.action.SplitVertical({ cwd = wezterm.home_dir })),
-	-- keyMap("Enter", "CMD", wezterm.action.SplitHorizontal({ cwd = wezterm.home_dir })),
-	-- keyMap("Enter", "CMD|SHIFT", wezterm.action.SplitVertical({ cwd = wezterm.home_dir })),
-	keyMap("Enter", "CTRL", wezterm.action.SplitHorizontal({})),
-	keyMap("Enter", "CTRL|SHIFT", wezterm.action.SplitVertical({})),
-	keyMap("Enter", "CMD", wezterm.action.SplitHorizontal({})),
-	keyMap("Enter", "CMD|SHIFT", wezterm.action.SplitVertical({})),
-	-- Close pane and tab
-	keyMap("w", "CMD", wezterm.action.CloseCurrentPane({ confirm = false })),
-	keyMap("w", "CMD|SHIFT", wezterm.action.CloseCurrentTab({ confirm = false })),
+
 	-- Key tables
 	activateKeyTable("r", "resize_pane"),
 }
