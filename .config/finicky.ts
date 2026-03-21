@@ -1,6 +1,19 @@
 // ~/.finicky.ts
 import type { FinickyConfig } from "/Applications/Finicky.app/Contents/Resources/finicky.d.ts";
 
+function shouldRedirectToChrome(hostname: string): boolean {
+  return hostname.includes("figma.com") ||
+    hostname.includes("cursor.com") ||
+    hostname.includes(".openai.com") ||
+    hostname.includes("mcp.atlassian.com") ||
+    hostname.includes("https://slack.com") ||
+    hostname.includes(".slack.com") ||
+    hostname.includes("shopback.slack.com") ||
+    // hostname.includes("console.jumpcloud.com") ||
+    hostname.includes(".zscaler.com") ||
+    hostname.includes("n8n.svc.shopback.com");
+}
+
 export default {
   defaultBrowser: "company.thebrowser.Browser",
   // defaultBrowser: "com.google.Chrome",
@@ -9,16 +22,18 @@ export default {
   },
   handlers: [
     {
-      match: (url) =>
-        url.hostname.includes("figma.com") ||
-        url.hostname.includes("cursor.com") ||
-        url.hostname.includes(".openai.com") ||
-        url.hostname.includes("mcp.atlassian.com") ||
-        url.hostname.includes("https://slack.com") ||
-        url.hostname.includes(".slack.com") ||
-        // url.hostname.includes("console.jumpcloud.com") ||
-        url.hostname.includes(".zscaler.com") ||
-        url.hostname.includes("n8n.svc.shopback.com"),
+      match: (url) => {
+        const isGoogleRedirect = url.href.startsWith("https://www.google.com/url?q=")
+        if (isGoogleRedirect) {
+          const redirectUrlStr = url.searchParams.get('q')
+          if (!redirectUrlStr) return false;
+
+          const redirectURL = new URL(redirectUrlStr);
+          return shouldRedirectToChrome(redirectURL.hostname)
+        }
+
+        return shouldRedirectToChrome(url.hostname)
+      },
       browser: "com.google.Chrome",
     },
   ],
