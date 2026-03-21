@@ -12,18 +12,9 @@ setopt HIST_IGNORE_SPACE
 setopt INC_APPEND_HISTORY
 
 bindkey -v
-# End of lines configured by zsh-newuser-install
+
 # The following lines were added by compinstall
 zstyle :compinstall filename '$HOME/.zshrc'
-
-# brew shell completion
-if type brew &>/dev/null; then
-  FPATH="$(brew --prefix)/share/zsh/site-functions:${FPATH}"
-fi
-
-autoload -Uz compinit
-compinit
-# End of lines added by compinstall
 
 # completion
 zstyle ':completion:*' menu select
@@ -33,6 +24,7 @@ source $ZDOTDIR/.shenv
 
 # set aliases
 source $HOME/.aliases
+source $HOME/.aliases.sb
 
 # load keybindings
 source $ZDOTDIR/.keybindings
@@ -53,10 +45,9 @@ source $ZDOTDIR/scripts/yazi_wrapper.sh
 # let gpg know where to read input from
 export GPG_TTY=$(tty)
 
-# use mise tools without prefix
-eval "$(/opt/homebrew/bin/mise activate zsh)"
-
 # starship prompt
 eval "$(starship init zsh)"
 
 eval "$(zoxide init zsh)"
+
+eval "$(/opt/homebrew/bin/mise activate zsh)"

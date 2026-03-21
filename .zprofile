@@ -19,4 +19,10 @@ typeset -U path PATH
 [ -d "$HOME/.local/bin" ] && path=($path $HOME/.local/bin)
 export PATH
 
+# brew shell completion
+if type brew &>/dev/null; then
+  FPATH="$(brew --prefix)/share/zsh/site-functions:${FPATH}"
+fi
+
+
 eval "$(/opt/homebrew/bin/brew shellenv)"

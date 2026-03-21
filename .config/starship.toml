@@ -1,5 +1,7 @@
+"$schema" = 'https://starship.rs/config-schema.json'
+
 add_newline = false
-command_timeout = 1000
+command_timeout = 100
 
 [aws]
 symbol = "  "
@@ -35,6 +37,19 @@ symbol = " "
 
 [git_branch]
 symbol = " "
+disabled = false
+
+[git_commit]
+disabled = true
+
+[git_state]
+disabled = true
+
+[git_metrics]
+disabled = true
+
+[git_status]
+disabled = true
 
 [golang]
 symbol = " "
@@ -77,6 +92,7 @@ symbol = " "
 
 [nodejs]
 symbol = " "
+disabled = false
 
 [os.symbols]
 Alpaquita = " "
