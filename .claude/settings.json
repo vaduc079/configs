@@ -46,6 +46,7 @@
       "~/projects/shopback/"
     ]
   },
+  "model": "sonnet[1m]",
   "hooks": {
     "Notification": [
       {
@@ -67,6 +68,7 @@
   "sandbox": {
     "enabled": true,
     "autoAllowBashIfSandboxed": true,
+    "allowUnsandboxedCommands": true,
     "network": {
       "allowedDomains": [
         "gitlab.com",
@@ -89,13 +91,11 @@
       "npm",
       "yarn",
       "gpg"
-    ],
-    "allowUnsandboxedCommands": true
+    ]
   },
   "alwaysThinkingEnabled": true,
   "skipDangerousModePermissionPrompt": true,
   "feedbackSurveyState": {
     "lastShownTime": 1754208364998
-  },
-  "model": "sonnet[1m]"
+  }
 }
