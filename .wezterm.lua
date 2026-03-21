@@ -8,6 +8,13 @@ local config = wezterm.config_builder()
 -- config.initial_cols = 200
 -- config.initial_rows = 60
 
+config.window_padding = {
+	left = 10,
+	right = 8,
+	top = 10,
+	bottom = 0,
+}
+
 -- config.color_scheme = "Kanagawa (Gogh)"
 config.color_scheme = "Gruvbox Dark (Gogh)"
 -- config.color_scheme = "Everforest Dark (Gogh)"
@@ -32,8 +39,9 @@ config.font_rules = {
 }
 
 config.tab_bar_at_bottom = true
-config.use_fancy_tab_bar = false
+config.use_fancy_tab_bar = true
 config.hide_tab_bar_if_only_one_tab = true
+config.tab_max_width = 50
 
 config.window_decorations = "RESIZE"
 config.window_background_opacity = 0.9
@@ -64,8 +72,8 @@ wezterm.on("gui-startup", function(cmd)
 		origin = "MainScreen",
 	}
 	local _tab, _pane, window = wezterm.mux.spawn_window(cmd)
-	wezterm.log_warn(width, height)
-	wezterm.log_warn(screen.width, screen.height)
+	-- wezterm.log_warn(width, height)
+	-- wezterm.log_warn(screen.width, screen.height)
 	-- window:gui_window():maximize()
 	window:gui_window():set_inner_size(width, height)
 end)
