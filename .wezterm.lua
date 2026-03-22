@@ -110,6 +110,7 @@ local function activatePaneDirectionKey(key, direction)
 		if isNvim(pane) then
 			-- Pass the key bindings to nvim
 			window:perform_action({ SendKey = { key = key, mods = mods } }, pane)
+			return
 		end
 
 		window:perform_action({ ActivatePaneDirection = direction }, pane)
