@@ -1,30 +1,31 @@
-# Configs
+# Dotfiles
 
-My personal configs for macos. Currently this setup includes:
+Personal macOS dotfiles managed with GNU Stow.
 
-- [CaskaydiaCove Nerd Font](https://www.nerdfonts.com/font-downloads)
-- zsh
-- [starship](https://starship.rs) - Shell prompt
-- [kitty](https://sw.kovidgoyal.net/kitty/) - Terminal emulator
-- [homebrew](https://brew.sh/) - Package manager
-- [mise](https://mise.jdx.dev/) - Polyglot tool version manager
-- [lazygit](https://github.com/jesseduffield/lazygit) - A simple terminal UI for git commands
+## How It Works
 
-## Other dependencies
+- This repo mirrors the structure of `$HOME` (`~`).
+- Run `stow .` from repo root to symlink files into `$HOME`.
+- `.stow-local-ignore` excludes files/folders that should not be linked.
 
-- [GNU Stow](https://www.gnu.org/software/stow/) - Symlink farm manager
+## Prerequisites
 
-## Install
+- macOS
+- [GNU Stow](https://www.gnu.org/software/stow/)
 
-Clone or download the repo to `$HOME`
+## Setup
 
 ```bash
-git clone https://github.com/vaduc079/configs.git $HOME/configs
+git clone https://github.com/vaduc079/configs.git "$HOME/configs"
+cd "$HOME/configs"
+stow .
 ```
 
-Use `stow` to symlink everything to `$HOME`
+## Update
+
+After pulling changes:
 
 ```bash
-cd $HOME/configs
+cd "$HOME/configs"
 stow .
 ```

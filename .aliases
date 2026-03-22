@@ -10,9 +10,9 @@ alias load_zshrc='source ~/.zshrc'
 alias lzg='lazygit'
 alias lzd='lazydocker'
 
-#######
-# vim #
-#######
-
+# vim
 alias vim='nvim'
 alias vi='nvim'
+
+# set env var
+alias codex-personal='CODEX_HOME=~/.codex-personal codex'
