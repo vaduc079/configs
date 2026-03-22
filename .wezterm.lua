@@ -9,11 +9,12 @@ local config = wezterm.config_builder()
 -- config.initial_rows = 60
 
 config.window_padding = {
-	left = 10,
-	right = 8,
+	left = 0,
+	right = 0,
 	top = 10,
 	bottom = 0,
 }
+config.use_resize_increments = false
 
 -- config.color_scheme = "Kanagawa (Gogh)"
 config.color_scheme = "Gruvbox Dark (Gogh)"
@@ -44,7 +45,7 @@ config.hide_tab_bar_if_only_one_tab = true
 config.tab_max_width = 50
 
 config.window_decorations = "RESIZE"
-config.window_background_opacity = 0.9
+config.window_background_opacity = 0.95
 config.macos_window_background_blur = 15
 
 config.pane_focus_follows_mouse = true
