@@ -36,20 +36,22 @@ symbol = " "
 symbol = " "
 
 [git_branch]
-symbol = " "
 disabled = false
+symbol = " "
+truncation_length = 35
 
 [git_commit]
-disabled = true
+disabled = false
 
 [git_state]
-disabled = true
+disabled = false
 
 [git_metrics]
 disabled = true
 
 [git_status]
-disabled = true
+disabled = false
+use_git_executable = true
 
 [golang]
 symbol = " "
