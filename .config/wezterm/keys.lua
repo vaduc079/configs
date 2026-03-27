@@ -3,6 +3,7 @@ local act = wezterm.action
 
 local CTRL = "CTRL"
 local CMD = "CMD"
+local ALT = "ALT"
 local SHIFT = "SHIFT"
 local LEADER = "LEADER"
 
@@ -117,6 +118,15 @@ local function tab_keys()
 	return keys
 end
 
+local function move_tab_keys()
+	local keys = {}
+	for i = 1, 8 do
+		-- CTRL+ALT + number to move to that position
+		table.insert(keys, key_map(tostring(i), CTRL .. "|" .. ALT, wezterm.action.MoveTab(i - 1)))
+	end
+	return keys
+end
+
 local function misc_keys()
 	return {
 		key_map("Backspace", "OPT", act.SendKey({ key = "w", mods = CTRL })),
@@ -151,6 +161,7 @@ function M.apply_to_config(config)
 	append_all(keys, split_keys(smart_split))
 	append_all(keys, close_keys())
 	append_all(keys, tab_keys())
+	append_all(keys, move_tab_keys())
 	append_all(keys, misc_keys())
 
 	config.leader = { key = "a", mods = CTRL }

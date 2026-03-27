@@ -14,6 +14,10 @@ function M.apply_to_config(config)
 	-- config.color_scheme = "Kanagawa (Gogh)"
 	config.color_scheme = "Gruvbox Dark (Gogh)"
 	-- config.color_scheme = "Everforest Dark (Gogh)"
+	config.inactive_pane_hsb = {
+		saturation = 1,
+		brightness = 0.9,
+	}
 
 	config.font_size = 13
 	config.font = wezterm.font("CaskaydiaCove Nerd Font Mono")
