@@ -4,7 +4,7 @@
 # Outputs a single-line status display for the Agent project
 
 input=$(cat)
-# echo "$input" > ~/configs/.claude/statusline.json
+# echo "$input" >~/configs/.claude/statusline.json
 
 # --- Config ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -18,6 +18,7 @@ SHOW_BRANCH=${SHOW_BRANCH:-true}
 SHOW_CONTEXT=${SHOW_CONTEXT:-true}
 SHOW_COST=${SHOW_COST:-true}
 SHOW_DURATION=${SHOW_DURATION:-true}
+SHOW_RATE_LIMITS=${SHOW_RATE_LIMITS:-true}
 ICON_FOLDER=${ICON_FOLDER:-"📁"}
 ICON_BRANCH=${ICON_BRANCH:-"🌱"}
 ICON_CONTEXT=${ICON_CONTEXT:-""}
@@ -50,7 +51,7 @@ if [ -n "$cwd" ]; then
     cache_branch=$(sed -n '3p' "$CACHE_FILE" 2>/dev/null)
 
     if [ -n "$cache_time" ] && [ -n "$cache_dir" ] && [ "$cache_dir" = "$cwd" ]; then
-      age=$(( now - cache_time ))
+      age=$((now - cache_time))
       if [ "$age" -lt 5 ]; then
         git_branch="$cache_branch"
         cache_valid=true
@@ -60,7 +61,7 @@ if [ -n "$cwd" ]; then
 
   if [ "$cache_valid" = false ]; then
     git_branch=$(git -C "$cwd" symbolic-ref --short HEAD 2>/dev/null || git -C "$cwd" rev-parse --short HEAD 2>/dev/null || echo "")
-    printf '%s\n%s\n%s\n' "$now" "$cwd" "$git_branch" > "$CACHE_FILE"
+    printf '%s\n%s\n%s\n' "$now" "$cwd" "$git_branch" >"$CACHE_FILE"
   fi
 fi
 
@@ -75,7 +76,7 @@ fi
 if [ "$SHOW_BRANCH" = true ] && [ -n "$git_branch" ]; then
   info="$info | ${ICON_BRANCH} ${git_branch}"
 fi
-info="${info# }"  # trim leading space
+info="${info# }" # trim leading space
 
 # --- Context window progress bar ---
 
@@ -85,13 +86,13 @@ if [ "$SHOW_CONTEXT" = true ]; then
 
   if [ -n "$used_pct" ]; then
     pct_int=$(printf '%.0f' "$used_pct")
-    filled=$(( pct_int * 10 / 100 ))
+    filled=$((pct_int * 10 / 100))
     [ "$filled" -gt 10 ] && filled=10
-    empty=$(( 10 - filled ))
+    empty=$((10 - filled))
 
     bar=""
-    for (( i=0; i<filled; i++ )); do bar="${bar}█"; done
-    for (( i=0; i<empty; i++ )); do bar="${bar}░"; done
+    for ((i = 0; i < filled; i++)); do bar="${bar}█"; done
+    for ((i = 0; i < empty; i++)); do bar="${bar}░"; done
 
     if [ "$pct_int" -ge 90 ]; then
       bar_colored=$(printf "${COLOR_BAR_CRIT}%s${COLOR_RESET}" "$bar")
@@ -105,7 +106,7 @@ if [ "$SHOW_CONTEXT" = true ]; then
     current_input=$(echo "$input" | jq -r '.context_window.current_usage.input_tokens // 0')
     cache_creation=$(echo "$input" | jq -r '.context_window.current_usage.cache_creation_input_tokens // 0')
     cache_read=$(echo "$input" | jq -r '.context_window.current_usage.cache_read_input_tokens // 0')
-    current_tokens=$(( current_input + cache_creation + cache_read ))
+    current_tokens=$((current_input + cache_creation + cache_read))
 
     # Format token count (e.g., 72.6k or 205k)
     if [ "$current_tokens" -ge 1000 ]; then
@@ -156,15 +157,15 @@ if [ "$SHOW_DURATION" = true ]; then
     fi
     if [ -n "$file_mtime" ] && [ "$file_mtime" -gt 0 ]; then
       now_ts=$(date +%s)
-      elapsed=$(( now_ts - file_mtime ))
-      minutes=$(( elapsed / 60 ))
-      hours=$(( minutes / 60 ))
-      days=$(( hours / 24 ))
+      elapsed=$((now_ts - file_mtime))
+      minutes=$((elapsed / 60))
+      hours=$((minutes / 60))
+      days=$((hours / 24))
       if [ "$days" -ge 1 ]; then
-        remaining_hours=$(( hours % 24 ))
+        remaining_hours=$((hours % 24))
         duration_str=$(printf "%dd %dh" "$days" "$remaining_hours")
       elif [ "$hours" -ge 1 ]; then
-        remaining_mins=$(( minutes % 60 ))
+        remaining_mins=$((minutes % 60))
         duration_str=$(printf "%dh %dm" "$hours" "$remaining_mins")
       else
         duration_str=$(printf "%dm" "$minutes")
@@ -174,6 +175,20 @@ if [ "$SHOW_DURATION" = true ]; then
   duration_part="${ICON_TIME} ${duration_str}"
 fi
 
+# --- Rate limits ---
+
+rate_part=""
+if [ "$SHOW_RATE_LIMITS" = true ]; then
+  five_hour_used=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty')
+  seven_day_used=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty')
+
+  if [ -n "$five_hour_used" ] && [ -n "$seven_day_used" ]; then
+    five_left=$(awk -v u="$five_hour_used" 'BEGIN {printf "%.0f", 100 - u}')
+    seven_left=$(awk -v u="$seven_day_used" 'BEGIN {printf "%.0f", 100 - u}')
+    rate_part=$(printf "5h • %s%% - 7d • %s%%" "$five_left" "$seven_left")
+  fi
+fi
+
 # --- Assemble output from enabled parts ---
 
 parts=()
@@ -181,6 +196,7 @@ parts=()
 [ -n "$bar_part" ] && parts+=("$bar_part")
 [ -n "$cost_part" ] && parts+=("$cost_part")
 [ -n "$duration_part" ] && parts+=("$duration_part")
+[ -n "$rate_part" ] && parts+=("$rate_part")
 
 output="${parts[0]}"
 for part in "${parts[@]:1}"; do output="$output | $part"; done

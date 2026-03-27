@@ -73,10 +73,13 @@
       "allowedDomains": [
         "gitlab.com",
         "*.shopback.com",
-        "shopback.com"
+        "shopback.com",
+        "localhost",
+        "127.0.0.1"
       ],
       "allowUnixSockets": [
-        "~/.gnupg/S.gpg-agent"
+        "~/.gnupg/S.gpg-agent",
+        "~/.rd/docker.sock"
       ],
       "allowLocalBinding": true
     },
