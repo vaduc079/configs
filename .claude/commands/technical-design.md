@@ -1,155 +1,94 @@
-# Technical Design AI Rules
+---
+title: System Design & Architecture
+description: Define the technical architecture, components, and data models
+---
+
+# System Design & Architecture
 
 **Your Role:** Technical architect creating high-level design docs. Focus on architectural decisions and system design, NOT implementation code.
 
 ---
 
-## 🔴 CRITICAL RULES
+## Rules
 
 ### 1. People Skim - Frontload Everything
 
 - **Critical info first** in every section
-- **Every sentence must earn its place**
 - Engineers will skim, not read thoroughly
 
 ### 2. Work ONE Section at a Time
 
 - ⛔ **NEVER output entire design at once**
 - Present one section → wait for feedback → proceed
-- Keep sections brief: **2-4 paragraphs max**
-- Keep diagrams simple: **5-7 boxes max** unless asked
+- Keep sections brief
+- Keep diagrams simple
 
-### 3. High-Level Only
-
-- Engineers need **direction**, not step-by-step instructions
-- Describe components, not classes
-- Explain data flow, not function calls
-- Document decisions, not code syntax
-
----
-
-## Process
-
-### 1. Understand the System First
-
-- Read source files, search related components
-- Identify existing patterns and conventions
-
-### 2. Clarify Requirements
-
-Ask about:
-
-- **Business goals** - What problem? What defines success?
-- **Non-functional requirements** - Performance, scale, reliability
-- **Integration points** - What systems interact?
-- **Constraints** - Timeline, resources, compatibility
-- **Scope boundaries** - What's out of scope?
-
-### 3. Build Iteratively (One Section at a Time)
-
-#### Step 1: Overview & Goals
-
-- Problem statement (2-3 sentences)
-- Solution summary (2-3 paragraphs max)
-- Goals & Non-Goals (bullets only, if needed)
-
-**⛔ STOP. Get feedback.**
-
-#### Step 2: High-Level Flow
-
-- Simple diagram (5-7 boxes max)
-- Main components and how they interact
-- Use appropriate diagram type (flowchart/sequence/component)
-
-**⛔ STOP. Get feedback.**
-
-#### Step 3: Design Each Component (ONE at a time)
-
-For each component, include **ONLY what matters:**
-
-- **Responsibility** (1-2 sentences)
-- **Data model** (entities, storage, relationships)
-- **API/interfaces** (contracts, request/response)
-- **Technical decisions** (the critical choice and why)
-- **Security/Performance** (only if non-obvious)
-- **Integration points** (what connects to what)
-
-**ONE component per response. 2-4 paragraphs max.**
-
-**⛔ STOP. Get feedback before next component.**
-
-#### Step 4: Wrap Up (After All Components)
-
-- Risks and mitigations
-- Monitoring approach
-- Future considerations
-
-### 4. Refine Based on Feedback
+### 3. Refine Based on Feedback
 
 - Discuss tradeoffs openly
 - Challenge assumptions together
 - Move forward only when user is ready
 
-### 5. Finalize
-
-- Save to markdown file in appropriate location (e.g., `docs/design/`, `docs/technical/`)
-
 ---
 
-## What to Include/Exclude
+## System Design & Architecture
 
-### ✅ DO Include
+### Architecture Overview
 
-- Architectural decisions and tradeoffs
-- Why alternatives don't work
-- Non-obvious security/performance considerations
-- Integration contracts and data flow
+**What is the high-level system structure?**
 
-### ❌ DO NOT Include
+- Include a mermaid diagram that captures the main components and their relationships. Example:
 
-- Step-by-step algorithms (describe approach only)
-- Standard error handling patterns
-- Deployment details (unless affecting design)
-- "Introduction" or "Background" sections
-- Obvious implementation details
-- Standard CRUD operations, typical REST patterns
+  ```mermaid
+  graph TD
+    Client -->|HTTPS| API
+    API --> ServiceA
+    API --> ServiceB
+    ServiceA --> Database[(DB)]
+  ```
 
----
+- Key components and their responsibilities
+- Technology stack choices and rationale
 
-## Writing Style
+### Data Models
 
-### Be Brief and Scannable
+**What data do we need to manage?**
 
-- **First sentence = most critical info**
-- **Maximum 2-4 paragraphs per section**
-- **Bold key terms** when introduced
-- Use bullet points liberally
-- Short paragraphs (3-5 sentences max)
-- Simple, clear language - avoid jargon
+- Core entities and their relationships
+- Data schemas/structures
+- Data flow between components
 
-### Use Visual Hierarchy
+### API Design
 
-- Headings and whitespace generously
-- Blank lines between sections
-- Bullet points over paragraphs when possible
+**How do components communicate?**
 
-### Diagrams
+- External APIs (if applicable)
+- Internal interfaces
+- Request/response formats
+- Authentication/authorization approach
 
-- Start simple (5-7 boxes, main paths only)
-- Add detail only when requested
-- One scenario at a time for sequence diagrams
+### Component Breakdown
 
-### Highlight Tradeoffs
+**What are the major building blocks?**
 
-- Every decision has costs and benefits
-- Be explicit about what you're optimizing for
-- Explain why alternatives don't work
+- Frontend components (if applicable)
+- Backend services/modules
+- Database/storage layer
+- Third-party integrations
 
----
+### Design Decisions
 
-## Remember
+**Why did we choose this approach?**
 
-- **Trust engineers** - they know how to code, they need direction
-- **Omit the obvious** - if you'd skim past it, it's probably not important
-- **Make it actionable** - clear enough to implement, not prescriptive about code structure
-- **One section at a time** - build incrementally, never dump the whole design
+- Key architectural decisions and trade-offs
+- Alternatives considered
+- Patterns and principles applied
+
+### Non-Functional Requirements
+
+**How should the system perform?**
+
+- Performance targets
+- Scalability considerations
+- Security requirements
+- Reliability/availability needs
