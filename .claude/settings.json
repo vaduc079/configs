@@ -24,7 +24,6 @@
       "Skill",
       "Glob",
       "Grep",
-      "Task",
       "TodoWrite",
       "ExitPlanMode",
       "NotebookEdit",
@@ -42,9 +41,7 @@
       "Bash(glab mr merge:*)"
     ],
     "defaultMode": "acceptEdits",
-    "additionalDirectories": [
-      "~/projects/shopback/"
-    ]
+    "additionalDirectories": ["~/projects/shopback/"]
   },
   "model": "sonnet[1m]",
   "hooks": {
@@ -77,10 +74,7 @@
         "localhost",
         "127.0.0.1"
       ],
-      "allowUnixSockets": [
-        "~/.gnupg/S.gpg-agent",
-        "~/.rd/docker.sock"
-      ],
+      "allowUnixSockets": ["~/.gnupg/S.gpg-agent", "~/.rd/docker.sock"],
       "allowLocalBinding": true
     },
     "excludedCommands": [
