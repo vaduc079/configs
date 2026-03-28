@@ -1,0 +1,36 @@
+model = "gpt-5.3-codex"
+model_reasoning_effort = "medium"
+approval_policy = "on-request"
+
+personality = "pragmatic"
+
+web_search = "cached" # default
+# web_search = "disabled"
+# web_search = "live"  # same as --search
+
+sandbox_mode = "workspace-write"
+[sandbox_workspace_write]
+network_access = true
+writable_roots = ["/Users/duc.vu/projects/personal", "/Users/duc.vu/configs/"]
+exclude_slash_tmp = false
+exclude_tmpdir_env_var = false
+
+[projects."/Users/duc.vu/configs"]
+trust_level = "trusted"
+
+[projects."/Users/duc.vu/.config/nvim"]
+trust_level = "trusted"
+
+[notice.model_migrations]
+"gpt-5.3-codex" = "gpt-5.4"
+
+[tui]
+status_line = [
+  "model-with-reasoning",
+  "context-remaining",
+  "context-window-size",
+  "current-dir",
+  "git-branch",
+  "five-hour-limit",
+  "weekly-limit",
+]

@@ -1,0 +1,66 @@
+# Common read-only git commands that are safe to auto-allow.
+prefix_rule(
+    pattern = ["git", "status"],
+    decision = "allow",
+    justification = "Allow common git status checks without approval.",
+)
+
+prefix_rule(
+    pattern = ["git", "diff"],
+    decision = "allow",
+    justification = "Allow common git diff checks without approval.",
+)
+
+prefix_rule(
+    pattern = ["git", "log"],
+    decision = "allow",
+    justification = "Allow common git history checks without approval.",
+)
+
+prefix_rule(
+    pattern = ["git", "show"],
+    decision = "allow",
+    justification = "Allow common git object inspection without approval.",
+)
+
+prefix_rule(
+    pattern = ["git", "branch"],
+    decision = "allow",
+    justification = "Allow common git branch inspection without approval.",
+)
+
+prefix_rule(
+    pattern = ["git", "rev-parse"],
+    decision = "allow",
+    justification = "Allow git metadata inspection without approval.",
+)
+
+prefix_rule(
+    pattern = ["git", "ls-files"],
+    decision = "allow",
+    justification = "Allow listing tracked files without approval.",
+)
+
+prefix_rule(
+    pattern = ["git", "remote"],
+    decision = "allow",
+    justification = "Allow inspecting remotes without approval.",
+)
+
+prefix_rule(
+    pattern = ["git", "fetch"],
+    decision = "allow",
+    justification = "Allow fetching remote refs without approval.",
+)
+
+prefix_rule(
+    pattern = ["git", "add"],
+    decision = "allow",
+    justification = "Allow staging files without approval.",
+)
+
+prefix_rule(
+    pattern = ["git", "commit"],
+    decision = "allow",
+    justification = "Allow creating commits without approval.",
+)
