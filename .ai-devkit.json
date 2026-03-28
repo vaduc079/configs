@@ -13,6 +13,9 @@
     "deployment",
     "monitoring"
   ],
+  "registries": {
+    "vaduc079/skills": "git@github.com:vaduc079/skills.git"
+  },
   "skills": [
     {
       "registry": "codeaholicguy/ai-devkit",
@@ -21,8 +24,20 @@
     {
       "registry": "codeaholicguy/ai-devkit",
       "name": "simplify-implementation"
+    },
+    {
+      "registry": "vaduc079/skills",
+      "name": "write-clear-code"
+    },
+    {
+      "registry": "vaduc079/skills",
+      "name": "test-and-fix"
+    },
+    {
+      "registry": "vaduc079/skills",
+      "name": "write-tests"
     }
   ],
   "createdAt": "2026-03-28T09:03:53.494Z",
-  "updatedAt": "2026-03-28T09:22:45.218Z"
+  "updatedAt": "2026-03-28T10:28:52.837Z"
 }

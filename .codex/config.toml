@@ -21,6 +21,9 @@ trust_level = "trusted"
 [projects."/Users/duc.vu/.config/nvim"]
 trust_level = "trusted"
 
+[projects."/Users/duc.vu/projects/personal/skills"]
+trust_level = "trusted"
+
 [notice.model_migrations]
 "gpt-5.3-codex" = "gpt-5.4"
 
