@@ -15,4 +15,4 @@ Library/Application Support/lazygit/state.yml
 .agents/skills/*
 .codex/commands/*
 
-docs/ai/*
+.worktrees/
