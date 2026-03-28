@@ -8,9 +8,9 @@
 # @raycast.icon 🔗
 
 # Optional parameters:
-# @raycast.argument1 { "type": "text", "placeholder": "root folder", "optional": true }
-# @raycast.argument2 { "type": "text", "placeholder": "open with", "optional": true }
-# @raycast.argument3 { "type": "text", "placeholder": "prefix", "optional": true }
+# @raycast.argument1 { "type": "text", "placeholder": "root folder", "optional": false }
+# @raycast.argument2 { "type": "text", "placeholder": "open with", "optional": false }
+# @raycast.argument3 { "type": "text", "placeholder": "prefix", "optional": false }
 
 # Documentation:
 # @raycast.description Generate a JSON file for Import Quicklinks from a list of folders in the given directory.
@@ -19,9 +19,9 @@
 
 set -euo pipefail
 
-BASE_DIR="${1:-$HOME/projects}"
+BASE_DIR="$1"
 OUTPUT_FILE="$BASE_DIR/raycast-quicklinks.json"
-OPEN_WITH="${2:-Cursor}"
+OPEN_WITH="$2"
 PREFIX="$3"
 
 json_escape() {
@@ -49,7 +49,7 @@ shopt -u nullglob
   echo "["
   first=1
   for dir in "${directories[@]}"; do
-    if (( first )); then
+    if ((first)); then
       first=0
     else
       printf ',\n'
