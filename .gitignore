@@ -9,3 +9,10 @@ Library/Application Support/lazygit/state.yml
 .config/karabiner/assets/*
 *.sb
 *.log
+
+.claude/skills/*
+.claude/commands/*
+.agents/skills/*
+.codex/commands/*
+
+docs/ai/*

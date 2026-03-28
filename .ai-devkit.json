@@ -1,0 +1,28 @@
+{
+  "version": "0.19.0",
+  "environments": [
+    "claude",
+    "codex"
+  ],
+  "phases": [
+    "requirements",
+    "design",
+    "planning",
+    "implementation",
+    "testing",
+    "deployment",
+    "monitoring"
+  ],
+  "skills": [
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-lifecycle"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "simplify-implementation"
+    }
+  ],
+  "createdAt": "2026-03-28T09:03:53.494Z",
+  "updatedAt": "2026-03-28T09:22:45.218Z"
+}
