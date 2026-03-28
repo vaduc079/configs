@@ -1,7 +1,13 @@
 \.git
 \.gitignore
+\.gitkeep
+^\.gitconfig\.sample$
 \.zcompdump*
 \.zcomcache
-README.md
+^/README\.md
 .*\.code-profile
 \.scripts
+^/docs
+^/\.ai-devkit.json$
+^/AGENTS\.md$
+^/CLAUDE\.md$

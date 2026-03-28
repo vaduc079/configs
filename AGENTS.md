@@ -10,7 +10,7 @@ Paths in this repo should match where they are expected under `$HOME`.
 Use GNU Stow from the repository root to expose configs in `$HOME`:
 
 ```bash
-stow .
+stow -v .
 ```
 
 This creates symlinks so configurations in this repo are available in the home folder.
