@@ -2,6 +2,7 @@
 \.gitignore
 \.gitkeep
 ^\.gitconfig\.sample$
+^\.worktrees$
 \.zcompdump*
 \.zcomcache
 ^/README\.md

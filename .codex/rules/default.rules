@@ -64,3 +64,10 @@ prefix_rule(
     decision = "allow",
     justification = "Allow creating commits without approval.",
 )
+
+prefix_rule(
+    pattern = ["git", "worktree"],
+    decision = "allow",
+    justification = "Allow worktree without approval.",
+)
+
