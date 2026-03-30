@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Session Lookback"
+  short_description: "Search past Codex sessions by topic"
+  default_prompt: "Use $codex-session-lookback to find earlier Codex sessions about a topic."
