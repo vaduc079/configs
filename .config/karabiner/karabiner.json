@@ -211,10 +211,6 @@
                         "vendor_id": 1149
                     },
                     "ignore": false
-                },
-                {
-                    "identifiers": { "is_keyboard": true },
-                    "manipulate_caps_lock_led": false
                 }
             ],
             "name": "Default profile",
