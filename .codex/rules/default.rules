@@ -71,3 +71,8 @@ prefix_rule(
     justification = "Allow worktree without approval.",
 )
 
+prefix_rule(
+    pattern = ["npx", "ai-devkit@latest"],
+    decision = "allow",
+    justification = "Allow ai-devkit",
+)
