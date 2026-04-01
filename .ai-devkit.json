@@ -36,8 +36,24 @@
     {
       "registry": "vaduc079/skills",
       "name": "write-tests"
+    },
+    {
+      "registry": "vaduc079/skills",
+      "name": "get-requirements"
+    },
+    {
+      "registry": "vaduc079/skills",
+      "name": "tasks-breakdown"
+    },
+    {
+      "registry": "vaduc079/skills",
+      "name": "technical-design"
+    },
+    {
+      "registry": "vaduc079/skills",
+      "name": "review-technical-design"
     }
   ],
   "createdAt": "2026-03-28T09:03:53.494Z",
-  "updatedAt": "2026-03-28T10:28:52.837Z"
+  "updatedAt": "2026-04-01T06:07:03.635Z"
 }
