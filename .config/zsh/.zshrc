@@ -40,6 +40,7 @@ complete -C '/usr/local/bin/aws_completer' aws
 ##################
 # custom scripts #
 ##################
+source $ZDOTDIR/scripts/local_env_toggle.sh
 source $ZDOTDIR/scripts/yazi_wrapper.sh
 
 # let gpg know where to read input from
@@ -51,3 +52,9 @@ eval "$(starship init zsh)"
 eval "$(zoxide init zsh)"
 
 eval "$(/opt/homebrew/bin/mise activate zsh)"
+
+# The next line updates PATH for the Google Cloud SDK.
+if [ -f '/Users/duc.vu/projects/apps/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/duc.vu/projects/apps/google-cloud-sdk/path.zsh.inc'; fi
+
+# The next line enables shell command completion for gcloud.
+if [ -f '/Users/duc.vu/projects/apps/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/duc.vu/projects/apps/google-cloud-sdk/completion.zsh.inc'; fi
