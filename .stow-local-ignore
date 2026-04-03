@@ -3,12 +3,16 @@
 \.gitkeep
 ^\.gitconfig\.sample$
 ^\.worktrees$
+
 \.zcompdump*
 \.zcomcache
+
 ^/README\.md
-.*\.code-profile
+
 \.scripts
 ^/docs
+^/misc
+
 ^/\.ai-devkit.json$
 ^/AGENTS\.md$
 ^/CLAUDE\.md$
