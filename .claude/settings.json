@@ -1,5 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "CLAUDE_CODE_NO_FLICKER": "1"
+  },
   "permissions": {
     "allow": [
       "Bash(glab:*)",
@@ -30,10 +33,14 @@
       "KillShell",
       "TaskOutput",
       "mcp__atlassian-mcp-server",
-      "mcp__trino-mcp"
+      "mcp__claude_ai_Slack"
     ],
     "ask": [
       "mcp__slack-direct__send_message",
+      "mcp__claude_ai_Slack__slack_schedule_message",
+      "mcp__claude_ai_Slack__slack_send_message",
+      "mcp__claude_ai_Slack__slack_send_message_draft",
+      "mcp__claude_ai_Slack__slack_create_canvas",
       "mcp__atlassian-mcp-server__addCommentToJiraIssue",
       "mcp__atlassian-mcp-server__createConfluenceFooterComment",
       "mcp__atlassian-mcp-server__createConfluenceInlineComment",
@@ -41,9 +48,7 @@
       "Bash(glab mr merge:*)"
     ],
     "defaultMode": "acceptEdits",
-    "additionalDirectories": [
-      "~/projects/shopback/"
-    ]
+    "additionalDirectories": ["~/projects/shopback/"]
   },
   "model": "sonnet[1m]",
   "hooks": {
@@ -76,22 +81,16 @@
         "localhost",
         "127.0.0.1"
       ],
-      "allowUnixSockets": [
-        "~/.gnupg/S.gpg-agent",
-        "~/.rd/docker.sock"
-      ],
+      "allowUnixSockets": ["~/.gnupg/S.gpg-agent", "~/.rd/docker.sock"],
       "allowLocalBinding": true
     },
     "excludedCommands": [
       "git",
       "glab",
       "kubectl",
-      "make",
       "docker",
       "docker-compose",
       "docker compose",
-      "npm",
-      "yarn",
       "gpg"
     ]
   },
