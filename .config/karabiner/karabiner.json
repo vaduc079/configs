@@ -153,15 +153,6 @@
                     "ignore": true
                 },
                 {
-                    "disable_built_in_keyboard_if_exists": true,
-                    "identifiers": {
-                        "is_keyboard": true,
-                        "is_pointing_device": true,
-                        "product_id": 20811,
-                        "vendor_id": 20307
-                    }
-                },
-                {
                     "identifiers": {
                         "is_keyboard": true,
                         "product_id": 647,

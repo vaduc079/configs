@@ -53,6 +53,18 @@ function M.apply_to_config(config)
 	-- Disable macOS Option key composition
 	config.send_composed_key_when_left_alt_is_pressed = false
 	config.send_composed_key_when_right_alt_is_pressed = false
+
+	-- config.unix_domains = {
+	-- 	{
+	-- 		name = "unix",
+	-- 	},
+	-- }
+	--
+	-- -- This causes `wezterm` to act as though it was started as
+	-- -- `wezterm connect unix` by default, connecting to the unix
+	-- -- domain on startup.
+	-- -- If you prefer to connect manually, leave out this line.
+	-- config.default_gui_startup_args = { "connect", "unix" }
 end
 
 return M
