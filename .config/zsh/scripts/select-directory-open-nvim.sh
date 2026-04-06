@@ -69,7 +69,7 @@ main() {
       "$FD_EXECUTABLE" \
         --type d \
         --type l \
-        --max-depth 5 \
+        --max-depth 3 \
         --absolute-path \
         "${exclude_args[@]}" \
         . \
