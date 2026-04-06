@@ -3,9 +3,10 @@
 
 -- Load all modules
 local directionalFocus = require("directional_focus")
-local focusFollowMouse = require("focus_follow_mouse") 
+local focusFollowMouse = require("focus_follow_mouse")
 local clickThrough = require("click_through")
 local mouseFollowFocus = require("mouse_follow_focus")
+local nvimPicker = require("nvim_picker")
 local cli = require("cli")
 
 -- Configuration
@@ -15,9 +16,10 @@ local config = {
 	enableFocusFollowMouse = false,
 	enableClickThrough = false,
 	enableMouseFollowFocus = true,
+	enableNvimPicker = true,
 
 	-- Focus follow mouse interval in milliseconds
-	focusFollowMouseInterval = 150
+	focusFollowMouseInterval = 150,
 }
 
 -- Initialize enabled modules
@@ -41,6 +43,10 @@ local function initializeModules()
 	if config.enableMouseFollowFocus then
 		mouseFollowFocus.start()
 	end
+
+	if config.enableNvimPicker then
+		nvimPicker.start()
+	end
 end
 
 -- Reload configuration
@@ -58,7 +64,7 @@ function ShowStatus()
 		string.format("Click Through: %s", clickThrough.isEnabled() and "ENABLED" or "DISABLED"),
 		string.format("Mouse Follow Focus: %s", mouseFollowFocus.isEnabled() and "ENABLED" or "DISABLED"),
 		"",
-		string.format("Focus Follow Mouse Interval: %dms", focusFollowMouse.getInterval())
+		string.format("Focus Follow Mouse Interval: %dms", focusFollowMouse.getInterval()),
 	}
 
 	hs.alert.show(table.concat(status, "\n"), 3)
