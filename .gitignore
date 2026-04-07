@@ -13,6 +13,6 @@ Library/Application Support/lazygit/state.yml
 .claude/skills/*
 .claude/commands/*
 .agents/skills/*
-.codex/commands/*
+.codex-personal/commands/*
 
 .worktrees/

@@ -30,6 +30,15 @@ trust_level = "trusted"
 [projects."/Users/duc.vu/projects/personal/raycast-extensions/neovim-launcher"]
 trust_level = "trusted"
 
+[projects."/Users/duc.vu/projects/personal"]
+trust_level = "trusted"
+
+[projects."/Users/duc.vu/projects/personal/raycast-extensions"]
+trust_level = "trusted"
+
+[projects."/Users/duc.vu/projects/personal/codex-plugin-cc"]
+trust_level = "trusted"
+
 [notice.model_migrations]
 "gpt-5.3-codex" = "gpt-5.4"
 
