@@ -60,6 +60,12 @@ prefix_rule(
 )
 
 prefix_rule(
+    pattern = ["git", "checkout"],
+    decision = "allow",
+    justification = "Allow git checkout without approval.",
+)
+
+prefix_rule(
     pattern = ["git", "commit"],
     decision = "allow",
     justification = "Allow creating commits without approval.",

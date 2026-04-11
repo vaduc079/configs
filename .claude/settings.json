@@ -44,10 +44,11 @@
       "mcp__atlassian-mcp-server__addCommentToJiraIssue",
       "mcp__atlassian-mcp-server__createConfluenceFooterComment",
       "mcp__atlassian-mcp-server__createConfluenceInlineComment",
+      "mcp__atlassian-mcp-server__updateConfluencePage",
       "Bash(glab mr approve:*)",
       "Bash(glab mr merge:*)"
     ],
-    "defaultMode": "acceptEdits",
+    "defaultMode": "auto",
     "additionalDirectories": ["~/projects/shopback/"]
   },
   "model": "sonnet[1m]",
@@ -68,7 +69,17 @@
     "type": "command",
     "command": "~/.claude/statusline.sh"
   },
-  "enabledPlugins": {},
+  "enabledPlugins": {
+    "codex@openai-codex": false
+  },
+  "extraKnownMarketplaces": {
+    "openai-codex": {
+      "source": {
+        "source": "github",
+        "repo": "openai/codex-plugin-cc"
+      }
+    }
+  },
   "sandbox": {
     "enabled": true,
     "autoAllowBashIfSandboxed": true,
@@ -99,5 +110,6 @@
   "skipDangerousModePermissionPrompt": true,
   "feedbackSurveyState": {
     "lastShownTime": 1754208364998
-  }
+  },
+  "skipAutoPermissionPrompt": true
 }
