@@ -12,3 +12,8 @@ Example:
   "dangerouslyDisableSandbox": true
 }
 ```
+
+# Bash Tool Usage
+
+- Use `rg` instead of `grep`
+- Use `fd` instead of `find`

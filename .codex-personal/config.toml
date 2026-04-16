@@ -39,16 +39,24 @@ trust_level = "trusted"
 [projects."/Users/duc.vu/projects/personal/codex-plugin-cc"]
 trust_level = "trusted"
 
+[projects."/Users/duc.vu/projects/personal/local-agent"]
+trust_level = "trusted"
+
+[projects."/Users/duc.vu/projects/personal/agent-to-agent"]
+trust_level = "trusted"
+
 [notice.model_migrations]
 "gpt-5.3-codex" = "gpt-5.4"
 
 [tui]
-status_line = [
-  "model-with-reasoning",
-  "project-root",
-  "git-branch",
-  "context-remaining",
-  "context-window-size",
-  "five-hour-limit",
-  "weekly-limit",
-]
+status_line = ["model-with-reasoning", "project-root", "git-branch", "context-usage", "context-window-size", "five-hour-limit", "weekly-limit"]
+
+[mcp_servers.openaiDeveloperDocs]
+enabled = false
+url = "https://developers.openai.com/mcp"
+
+[mcp_servers.openaiDeveloperDocs.tools.search_openai_docs]
+approval_mode = "approve"
+
+[mcp_servers.openaiDeveloperDocs.tools.fetch_openai_doc]
+approval_mode = "approve"
