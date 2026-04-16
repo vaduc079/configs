@@ -1,7 +1,7 @@
 "$schema" = 'https://starship.rs/config-schema.json'
 
 add_newline = false
-command_timeout = 200
+command_timeout = 100
 
 [aws]
 symbol = "  "
@@ -21,11 +21,12 @@ symbol = " "
 [directory]
 read_only = " 󰌾"
 truncate_to_repo = false
-truncation_length = 3
+truncation_length = 2
 truncation_symbol = '.../'
 
 [docker_context]
 symbol = " "
+disabled = true
 
 [elixir]
 symbol = " "
@@ -51,7 +52,7 @@ disabled = false
 disabled = true
 
 [git_status]
-disabled = false
+disabled = true
 use_git_executable = true
 
 [golang]
@@ -95,6 +96,30 @@ symbol = " "
 
 [nodejs]
 symbol = " "
+disabled = true
+
+[custom.node]
+symbol = " "
+command = """
+v=$(
+  if [ -f .nvmrc ]; then cat .nvmrc
+  elif [ -f .node-version ]; then cat .node-version
+  elif [ -f mise.toml ]; then grep -m1 '^node' mise.toml | grep -oE '"[^"]+"' | tr -d '"'
+  elif [ -f .tool-versions ]; then grep '^node' .tool-versions | awk '{print $2}'
+  else node --version 2>/dev/null
+  fi
+)
+case "$v" in v*) echo "$v" ;; *) echo "v$v" ;; esac
+"""
+format = 'via [$symbol($output )]($style)'
+detect_files = [
+  'package.json',
+  '.node-version',
+  '.nvmrc',
+  'mise.toml',
+  '.tool-versions',
+]
+style = 'bold green'
 disabled = false
 
 [os.symbols]
@@ -140,6 +165,7 @@ Windows = "󰍲 "
 
 [package]
 symbol = "󰏗 "
+disabled = true
 
 [pijul_channel]
 symbol = " "
@@ -158,3 +184,6 @@ symbol = " "
 
 [scala]
 symbol = " "
+
+[gcloud]
+disabled = true
