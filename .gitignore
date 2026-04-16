@@ -16,3 +16,4 @@ Library/Application Support/lazygit/state.yml
 .codex-personal/commands/*
 
 .worktrees/
+/.config/yazi/flavors/
