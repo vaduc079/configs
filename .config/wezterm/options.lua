@@ -44,8 +44,8 @@ function M.apply_to_config(config)
 	config.tab_max_width = 50
 
 	config.window_decorations = "RESIZE"
-	config.window_background_opacity = 0.98
-	config.macos_window_background_blur = 15
+	config.window_background_opacity = 0.90
+	config.macos_window_background_blur = 20
 
 	config.pane_focus_follows_mouse = true
 	config.scrollback_lines = 10000

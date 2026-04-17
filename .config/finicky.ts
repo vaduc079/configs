@@ -6,6 +6,7 @@ function shouldRedirectToChrome(hostname: string): boolean {
     hostname.includes("figma.com") ||
     hostname.includes("cursor.com") ||
     hostname.includes("claude.ai") ||
+    hostname.includes("claude.com") ||
     hostname.includes("mcp.atlassian.com") ||
     hostname.includes("https://slack.com") ||
     hostname.includes(".slack.com") ||
