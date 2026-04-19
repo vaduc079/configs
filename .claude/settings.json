@@ -3,6 +3,7 @@
   "env": {
     "CLAUDE_CODE_NO_FLICKER": "1"
   },
+  "autoMemoryEnabled": false,
   "permissions": {
     "allow": [
       "Bash(glab:*)",
@@ -101,13 +102,13 @@
       "allowLocalBinding": true
     },
     "excludedCommands": [
-      "git",
-      "glab",
-      "kubectl",
-      "docker",
-      "docker-compose",
-      "docker compose",
-      "gpg"
+      "git *",
+      "glab *",
+      "kubectl *",
+      "docker *",
+      "docker-compose *",
+      "docker compose *",
+      "gpg *"
     ]
   },
   "alwaysThinkingEnabled": true,

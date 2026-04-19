@@ -1,17 +1,15 @@
 # Sandbox Configuration
 
-The following commands are excluded from sandbox mode via `excludedCommands` in `.claude/settings.json`, always run with these commands outside the sandbox when using Bash tool `dangerouslyDisableSandbox: true`:
+- For the commands excluded from sandbox mode via `excludedCommands` in `.claude/settings.json`, always run them unsandboxed when using Bash tool with `dangerouslyDisableSandbox: true`. Example:
 
-- `glab`, `gh`
+  ```
+  {
+    "command": "glab ...",
+    "dangerouslyDisableSandbox": true
+  }
+  ```
 
-Example:
-
-```
-{
-  "command": "glab ...",
-  "dangerouslyDisableSandbox": true
-}
-```
+- Never carry `dangerouslyDisableSandbox: true` over from a preceding command. Each Bash call needs its own fresh justification. Before setting `dangerouslyDisableSandbox: true`, ask: does this command need it?
 
 # Bash Tool Usage
 
