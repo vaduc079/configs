@@ -134,6 +134,7 @@ local function misc_keys()
 		key_map("UpArrow", SHIFT, act.ScrollToPrompt(-1)),
 		key_map("DownArrow", SHIFT, act.ScrollToPrompt(1)),
 		activate_key_table("r", "resize_pane"),
+		key_map("]", CMD, act.RotatePanes("Clockwise")),
 	}
 end
 

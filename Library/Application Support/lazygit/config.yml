@@ -1,5 +1,6 @@
 gui:
   nerdFontsVersion: "3"
+  showNumstatInFilesView: true
 os:
   openLink: open "$(echo {{link}} | sed 's/%2F/\//g')"
   editPreset: "nvim"

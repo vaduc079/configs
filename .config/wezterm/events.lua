@@ -6,7 +6,7 @@ function M.apply_to_config(_config)
 	-- Open wezterm at center of screen
 	wezterm.on("gui-startup", function(cmd)
 		local screen = wezterm.gui.screens().main
-		local ratio = 0.8
+		local ratio = 1
 		local width = math.floor(screen.width * ratio)
 		local height = math.floor(screen.height * ratio)
 
