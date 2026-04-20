@@ -50,9 +50,7 @@
       "Bash(glab mr merge:*)"
     ],
     "defaultMode": "auto",
-    "additionalDirectories": [
-      "~/projects/shopback/"
-    ]
+    "additionalDirectories": ["~/projects/shopback/"]
   },
   "model": "sonnet[1m]",
   "hooks": {
@@ -95,10 +93,7 @@
         "localhost",
         "127.0.0.1"
       ],
-      "allowUnixSockets": [
-        "~/.gnupg/S.gpg-agent",
-        "~/.rd/docker.sock"
-      ],
+      "allowUnixSockets": ["~/.gnupg/S.gpg-agent", "~/.rd/docker.sock"],
       "allowLocalBinding": true
     },
     "excludedCommands": [
@@ -108,7 +103,8 @@
       "docker *",
       "docker-compose *",
       "docker compose *",
-      "gpg *"
+      "gpg *",
+      "agent-to-agent *"
     ]
   },
   "alwaysThinkingEnabled": true,

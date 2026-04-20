@@ -1,20 +1,12 @@
 {
   "version": "0.19.0",
   "environments": [
-    "claude",
     "codex"
   ],
-  "phases": [
-    "requirements",
-    "design",
-    "planning",
-    "implementation",
-    "testing",
-    "deployment",
-    "monitoring"
-  ],
+  "phases": [],
   "registries": {
-    "vaduc079/skills": "git@github.com:vaduc079/skills.git"
+    "vaduc079/skills": "git@github.com:vaduc079/skills.git",
+    "vaduc079/agent-to-agent": "git@github.com:vaduc079/agent-to-agent.git"
   },
   "skills": [
     {
@@ -52,8 +44,12 @@
     {
       "registry": "vaduc079/skills",
       "name": "review-technical-design"
+    },
+    {
+      "registry": "vaduc079/agent-to-agent",
+      "name": "agent-to-agent-cli"
     }
   ],
   "createdAt": "2026-03-28T09:03:53.494Z",
-  "updatedAt": "2026-04-14T04:15:57.858Z"
+  "updatedAt": "2026-04-19T10:47:29.256Z"
 }
