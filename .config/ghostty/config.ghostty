@@ -1,4 +1,4 @@
-command = shell:/opt/homebrew/bin/tmux new-session -A -t ghostty
+command = shell:/opt/homebrew/bin/tmux new-session -A -t duc-vu
 
 font-family = CaskaydiaCove Nerd Font Mono
 font-size = 13
