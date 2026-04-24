@@ -47,8 +47,8 @@ keybind = shift+down=jump_to_prompt:1
 # split window, map to ctrl+enter
 keybind = cmd+enter=text:\x1b[13;5u
 
-# new-window
-keybind = cmd+t=text:\x14
+# new-window, send tmux prefix + c
+keybind = cmd+t=text:\x01c
 
 # kill pane, map to ctrl+a X
 keybind = cmd+w=text:\x01X
