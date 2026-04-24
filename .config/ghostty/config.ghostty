@@ -27,15 +27,33 @@ scrollback-limit = 5000000
 tab-inherit-working-directory = true
 split-inherit-working-directory = true
 
+# send delete word (ctrl+w)
 keybind = alt+backspace=text:\x17
+
+# forward-word, backward-word
 keybind = alt+arrow_left=esc:b
 keybind = alt+arrow_right=esc:f
+
+# new line
 keybind = shift+enter=text:\x1b\r
 
+keybind = shift+up=jump_to_prompt:-1
+keybind = shift+down=jump_to_prompt:1
+
+########
+# tmux #
+########
+
+# split window, map to ctrl+enter
 keybind = cmd+enter=text:\x1b[13;5u
+
+# new-window
 keybind = cmd+t=text:\x14
+
+# kill pane, map to ctrl+a X
 keybind = cmd+w=text:\x01X
 
+# switch window
 keybind = ctrl+1=text:\x011
 keybind = ctrl+2=text:\x012
 keybind = ctrl+3=text:\x013
@@ -47,5 +65,6 @@ keybind = ctrl+8=text:\x018
 keybind = ctrl+9=text:\x019
 keybind = ctrl+0=text:\x010
 
-keybind = shift+up=jump_to_prompt:-1
-keybind = shift+down=jump_to_prompt:1
+############
+# end tmux #
+############
