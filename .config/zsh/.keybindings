@@ -7,5 +7,7 @@ zle -N down-line-or-beginning-search
 bindkey "^p" up-line-or-beginning-search   # Up
 bindkey "^n" down-line-or-beginning-search # Down
 
+bindkey "^[f" forward-word
+bindkey "^[b" backward-word
 bindkey "^[[1;3C" forward-word
 bindkey "^[[1;3D" backward-word

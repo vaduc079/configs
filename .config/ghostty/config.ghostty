@@ -3,17 +3,17 @@ command = shell:/opt/homebrew/bin/tmux new-session -A -t ghostty
 font-family = CaskaydiaCove Nerd Font Mono
 font-size = 13
 
-theme = Gruvbox Dark Hard
+theme = Gruvbox Dark
 
 macos-titlebar-style = hidden
+macos-option-as-alt = true
+
+focus-follows-mouse = true
 window-padding-x = 0
 window-padding-y = 10,0
 
 background-opacity = 0.95
-background-blur = 20
-
-macos-option-as-alt = true
-focus-follows-mouse = true
+background-blur = 30
 
 shell-integration = detect
 shell-integration-features = no-cursor,title
@@ -28,38 +28,24 @@ tab-inherit-working-directory = true
 split-inherit-working-directory = true
 
 keybind = alt+backspace=text:\x17
+keybind = alt+arrow_left=esc:b
+keybind = alt+arrow_right=esc:f
 keybind = shift+enter=text:\x1b\r
 
-keybind = ctrl+enter=new_split:auto
-keybind = cmd+enter=new_split:auto
-keybind = ctrl+/=new_split:right
-keybind = cmd+/=new_split:right
-keybind = ctrl+shift+/=new_split:down
-keybind = cmd+shift+/=new_split:down
+keybind = cmd+enter=text:\x1b[13;5u
+keybind = cmd+t=text:\x14
+keybind = cmd+w=text:\x01X
 
-keybind = ctrl+h=goto_split:left
-keybind = ctrl+j=goto_split:down
-keybind = ctrl+k=goto_split:up
-keybind = ctrl+l=goto_split:right
-
-keybind = ctrl+left=resize_split:left,10
-keybind = ctrl+down=resize_split:down,10
-keybind = ctrl+up=resize_split:up,10
-keybind = ctrl+right=resize_split:right,10
-
-keybind = ctrl+1=goto_tab:1
-keybind = ctrl+2=goto_tab:2
-keybind = ctrl+3=goto_tab:3
-keybind = ctrl+4=goto_tab:4
-keybind = ctrl+5=goto_tab:5
-keybind = ctrl+6=goto_tab:6
-keybind = ctrl+7=goto_tab:7
-keybind = ctrl+8=goto_tab:8
-keybind = ctrl+9=goto_tab:9
-keybind = ctrl+0=goto_tab:10
-
-keybind = ctrl+alt+1=move_tab:-1
-keybind = ctrl+alt+2=move_tab:1
+keybind = ctrl+1=text:\x011
+keybind = ctrl+2=text:\x012
+keybind = ctrl+3=text:\x013
+keybind = ctrl+4=text:\x014
+keybind = ctrl+5=text:\x015
+keybind = ctrl+6=text:\x016
+keybind = ctrl+7=text:\x017
+keybind = ctrl+8=text:\x018
+keybind = ctrl+9=text:\x019
+keybind = ctrl+0=text:\x010
 
 keybind = shift+up=jump_to_prompt:-1
 keybind = shift+down=jump_to_prompt:1
