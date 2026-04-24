@@ -3,7 +3,6 @@
   "env": {
     "CLAUDE_CODE_NO_FLICKER": "1"
   },
-  "autoMemoryEnabled": false,
   "permissions": {
     "allow": [
       "Bash(glab:*)",
@@ -50,7 +49,9 @@
       "Bash(glab mr merge:*)"
     ],
     "defaultMode": "auto",
-    "additionalDirectories": ["~/projects/shopback/"]
+    "additionalDirectories": [
+      "~/projects/shopback/"
+    ]
   },
   "model": "sonnet[1m]",
   "hooks": {
@@ -93,7 +94,10 @@
         "localhost",
         "127.0.0.1"
       ],
-      "allowUnixSockets": ["~/.gnupg/S.gpg-agent", "~/.rd/docker.sock"],
+      "allowUnixSockets": [
+        "~/.gnupg/S.gpg-agent",
+        "~/.rd/docker.sock"
+      ],
       "allowLocalBinding": true
     },
     "excludedCommands": [
@@ -109,9 +113,12 @@
   },
   "alwaysThinkingEnabled": true,
   "effortLevel": "medium",
+  "autoMemoryEnabled": false,
   "skipDangerousModePermissionPrompt": true,
   "skipAutoPermissionPrompt": true,
   "feedbackSurveyState": {
     "lastShownTime": 1754208364998
-  }
+  },
+  "editorMode": "vim",
+  "teammateMode": "auto"
 }
