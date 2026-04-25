@@ -1,39 +1,69 @@
--- Launch the Neovim directory picker in WezTerm
+-- Launch the Neovim directory picker in WezTerm or Ghostty/tmux.
 local M = {}
 
 local hyper = { "cmd", "alt", "ctrl", "shift" }
 local hotkeys = {}
+
 local selectDirectoryScript = "/Users/duc.vu/configs/.config/zsh/scripts/select-directory-open-nvim.sh"
+local tmuxOpenNvimScript = "/Users/duc.vu/configs/.config/zsh/scripts/tmux-open-neovim.sh"
 local weztermExecutable = "/opt/homebrew/bin/wezterm"
+local weztermAppName = "WezTerm"
+local ghosttyAppName = "Ghostty"
+local defaultBackend = "wezterm"
+
 local focusRetryIntervalSeconds = 0.2
 local focusRetryLimit = 20
+local ghosttyCommandDelaySeconds = 0.15
 
-local function showLaunchError(exitCode, stdErr)
+local activeBackend = defaultBackend
+local backends = {}
+
+local function showError(message)
+	hs.alert.show(message)
+end
+
+local function showWezTermLaunchError(exitCode, stdErr)
 	local errorMessage = stdErr:gsub("%s+$", "")
 
 	if errorMessage == "" then
 		errorMessage = string.format("Failed to launch WezTerm (exit %d)", exitCode)
 	end
 
-	hs.alert.show(errorMessage)
+	showError(errorMessage)
 end
 
-local function focusWezTerm()
-	local app = hs.application.get("WezTerm")
+local function toAppleScriptString(value)
+	local escapedValue = value:gsub("\\", "\\\\"):gsub('"', '\\"')
+	return '"' .. escapedValue .. '"'
+end
+
+local function runAppleScript(script)
+	local ok, result, errorObject = hs.osascript.applescript(script)
+
+	if ok then
+		return true, result
+	end
+
+	local errorMessage = type(errorObject) == "table" and errorObject.message or tostring(errorObject)
+	return false, errorMessage
+end
+
+local function focusApplication(appName)
+	local app = hs.application.get(appName)
 
 	if app then
 		app:activate()
 		return
 	end
 
-	hs.application.launchOrFocus("WezTerm")
+	hs.application.launchOrFocus(appName)
 end
 
 local function focusWezTermWhenReady()
 	local attempts = 0
 
 	local function tryFocus()
-		local app = hs.application.get("WezTerm")
+		local app = hs.application.get(weztermAppName)
 		local windowCount = app and #app:allWindows() or 0
 		local hasWindow = windowCount > 0
 
@@ -45,7 +75,7 @@ local function focusWezTermWhenReady()
 		attempts = attempts + 1
 
 		if attempts >= focusRetryLimit then
-			focusWezTerm()
+			focusApplication(weztermAppName)
 			return
 		end
 
@@ -61,7 +91,7 @@ local function runWezTerm(arguments, callback)
 	end, arguments)
 
 	if not task then
-		hs.alert.show("Failed to create WezTerm task")
+		showError("Failed to create WezTerm task")
 		return
 	end
 
@@ -69,17 +99,17 @@ local function runWezTerm(arguments, callback)
 		return true
 	end
 
-	hs.alert.show("Failed to start WezTerm task")
+	showError("Failed to start WezTerm task")
 	return false
 end
 
-local function openDirectoryPicker()
+local function runWezTermPicker()
 	if not hs.fs.attributes(weztermExecutable) then
-		hs.alert.show(string.format("WezTerm not found at %s", weztermExecutable))
+		showError(string.format("WezTerm not found at %s", weztermExecutable))
 		return
 	end
 
-	focusWezTerm()
+	focusApplication(weztermAppName)
 
 	runWezTerm({
 		"cli",
@@ -87,7 +117,7 @@ local function openDirectoryPicker()
 		"--",
 		selectDirectoryScript,
 		"--run",
-	}, function(spawnExitCode, _, spawnStdErr)
+	}, function(spawnExitCode, _, _)
 		if spawnExitCode == 0 then
 			return
 		end
@@ -102,7 +132,7 @@ local function openDirectoryPicker()
 				return
 			end
 
-			showLaunchError(startExitCode, startStdErr)
+			showWezTermLaunchError(startExitCode, startStdErr)
 		end)
 
 		if didStart then
@@ -111,7 +141,79 @@ local function openDirectoryPicker()
 	end)
 end
 
-local function start()
+local function focusGhosttyTerminal()
+	local script = [[
+tell application "Ghostty"
+	activate
+	set term to focused terminal of selected tab of front window
+	focus term
+end tell
+]]
+
+	return runAppleScript(script)
+end
+
+local function buildGhosttyTmuxPickerCommand()
+	return string.format("%s --run %s; exit", selectDirectoryScript, tmuxOpenNvimScript)
+end
+
+local function buildGhosttyTmuxAppleScript()
+	local pickerCommand = buildGhosttyTmuxPickerCommand()
+
+	return string.format(
+		[[
+tell application "Ghostty"
+	activate
+	set term to focused terminal of selected tab of front window
+	focus term
+	perform action ("text:" & (ASCII character 1) & "c") on term
+	delay %.2f
+	input text %s to term
+	send key "enter" to term
+end tell
+]],
+		ghosttyCommandDelaySeconds,
+		toAppleScriptString(pickerCommand)
+	)
+end
+
+local function runGhosttyTmuxPicker()
+
+	focusApplication(ghosttyAppName)
+
+	local didFocusTerminal, focusError = focusGhosttyTerminal()
+	if not didFocusTerminal then
+		showError(string.format("Failed to target Ghostty terminal: %s", focusError))
+		return
+	end
+
+	local didRunCommand, runCommandError = runAppleScript(buildGhosttyTmuxAppleScript())
+	if didRunCommand then
+		return
+	end
+
+	showError(string.format("Failed to run picker in Ghostty: %s", runCommandError))
+end
+
+backends.wezterm = runWezTermPicker
+backends["ghostty-tmux"] = runGhosttyTmuxPicker
+
+local function openDirectoryPicker()
+	backends[activeBackend]()
+end
+
+local function start(options)
+	options = options or {}
+
+	local backend = options.backend or defaultBackend
+	local isSupportedBackend = backend == "wezterm" or backend == "ghostty-tmux"
+
+	if not isSupportedBackend then
+		error(string.format("Unsupported nvim picker backend: %s", backend))
+	end
+
+	activeBackend = backend
+
 	if hotkeys.openPicker then
 		return
 	end

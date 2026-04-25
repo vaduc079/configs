@@ -45,7 +45,7 @@ local function initializeModules()
 	end
 
 	if config.enableNvimPicker then
-		nvimPicker.start()
+		nvimPicker.start({ backend = "ghostty-tmux" })
 	end
 end
 

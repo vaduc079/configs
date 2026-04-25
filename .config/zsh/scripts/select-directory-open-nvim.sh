@@ -13,7 +13,7 @@ shift
 
 readonly FD_EXECUTABLE="/opt/homebrew/bin/fd"
 readonly FZF_EXECUTABLE="/opt/homebrew/bin/fzf"
-readonly OPEN_NVIM_SCRIPT="${0:A:h}/wezterm-open-nvim.sh"
+readonly DEFAULT_OPEN_NVIM_SCRIPT="${0:A:h}/wezterm-open-nvim.sh"
 typeset -ra SEARCH_ROOTS=(
   "$HOME/projects/personal"
   "$HOME/projects/shopback"
@@ -39,15 +39,25 @@ fail() {
   exit 1
 }
 
+usage() {
+  echo "Usage: select-directory-open-nvim [open-nvim-script]" >&2
+}
+
 main() {
   local -a existing_roots exclude_args
   local search_root
   local exclude_dir
   local selected_path
+  local open_nvim_script="${1:-$DEFAULT_OPEN_NVIM_SCRIPT}"
+
+  [[ $# -le 1 ]] || {
+    usage
+    exit 1
+  }
 
   [[ -x "$FD_EXECUTABLE" ]] || fail "fd not found at $FD_EXECUTABLE"
   [[ -x "$FZF_EXECUTABLE" ]] || fail "fzf not found at $FZF_EXECUTABLE"
-  [[ -x "$OPEN_NVIM_SCRIPT" ]] || fail "Open script not found at $OPEN_NVIM_SCRIPT"
+  [[ -x "$open_nvim_script" ]] || fail "Open script not found or not executable: $open_nvim_script"
 
   for search_root in "${SEARCH_ROOTS[@]}"; do
     [[ -d "$search_root" ]] || continue
@@ -87,7 +97,7 @@ main() {
 
   [[ -n "$selected_path" ]] || exit 0
 
-  "$OPEN_NVIM_SCRIPT" "$selected_path"
+  "$open_nvim_script" "$selected_path"
 }
 
 main "$@"
