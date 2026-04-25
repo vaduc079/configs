@@ -14,6 +14,7 @@ local defaultBackend = "wezterm"
 local focusRetryIntervalSeconds = 0.2
 local focusRetryLimit = 20
 local ghosttyCommandDelaySeconds = 0.15
+local ghosttyStartupDelaySeconds = 0.2
 
 local activeBackend = defaultBackend
 local backends = {}
@@ -141,18 +142,6 @@ local function runWezTermPicker()
 	end)
 end
 
-local function focusGhosttyTerminal()
-	local script = [[
-tell application "Ghostty"
-	activate
-	set term to focused terminal of selected tab of front window
-	focus term
-end tell
-]]
-
-	return runAppleScript(script)
-end
-
 local function buildGhosttyTmuxPickerCommand()
 	return string.format("%s --run %s; exit", selectDirectoryScript, tmuxOpenNvimScript)
 end
@@ -164,6 +153,11 @@ local function buildGhosttyTmuxAppleScript()
 		[[
 tell application "Ghostty"
 	activate
+	if (count of windows) = 0 then
+		set cfg to new surface configuration
+		set win to new window with configuration cfg
+		delay %.2f
+	end if
 	set term to focused terminal of selected tab of front window
 	focus term
 	perform action ("text:" & (ASCII character 1) & "c") on term
@@ -172,20 +166,14 @@ tell application "Ghostty"
 	send key "enter" to term
 end tell
 ]],
+		ghosttyStartupDelaySeconds,
 		ghosttyCommandDelaySeconds,
 		toAppleScriptString(pickerCommand)
 	)
 end
 
 local function runGhosttyTmuxPicker()
-
 	focusApplication(ghosttyAppName)
-
-	local didFocusTerminal, focusError = focusGhosttyTerminal()
-	if not didFocusTerminal then
-		showError(string.format("Failed to target Ghostty terminal: %s", focusError))
-		return
-	end
 
 	local didRunCommand, runCommandError = runAppleScript(buildGhosttyTmuxAppleScript())
 	if didRunCommand then
