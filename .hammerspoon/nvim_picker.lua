@@ -4,8 +4,9 @@ local M = {}
 local hyper = { "cmd", "alt", "ctrl", "shift" }
 local hotkeys = {}
 
-local selectDirectoryScript = "/Users/duc.vu/configs/.config/zsh/scripts/select-directory-open-nvim.sh"
-local tmuxOpenNvimScript = "/Users/duc.vu/configs/.config/zsh/scripts/tmux-open-neovim.sh"
+local selectDirectoryScript = "~/configs/.config/zsh/scripts/select-directory-run-command.sh"
+local tmuxOpenNvimScript = "~/configs/.config/zsh/scripts/tmux-open-neovim.sh"
+local weztermOpenNvimScript = "~/configs/.config/zsh/scripts/wezterm-open-nvim.sh"
 local weztermExecutable = "/opt/homebrew/bin/wezterm"
 local weztermAppName = "WezTerm"
 local ghosttyAppName = "Ghostty"
@@ -36,6 +37,10 @@ end
 local function toAppleScriptString(value)
 	local escapedValue = value:gsub("\\", "\\\\"):gsub('"', '\\"')
 	return '"' .. escapedValue .. '"'
+end
+
+local function toShellString(value)
+	return "'" .. value:gsub("'", [["'"']]) .. "'"
 end
 
 local function runAppleScript(script)
@@ -117,7 +122,7 @@ local function runWezTermPicker()
 		"spawn",
 		"--",
 		selectDirectoryScript,
-		"--run",
+		weztermOpenNvimScript,
 	}, function(spawnExitCode, _, _)
 		if spawnExitCode == 0 then
 			return
@@ -127,7 +132,7 @@ local function runWezTermPicker()
 			"start",
 			"--",
 			selectDirectoryScript,
-			"--run",
+			weztermOpenNvimScript,
 		}, function(startExitCode, _, startStdErr)
 			if startExitCode == 0 then
 				return
@@ -143,7 +148,11 @@ local function runWezTermPicker()
 end
 
 local function buildGhosttyTmuxPickerCommand()
-	return string.format("%s --run %s; exit", selectDirectoryScript, tmuxOpenNvimScript)
+	return string.format(
+		"%s %s; exit",
+		toShellString(selectDirectoryScript),
+		toShellString(tmuxOpenNvimScript)
+	)
 end
 
 local function buildGhosttyTmuxAppleScript()

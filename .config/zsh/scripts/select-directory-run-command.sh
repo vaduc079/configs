@@ -2,18 +2,8 @@
 
 set -euo pipefail
 
-if [[ "${1:-}" != "--run" ]]; then
-  exec env -i \
-    HOME="$HOME" \
-    PATH="/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin" \
-    /bin/zsh -f "$0" --run "$@"
-fi
-
-shift
-
 readonly FD_EXECUTABLE="/opt/homebrew/bin/fd"
 readonly FZF_EXECUTABLE="/opt/homebrew/bin/fzf"
-readonly DEFAULT_OPEN_NVIM_SCRIPT="${0:A:h}/wezterm-open-nvim.sh"
 typeset -ra SEARCH_ROOTS=(
   "$HOME/projects/personal"
   "$HOME/projects/shopback"
@@ -40,24 +30,43 @@ fail() {
 }
 
 usage() {
-  echo "Usage: select-directory-open-nvim [open-nvim-script]" >&2
+  echo "Usage: select-directory-run-command [command [arg ...]]" >&2
+}
+
+command_exists() {
+  local command_name="$1"
+
+  command -v -- "$command_name" >/dev/null 2>&1
+}
+
+validate_command() {
+  local executable_path="$1"
+  local has_explicit_path=false
+
+  [[ "$executable_path" == */* ]] && has_explicit_path=true
+
+  if "$has_explicit_path"; then
+    [[ -x "$executable_path" ]] || fail "Command not found or not executable: $executable_path"
+    return
+  fi
+
+  command_exists "$executable_path" || fail "Command not found: $executable_path"
 }
 
 main() {
-  local -a existing_roots exclude_args
+  local -a command_args existing_roots exclude_args
   local search_root
   local exclude_dir
   local selected_path
-  local open_nvim_script="${1:-$DEFAULT_OPEN_NVIM_SCRIPT}"
 
-  [[ $# -le 1 ]] || {
-    usage
-    exit 1
-  }
+  command_args=("$@")
 
   [[ -x "$FD_EXECUTABLE" ]] || fail "fd not found at $FD_EXECUTABLE"
   [[ -x "$FZF_EXECUTABLE" ]] || fail "fzf not found at $FZF_EXECUTABLE"
-  [[ -x "$open_nvim_script" ]] || fail "Open script not found or not executable: $open_nvim_script"
+
+  if [[ ${#command_args[@]} -gt 0 ]]; then
+    validate_command "${command_args[1]}"
+  fi
 
   for search_root in "${SEARCH_ROOTS[@]}"; do
     [[ -d "$search_root" ]] || continue
@@ -79,7 +88,7 @@ main() {
       "$FD_EXECUTABLE" \
         --type d \
         --type l \
-        --max-depth 3 \
+        --max-depth 1 \
         --absolute-path \
         "${exclude_args[@]}" \
         . \
@@ -90,14 +99,16 @@ main() {
         print -r -- "$path"
       done |
       "$FZF_EXECUTABLE" \
-        --prompt="Open in nvim> " \
+        --prompt="Open directory> " \
         --select-1 \
         --exit-0
   )"
 
   [[ -n "$selected_path" ]] || exit 0
 
-  "$open_nvim_script" "$selected_path"
+  [[ ${#command_args[@]} -gt 0 ]] || exit 0
+
+  "${command_args[@]}" "$selected_path"
 }
 
 main "$@"
