@@ -49,7 +49,22 @@ trust_level = "trusted"
 "gpt-5.3-codex" = "gpt-5.4"
 
 [tui]
-status_line = ["model-with-reasoning", "project-root", "git-branch", "context-usage", "context-window-size", "five-hour-limit", "weekly-limit"]
+status_line = [
+  "model-with-reasoning",
+  "project-root",
+  "git-branch",
+  "context-usage",
+  "context-window-size",
+  "five-hour-limit",
+  "weekly-limit",
+]
+theme = "gruvbox-dark"
+
+[tui.keymap.editor]
+insert_newline = ["ctrl-j", "ctrl-m", "enter", "shift-enter", "alt-enter"]
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
 
 [mcp_servers.openaiDeveloperDocs]
 enabled = false
