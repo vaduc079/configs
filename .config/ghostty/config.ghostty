@@ -1,4 +1,5 @@
-command = /Users/duc.vu/configs/.config/zsh/scripts/ghostty-tmux-session.sh
+# command = /Users/duc.vu/configs/.config/zsh/scripts/ghostty-tmux-session.sh
+command = /opt/homebrew/bin/tmux new-session -A -s duc-vu
 
 font-family = CaskaydiaCove Nerd Font Mono
 font-size = 13
