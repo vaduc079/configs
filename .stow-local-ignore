@@ -6,6 +6,7 @@
 
 \.zcompdump*
 \.zcomcache
+.*\.log$
 
 ^/README\.md
 
@@ -16,3 +17,4 @@
 ^/\.ai-devkit.json$
 ^/AGENTS\.md$
 ^/CLAUDE\.md$
+^/setup\.sh$
