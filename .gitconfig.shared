@@ -3,6 +3,7 @@
 
 [alias]
     tidy = "!git fetch --prune && for branch in $(git branch -vv | awk '/: gone]/{print $1}'); do git branch -D $branch; done"
+    wt = "!f() { repo=$(basename $(git rev-parse --show-toplevel)); parent=$(dirname $(git rev-parse --show-toplevel)); name=\"${repo}-worktree-$1\"; git worktree add \"${parent}/${name}\" -b \"${name}\"; }; f"
 
 [core]
     pager = delta
