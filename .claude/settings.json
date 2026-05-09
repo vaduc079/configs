@@ -1,8 +1,5 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "env": {
-    "CLAUDE_CODE_NO_FLICKER": "1"
-  },
   "permissions": {
     "allow": [
       "Bash(glab:*)",
@@ -53,7 +50,6 @@
       "~/projects/shopback/"
     ]
   },
-  "model": "sonnet[1m]",
   "hooks": {
     "Notification": [
       {
@@ -61,7 +57,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/wezterm-notify.sh"
+            "command": "~/.claude/hooks/claude-code-notify.sh"
           }
         ]
       }
@@ -111,14 +107,18 @@
       "agent-to-agent *"
     ]
   },
+  "syntaxHighlightingDisabled": false,
   "alwaysThinkingEnabled": true,
   "effortLevel": "medium",
+  "tui": "fullscreen",
   "autoMemoryEnabled": false,
   "skipDangerousModePermissionPrompt": true,
+  "theme": "dark",
+  "editorMode": "vim",
+  "teammateMode": "auto",
   "skipAutoPermissionPrompt": true,
   "feedbackSurveyState": {
     "lastShownTime": 1754208364998
   },
-  "editorMode": "vim",
-  "teammateMode": "auto"
+  "model": "sonnet[1m]"
 }
