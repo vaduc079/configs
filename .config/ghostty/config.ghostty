@@ -8,6 +8,7 @@ theme = Gruvbox Dark
 
 macos-titlebar-style = hidden
 macos-option-as-alt = true
+confirm-close-surface = false
 
 focus-follows-mouse = true
 window-padding-x = 0
