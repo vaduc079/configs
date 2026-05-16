@@ -50,7 +50,48 @@
       "~/projects/shopback/"
     ]
   },
+  "model": "sonnet[1m]",
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.tmux/plugins/tmux-agent-picker/scripts/agent-hook.sh claude SessionStart"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.tmux/plugins/tmux-agent-picker/scripts/agent-hook.sh claude UserPromptSubmit"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.tmux/plugins/tmux-agent-picker/scripts/agent-hook.sh claude PreToolUse"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.tmux/plugins/tmux-agent-picker/scripts/agent-hook.sh claude PermissionRequest"
+          }
+        ]
+      }
+    ],
     "Notification": [
       {
         "matcher": "",
@@ -58,6 +99,46 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/claude-code-notify.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "permission_prompt|elicitation_dialog|idle_prompt|auth_success|elicitation_complete|elicitation_response",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.tmux/plugins/tmux-agent-picker/scripts/agent-hook.sh claude Notification"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.tmux/plugins/tmux-agent-picker/scripts/agent-hook.sh claude Stop"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.tmux/plugins/tmux-agent-picker/scripts/agent-hook.sh claude StopFailure"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "clear|resume|logout|prompt_input_exit|bypass_permissions_disabled|other",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.tmux/plugins/tmux-agent-picker/scripts/agent-hook.sh claude SessionEnd"
           }
         ]
       }
@@ -119,6 +200,5 @@
   "skipAutoPermissionPrompt": true,
   "feedbackSurveyState": {
     "lastShownTime": 1754208364998
-  },
-  "model": "sonnet[1m]"
+  }
 }
