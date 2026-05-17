@@ -25,14 +25,21 @@ fi
 
 selected_name=$(basename "$selected" | tr . _)
 tmux_running=$(pgrep -x tmux || true)
+inside_tmux=false
+[[ -n $TMUX ]] && inside_tmux=true
 
-if [[ -z $TMUX ]] && [[ -z $tmux_running ]]; then
+if [[ $inside_tmux == false ]] && [[ -z $tmux_running ]]; then
   "$TMUX_EXECUTABLE" new-session -s "$selected_name" -c "$selected"
   exit 0
 fi
 
 if ! "$TMUX_EXECUTABLE" has-session -t="$selected_name" 2>/dev/null; then
   "$TMUX_EXECUTABLE" new-session -ds "$selected_name" -c "$selected"
+fi
+
+if [[ $inside_tmux == false ]]; then
+  "$TMUX_EXECUTABLE" attach-session -t "$selected_name"
+  exit 0
 fi
 
 "$TMUX_EXECUTABLE" switch-client -t "$selected_name"
