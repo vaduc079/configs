@@ -52,16 +52,9 @@ trust_level = "trusted"
 hooks = true
 
 [tui]
-status_line = [
-  "model-with-reasoning",
-  "project-root",
-  "git-branch",
-  "context-usage",
-  "context-window-size",
-  "five-hour-limit",
-  "weekly-limit",
-]
+status_line = ["model-with-reasoning", "project-name", "git-branch", "context-used", "context-window-size", "five-hour-limit", "weekly-limit", "fast-mode"]
 theme = "gruvbox-dark"
+status_line_use_colors = true
 
 [tui.keymap.editor]
 insert_newline = ["ctrl-j", "ctrl-m", "enter", "shift-enter", "alt-enter"]
