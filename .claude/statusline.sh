@@ -56,6 +56,7 @@ while IFS= read -r line; do _f+=("$line"); done < <(echo "$input" | jq -r '
   (.context_window.current_usage.input_tokens // 0 | tostring),
   (.context_window.current_usage.cache_creation_input_tokens // 0 | tostring),
   (.context_window.current_usage.cache_read_input_tokens // 0 | tostring),
+  (.context_window.context_window_size // 0 | tostring),
   (.rate_limits.five_hour.used_percentage // "" | tostring),
   (.rate_limits.seven_day.used_percentage // "" | tostring)
 ')
@@ -69,8 +70,9 @@ used_pct="${_f[6]}"
 current_input="${_f[7]}"
 cache_creation="${_f[8]}"
 cache_read="${_f[9]}"
-five_hour_used="${_f[10]}"
-seven_day_used="${_f[11]}"
+context_window_size="${_f[10]}"
+five_hour_used="${_f[11]}"
+seven_day_used="${_f[12]}"
 
 dir_basename=$(basename "$cwd")
 
@@ -141,7 +143,16 @@ info="${info# }"
 bar_part=""
 if [ "$SHOW_CONTEXT" = true ]; then
   if [ -n "$used_pct" ]; then
-    pct_int=$(printf '%.0f' "$used_pct")
+    current_tokens=$((current_input + cache_creation + cache_read))
+
+    if [ "$context_window_size" -gt 200000 ] && [ "$current_tokens" -le 200000 ]; then
+      pct_int=$(( (current_tokens * 100 + 100000) / 200000 ))
+      cap_suffix="/200k"
+    else
+      pct_int=$(printf '%.0f' "$used_pct")
+      cap_suffix=""
+    fi
+
     filled=$((pct_int * 10 / 100))
     [ "$filled" -gt 10 ] && filled=10
 
@@ -154,23 +165,22 @@ if [ "$SHOW_CONTEXT" = true ]; then
       bar_colored=$(printf "${COLOR_BAR_OK}%s${COLOR_RESET}" "$bar")
     fi
 
-    current_tokens=$((current_input + cache_creation + cache_read))
-
     if [ "$current_tokens" -ge 1000 ]; then
-      tokens_display=$(awk -v t="$current_tokens" 'BEGIN {printf "%.1fk", t/1000}' | sed 's/\.0k/k/')
+      tokens_display=$(awk -v t="$current_tokens" 'BEGIN {v=t/1000; if(v==int(v)) printf "%dk",v; else printf "%.1fk",v}')
     else
       tokens_display="${current_tokens}"
     fi
 
-    if [ "$current_tokens" -gt 200000 ]; then
-      tokens_colored=$(printf "${COLOR_BAR_CRIT}%s${COLOR_RESET}" "$tokens_display")
+    if [ -z "$cap_suffix" ] && [ "$current_tokens" -gt 200000 ]; then
+      tokens_label=$(printf "${COLOR_BAR_CRIT}%s${COLOR_RESET}" "$tokens_display")
     elif [ "$current_tokens" -ge 140000 ]; then
-      tokens_colored=$(printf "${COLOR_BAR_WARN}%s${COLOR_RESET}" "$tokens_display")
+      tokens_label=$(printf "${COLOR_BAR_WARN}%s${COLOR_RESET}" "$tokens_display")
     else
-      tokens_colored="$tokens_display"
+      tokens_label="$tokens_display"
     fi
+    tokens_label="${tokens_label}${cap_suffix}"
 
-    bar_part=$(printf "%s %s %d%% (%s)" "$ICON_CONTEXT" "$bar_colored" "$pct_int" "$tokens_colored")
+    bar_part=$(printf "%s %s %d%% (%s)" "$ICON_CONTEXT" "$bar_colored" "$pct_int" "$tokens_label")
   else
     bar_part=$(printf "%s ${COLOR_BAR_OK}░░░░░░░░░░${COLOR_RESET} 0%%" "$ICON_CONTEXT")
   fi
