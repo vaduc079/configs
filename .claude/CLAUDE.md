@@ -15,3 +15,7 @@
 
 - Use `rg` instead of `grep`
 - Use `fd` instead of `find`
+
+# Important Notes
+
+All your operations regarding send messages, add comments, create tickets, etc. with Jira, Confluence, and GitLab must add: `🤖 Operated by AI Agent` at the end.
