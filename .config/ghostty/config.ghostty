@@ -14,7 +14,7 @@ focus-follows-mouse = true
 window-padding-x = 0
 window-padding-y = 10,0
 
-background-opacity = 0.95
+background-opacity = 0.98
 background-blur = 30
 
 shell-integration = detect

@@ -200,5 +200,8 @@
   "skipAutoPermissionPrompt": true,
   "feedbackSurveyState": {
     "lastShownTime": 1754208364998
+  },
+  "env": {
+    "ENABLE_CLAUDEAI_MCP_SERVERS": "false"
   }
 }
