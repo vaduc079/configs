@@ -7,10 +7,53 @@ fail() {
   exit 1
 }
 
-[[ -x "$TMUX_EXECUTABLE" ]] || fail "tmux not found or not executable: $TMUX_EXECUTABLE"
-[[ $# -eq 1 ]] || fail "usage: $(basename "$0") <worktree-name>"
+usage() {
+  printf 'usage: %s [--tmux] <worktree-name>\n' "$(basename "$0")" >&2
+}
 
-worktree_name=$1
+use_tmux=false
+worktree_name=
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --tmux)
+      use_tmux=true
+      shift
+      ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      [[ $# -eq 1 ]] || {
+        usage
+        exit 1
+      }
+      worktree_name=$1
+      shift
+      break
+      ;;
+    -*)
+      usage
+      fail "unknown option: $1"
+      ;;
+    *)
+      [[ -z $worktree_name ]] || {
+        usage
+        fail "only one worktree name may be provided"
+      }
+      worktree_name=$1
+      shift
+      ;;
+  esac
+done
+
+[[ $# -eq 0 && -n $worktree_name ]] || {
+  usage
+  exit 1
+}
+
 [[ -n $worktree_name ]] || exit 0
 
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || fail "not inside a git repository"
@@ -28,12 +71,19 @@ if git -C "$repo_root" show-ref --verify --quiet "refs/heads/$worktree_name"; th
 fi
 
 if [[ $branch_exists == true ]]; then
-  git -C "$repo_root" worktree add "$worktree_path" "$worktree_name" ||
+  git -C "$repo_root" worktree add "$worktree_path" "$worktree_name" >&2 ||
     fail "failed to create worktree for existing branch: $worktree_name"
 else
-  git -C "$repo_root" worktree add -b "$worktree_name" "$worktree_path" ||
+  git -C "$repo_root" worktree add -b "$worktree_name" "$worktree_path" >&2 ||
     fail "failed to create worktree and branch: $worktree_name"
 fi
+
+if [[ $use_tmux == false ]]; then
+  printf '%s\n' "$worktree_path"
+  exit 0
+fi
+
+[[ -x "$TMUX_EXECUTABLE" ]] || fail "tmux not found or not executable: $TMUX_EXECUTABLE"
 
 tmux_running=$(pgrep -x tmux || true)
 

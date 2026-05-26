@@ -8,13 +8,13 @@ debug_mode=false
 parse_args() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --debug)
-        debug_mode=true
-        ;;
-      *)
-        printf 'unknown argument: %s\n' "$1" >&2
-        exit 1
-        ;;
+    --debug)
+      debug_mode=true
+      ;;
+    *)
+      printf 'unknown argument: %s\n' "$1" >&2
+      exit 1
+      ;;
     esac
 
     shift
@@ -53,10 +53,6 @@ main() {
     printf 'debug mode: skipping custom symlink setup\n'
     return 0
   fi
-
-  ensure_symlink \
-    "$repo_root/.config/zsh/scripts/git-wt.sh" \
-    "$HOME/.local/bin/git-wt"
 }
 
 main "$@"

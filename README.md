@@ -26,7 +26,6 @@ cd "$HOME/configs"
 `setup.sh` is the entry point for local setup. It currently:
 
 - Runs `stow -v .` from the repo root
-- Symlinks `.config/zsh/scripts/git-wt.sh` to `$HOME/.local/bin/git-wt`
 
 Use `./setup.sh --debug` to dry-run the Stow step with `stow -nv .` before applying changes.
 

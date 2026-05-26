@@ -42,6 +42,7 @@ complete -C '/usr/local/bin/aws_completer' aws
 ##################
 source $ZDOTDIR/scripts/local_env_toggle.sh
 source $ZDOTDIR/scripts/yazi_wrapper.sh
+source $ZDOTDIR/scripts/git_wt_wrapper.zsh
 
 # let gpg know where to read input from
 export GPG_TTY=$(tty)
