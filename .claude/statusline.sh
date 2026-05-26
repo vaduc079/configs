@@ -146,7 +146,7 @@ if [ "$SHOW_CONTEXT" = true ]; then
     current_tokens=$((current_input + cache_creation + cache_read))
 
     if [ "$context_window_size" -gt 200000 ] && [ "$current_tokens" -le 200000 ]; then
-      pct_int=$(( (current_tokens * 100 + 100000) / 200000 ))
+      pct_int=$(((current_tokens * 100 + 100000) / 200000))
       cap_suffix="/200k"
     else
       pct_int=$(printf '%.0f' "$used_pct")

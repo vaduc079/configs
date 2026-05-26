@@ -46,9 +46,7 @@
       "Bash(glab mr merge:*)"
     ],
     "defaultMode": "auto",
-    "additionalDirectories": [
-      "~/projects/shopback/"
-    ]
+    "additionalDirectories": ["~/projects/shopback/"]
   },
   "model": "sonnet[1m]",
   "hooks": {
@@ -171,11 +169,15 @@
         "localhost",
         "127.0.0.1"
       ],
-      "allowUnixSockets": [
-        "~/.gnupg/S.gpg-agent",
-        "~/.rd/docker.sock"
-      ],
+      "allowUnixSockets": ["~/.gnupg/S.gpg-agent", "~/.rd/docker.sock"],
       "allowLocalBinding": true
+    },
+    "filesystem": {
+      "denyWrite": [
+        "~/.pgpass",
+        "**/.env"
+      ],
+      "denyRead": ["~/.pgpass", "**/.env", "~/.ssh"]
     },
     "excludedCommands": [
       "git *",
@@ -201,6 +203,7 @@
   "feedbackSurveyState": {
     "lastShownTime": 1754208364998
   },
+  "autoUpdatesChannel": "latest",
   "env": {
     "ENABLE_CLAUDEAI_MCP_SERVERS": "false"
   }
