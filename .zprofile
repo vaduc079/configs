@@ -17,6 +17,7 @@ typeset -U path PATH
 # rancher desktop
 [ -d "$HOME/.rd/bin" ] && path=($path $HOME/.rd/bin)
 [ -d "$HOME/.local/bin" ] && path=($path $HOME/.local/bin)
+[ -d "/opt/homebrew/opt/libpq/bin" ] && path=($path /opt/homebrew/opt/libpq/bin)
 export PATH
 
 # brew shell completion
@@ -26,3 +27,16 @@ fi
 
 
 eval "$(/opt/homebrew/bin/brew shellenv)"
+
+# The next line updates PATH for the Google Cloud SDK.
+if [ -f '/Users/duc.vu/projects/apps/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/duc.vu/projects/apps/google-cloud-sdk/path.zsh.inc'; fi
+
+# The next line enables shell command completion for gcloud.
+if [ -f '/Users/duc.vu/projects/apps/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/duc.vu/projects/apps/google-cloud-sdk/completion.zsh.inc'; fi
+
+# bun completions
+[ -s "/Users/duc.vu/.bun/_bun" ] && source "/Users/duc.vu/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
