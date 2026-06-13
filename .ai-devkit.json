@@ -1,6 +1,7 @@
 {
   "version": "0.19.0",
   "environments": [
+    "claude",
     "codex"
   ],
   "phases": [],

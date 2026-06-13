@@ -1,5 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "ENABLE_CLAUDEAI_MCP_SERVERS": "false"
+  },
   "permissions": {
     "allow": [
       "Bash(glab:*)",
@@ -46,9 +49,11 @@
       "Bash(glab mr merge:*)"
     ],
     "defaultMode": "auto",
-    "additionalDirectories": ["~/projects/shopback/"]
+    "additionalDirectories": [
+      "~/projects/shopback/"
+    ]
   },
-  "model": "sonnet[1m]",
+  "model": "opus[1m]",
   "hooks": {
     "SessionStart": [
       {
@@ -169,7 +174,10 @@
         "localhost",
         "127.0.0.1"
       ],
-      "allowUnixSockets": ["~/.gnupg/S.gpg-agent", "~/.rd/docker.sock"],
+      "allowUnixSockets": [
+        "~/.gnupg/S.gpg-agent",
+        "~/.rd/docker.sock"
+      ],
       "allowLocalBinding": true
     },
     "filesystem": {
@@ -177,7 +185,11 @@
         "~/.pgpass",
         "**/.env"
       ],
-      "denyRead": ["~/.pgpass", "**/.env", "~/.ssh"]
+      "denyRead": [
+        "~/.pgpass",
+        "**/.env",
+        "~/.ssh"
+      ]
     },
     "excludedCommands": [
       "git *",
@@ -193,6 +205,7 @@
   "syntaxHighlightingDisabled": false,
   "alwaysThinkingEnabled": true,
   "effortLevel": "medium",
+  "autoUpdatesChannel": "latest",
   "tui": "fullscreen",
   "autoMemoryEnabled": false,
   "skipDangerousModePermissionPrompt": true,
@@ -202,9 +215,5 @@
   "skipAutoPermissionPrompt": true,
   "feedbackSurveyState": {
     "lastShownTime": 1754208364998
-  },
-  "autoUpdatesChannel": "latest",
-  "env": {
-    "ENABLE_CLAUDEAI_MCP_SERVERS": "false"
   }
 }

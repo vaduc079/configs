@@ -45,6 +45,9 @@ trust_level = "trusted"
 [projects."/Users/duc.vu/projects/personal/agent-to-agent"]
 trust_level = "trusted"
 
+[projects."/Users/duc.vu/projects/personal/tmux-agent-picker"]
+trust_level = "trusted"
+
 [notice.model_migrations]
 "gpt-5.3-codex" = "gpt-5.4"
 
