@@ -1,6 +1,7 @@
 model = "gpt-5.5"
 model_reasoning_effort = "medium"
 approval_policy = "on-request"
+approvals_reviewer = "auto_review"
 
 personality = "pragmatic"
 
@@ -8,12 +9,23 @@ web_search = "cached" # default
 # web_search = "disabled"
 # web_search = "live"  # same as --search
 
-sandbox_mode = "workspace-write"
-[sandbox_workspace_write]
-network_access = true
-writable_roots = ["/Users/duc.vu/projects/personal", "/Users/duc.vu/configs/"]
-exclude_slash_tmp = false
-exclude_tmpdir_env_var = false
+default_permissions = "duc_personal"
+
+[permissions.duc_personal]
+extends = ":workspace"
+
+[permissions.duc_personal.network]
+enabled = true
+
+[permissions.duc_personal.workspace_roots]
+"~/projects/personal" = true
+"~/configs" = true
+
+[permissions.duc_personal.filesystem]
+":tmpdir" = "write"
+":slash_tmp" = "write"
+"~/**/*.env" = "deny"
+"~/.pgpass" = "deny"
 
 [projects."/Users/duc.vu/configs"]
 trust_level = "trusted"
@@ -55,7 +67,16 @@ trust_level = "trusted"
 hooks = true
 
 [tui]
-status_line = ["model-with-reasoning", "project-name", "git-branch", "context-used", "context-window-size", "five-hour-limit", "weekly-limit", "fast-mode"]
+status_line = [
+  "model-with-reasoning",
+  "project-name",
+  "git-branch",
+  "context-used",
+  "context-window-size",
+  "five-hour-limit",
+  "weekly-limit",
+  "fast-mode",
+]
 theme = "gruvbox-dark"
 status_line_use_colors = true
 
