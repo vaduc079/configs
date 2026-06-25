@@ -12,18 +12,6 @@ contexts = ["workspace", "tab", "pane"]
 command = ["bun", "sync-names.js"]
 
 [[events]]
-on = "workspace.focused"
-command = ["bun", "sync-names.js"]
-
-[[events]]
-on = "workspace.updated"
-command = ["bun", "sync-names.js"]
-
-[[events]]
-on = "pane.focused"
-command = ["bun", "sync-names.js"]
-
-[[events]]
 on = "pane.agent_detected"
 command = ["bun", "sync-names.js"]
 
