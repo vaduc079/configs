@@ -1,5 +1,6 @@
 # command = /Users/duc.vu/configs/.config/zsh/scripts/ghostty-tmux-session.sh
-command = /opt/homebrew/bin/tmux new-session -A -s duc-vu
+# command = /opt/homebrew/bin/tmux new-session -A -s duc-vu
+command = ~/.local/bin/herdr
 
 font-family = CaskaydiaCove Nerd Font Mono
 font-size = 13
@@ -11,6 +12,9 @@ macos-option-as-alt = true
 confirm-close-surface = false
 
 focus-follows-mouse = true
+mouse-shift-capture = false
+mouse-hide-while-typing = true
+
 window-padding-x = 0
 window-padding-y = 10,0
 
