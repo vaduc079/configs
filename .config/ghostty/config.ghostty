@@ -59,17 +59,17 @@ keybind = cmd+t=text:\x01c
 # kill pane, map to ctrl+a X
 keybind = cmd+w=text:\x01X
 
-# switch window
-keybind = ctrl+1=text:\x011
-keybind = ctrl+2=text:\x012
-keybind = ctrl+3=text:\x013
-keybind = ctrl+4=text:\x014
-keybind = ctrl+5=text:\x015
-keybind = ctrl+6=text:\x016
-keybind = ctrl+7=text:\x017
-keybind = ctrl+8=text:\x018
-keybind = ctrl+9=text:\x019
-keybind = ctrl+0=text:\x010
+# switch window tmux
+# keybind = ctrl+1=text:\x011
+# keybind = ctrl+2=text:\x012
+# keybind = ctrl+3=text:\x013
+# keybind = ctrl+4=text:\x014
+# keybind = ctrl+5=text:\x015
+# keybind = ctrl+6=text:\x016
+# keybind = ctrl+7=text:\x017
+# keybind = ctrl+8=text:\x018
+# keybind = ctrl+9=text:\x019
+# keybind = ctrl+0=text:\x010
 
 ############
 # end tmux #

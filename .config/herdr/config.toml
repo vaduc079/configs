@@ -26,13 +26,14 @@ new_workspace = "prefix+shift+n"
 new_worktree = "prefix+shift+g"
 rename_workspace = "prefix+shift+w"
 close_workspace = "prefix+shift+d"
-focus_agent = "prefix+alt+1..9"
+focus_agent = "prefix+ctrl+1..9"
 
 # tmux windows map to Herdr tabs.
 new_tab = "prefix+c"
 previous_tab = "prefix+p"
 next_tab = "prefix+n"
-switch_tab = ["prefix+1..9", "ctrl+1..9"]
+switch_tab = "prefix+1..9"
+switch_workspace = "ctrl+1..9"
 rename_tab = "prefix+shift+t"
 close_tab = ""
 
@@ -100,60 +101,6 @@ key = "ctrl+l"
 type = "shell"
 command = "~/configs/.config/zsh/scripts/herdr-vim-navigator.sh right"
 description = "vim-aware pane focus right"
-
-[[keys.command]]
-key = "prefix+!"
-type = "shell"
-command = "~/configs/.config/zsh/scripts/herdr-focus-workspace-by-number.sh 1"
-description = "switch to workspace 1"
-
-[[keys.command]]
-key = "prefix+@"
-type = "shell"
-command = "~/configs/.config/zsh/scripts/herdr-focus-workspace-by-number.sh 2"
-description = "switch to workspace 2"
-
-[[keys.command]]
-key = "prefix+#"
-type = "shell"
-command = "~/configs/.config/zsh/scripts/herdr-focus-workspace-by-number.sh 3"
-description = "switch to workspace 3"
-
-[[keys.command]]
-key = "prefix+$"
-type = "shell"
-command = "~/configs/.config/zsh/scripts/herdr-focus-workspace-by-number.sh 4"
-description = "switch to workspace 4"
-
-[[keys.command]]
-key = "prefix+%"
-type = "shell"
-command = "~/configs/.config/zsh/scripts/herdr-focus-workspace-by-number.sh 5"
-description = "switch to workspace 5"
-
-[[keys.command]]
-key = "prefix+^"
-type = "shell"
-command = "~/configs/.config/zsh/scripts/herdr-focus-workspace-by-number.sh 6"
-description = "switch to workspace 6"
-
-[[keys.command]]
-key = "prefix+&"
-type = "shell"
-command = "~/configs/.config/zsh/scripts/herdr-focus-workspace-by-number.sh 7"
-description = "switch to workspace 7"
-
-[[keys.command]]
-key = "prefix+*"
-type = "shell"
-command = "~/configs/.config/zsh/scripts/herdr-focus-workspace-by-number.sh 8"
-description = "switch to workspace 8"
-
-[[keys.command]]
-key = "prefix+("
-type = "shell"
-command = "~/configs/.config/zsh/scripts/herdr-focus-workspace-by-number.sh 9"
-description = "switch to workspace 9"
 
 [[keys.command]]
 key = "prefix+ctrl+d"
