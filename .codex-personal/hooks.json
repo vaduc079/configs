@@ -1,32 +1,11 @@
 {
   "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "startup|resume",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.tmux/plugins/tmux-agent-picker/scripts/agent-hook.sh codex SessionStart"
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
+    "PermissionRequest": [
       {
         "hooks": [
           {
-            "type": "command",
-            "command": "bash ~/.tmux/plugins/tmux-agent-picker/scripts/agent-hook.sh codex UserPromptSubmit"
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.tmux/plugins/tmux-agent-picker/scripts/agent-hook.sh codex PreToolUse"
+            "command": "bash ~/.tmux/plugins/tmux-agent-picker/scripts/agent-hook.sh codex PermissionRequest",
+            "type": "command"
           }
         ]
       }
@@ -35,18 +14,38 @@
       {
         "hooks": [
           {
-            "type": "command",
-            "command": "bash ~/.tmux/plugins/tmux-agent-picker/scripts/agent-hook.sh codex PostToolUse"
+            "command": "bash ~/.tmux/plugins/tmux-agent-picker/scripts/agent-hook.sh codex PostToolUse",
+            "type": "command"
           }
         ]
       }
     ],
-    "PermissionRequest": [
+    "PreToolUse": [
       {
         "hooks": [
           {
-            "type": "command",
-            "command": "bash ~/.tmux/plugins/tmux-agent-picker/scripts/agent-hook.sh codex PermissionRequest"
+            "command": "bash ~/.tmux/plugins/tmux-agent-picker/scripts/agent-hook.sh codex PreToolUse",
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "bash ~/.tmux/plugins/tmux-agent-picker/scripts/agent-hook.sh codex SessionStart",
+            "type": "command"
+          }
+        ],
+        "matcher": "startup|resume"
+      },
+      {
+        "hooks": [
+          {
+            "command": "bash '/Users/duc.vu/.codex-personal/herdr-agent-state.sh' session",
+            "timeout": 10,
+            "type": "command"
           }
         ]
       }
@@ -55,8 +54,18 @@
       {
         "hooks": [
           {
-            "type": "command",
-            "command": "bash ~/.tmux/plugins/tmux-agent-picker/scripts/agent-hook.sh codex Stop"
+            "command": "bash ~/.tmux/plugins/tmux-agent-picker/scripts/agent-hook.sh codex Stop",
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "command": "bash ~/.tmux/plugins/tmux-agent-picker/scripts/agent-hook.sh codex UserPromptSubmit",
+            "type": "command"
           }
         ]
       }

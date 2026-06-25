@@ -1,0 +1,179 @@
+# herdr configuration
+# Mirrors the tmux/Ghostty workflow in this dotfiles repo.
+
+onboarding = false
+
+[theme]
+name = "gruvbox"
+
+[theme.custom]
+accent = "cyan"
+
+[terminal]
+shell_mode = "auto"
+new_cwd = "follow"
+
+[keys]
+prefix = "ctrl+a"
+
+# tmux-style prefix actions
+help = "prefix+?"
+settings = "prefix+s"
+detach = "prefix+q"
+workspace_picker = "prefix+w"
+goto = "prefix+g"
+new_workspace = "prefix+shift+n"
+new_worktree = "prefix+shift+g"
+rename_workspace = "prefix+shift+w"
+close_workspace = "prefix+shift+d"
+focus_agent = "prefix+alt+1..9"
+
+# tmux windows map to Herdr tabs.
+new_tab = "prefix+c"
+previous_tab = "prefix+p"
+next_tab = "prefix+n"
+switch_tab = ["prefix+1..9", "ctrl+1..9"]
+rename_tab = "prefix+shift+t"
+close_tab = ""
+
+# tmux pane movement and management.
+focus_pane_left = "prefix+h"
+focus_pane_down = "prefix+j"
+focus_pane_up = "prefix+k"
+focus_pane_right = "prefix+l"
+last_pane = "ctrl+backslash"
+cycle_pane_next = "prefix+tab"
+cycle_pane_previous = "prefix+shift+tab"
+split_vertical = ["prefix+v", "ctrl+enter"]
+split_horizontal = ["prefix+minus", "ctrl+shift+enter"]
+close_pane = ["prefix+x", "prefix+shift+x"]
+zoom = ["prefix+z", "prefix+ctrl+z"]
+resize_mode = "prefix+r"
+toggle_sidebar = "prefix+b"
+
+# Navigate-mode keeps the same home-row movement as the tmux key tables.
+navigate_workspace_up = "up"
+navigate_workspace_down = "down"
+navigate_pane_left = "h"
+navigate_pane_down = "j"
+navigate_pane_up = "k"
+navigate_pane_right = "l"
+
+# tmux arrange-mode equivalents.
+swap_pane_left = "prefix+shift+h"
+swap_pane_down = "prefix+shift+j"
+swap_pane_up = "prefix+shift+k"
+swap_pane_right = "prefix+shift+l"
+
+[[keys.command]]
+key = "prefix+ctrl+f"
+type = "pane"
+command = "~/configs/.config/zsh/scripts/herdr-sessionizer.sh"
+description = "open workspace from directory picker"
+
+[[keys.command]]
+key = "ctrl+h"
+type = "shell"
+command = "~/configs/.config/zsh/scripts/herdr-vim-navigator.sh left"
+description = "vim-aware pane focus left"
+
+[[keys.command]]
+key = "ctrl+j"
+type = "shell"
+command = "~/configs/.config/zsh/scripts/herdr-vim-navigator.sh down"
+description = "vim-aware pane focus down"
+
+[[keys.command]]
+key = "ctrl+k"
+type = "shell"
+command = "~/configs/.config/zsh/scripts/herdr-vim-navigator.sh up"
+description = "vim-aware pane focus up"
+
+[[keys.command]]
+key = "ctrl+l"
+type = "shell"
+command = "~/configs/.config/zsh/scripts/herdr-vim-navigator.sh right"
+description = "vim-aware pane focus right"
+
+[[keys.command]]
+key = "prefix+!"
+type = "shell"
+command = "~/configs/.config/zsh/scripts/herdr-focus-workspace-by-number.sh 1"
+description = "switch to workspace 1"
+
+[[keys.command]]
+key = "prefix+@"
+type = "shell"
+command = "~/configs/.config/zsh/scripts/herdr-focus-workspace-by-number.sh 2"
+description = "switch to workspace 2"
+
+[[keys.command]]
+key = "prefix+#"
+type = "shell"
+command = "~/configs/.config/zsh/scripts/herdr-focus-workspace-by-number.sh 3"
+description = "switch to workspace 3"
+
+[[keys.command]]
+key = "prefix+$"
+type = "shell"
+command = "~/configs/.config/zsh/scripts/herdr-focus-workspace-by-number.sh 4"
+description = "switch to workspace 4"
+
+[[keys.command]]
+key = "prefix+%"
+type = "shell"
+command = "~/configs/.config/zsh/scripts/herdr-focus-workspace-by-number.sh 5"
+description = "switch to workspace 5"
+
+[[keys.command]]
+key = "prefix+^"
+type = "shell"
+command = "~/configs/.config/zsh/scripts/herdr-focus-workspace-by-number.sh 6"
+description = "switch to workspace 6"
+
+[[keys.command]]
+key = "prefix+&"
+type = "shell"
+command = "~/configs/.config/zsh/scripts/herdr-focus-workspace-by-number.sh 7"
+description = "switch to workspace 7"
+
+[[keys.command]]
+key = "prefix+*"
+type = "shell"
+command = "~/configs/.config/zsh/scripts/herdr-focus-workspace-by-number.sh 8"
+description = "switch to workspace 8"
+
+[[keys.command]]
+key = "prefix+("
+type = "shell"
+command = "~/configs/.config/zsh/scripts/herdr-focus-workspace-by-number.sh 9"
+description = "switch to workspace 9"
+
+[[keys.command]]
+key = "prefix+ctrl+d"
+type = "pane"
+command = "lumen diff"
+description = "run lumen diff"
+
+[[keys.command]]
+key = "prefix+ctrl+g"
+type = "pane"
+command = "mise exec -- lazygit"
+description = "run lazygit"
+
+[ui]
+mouse_capture = true
+confirm_close = false
+prompt_new_tab_name = false
+pane_borders = true
+pane_gaps = false
+accent = "cyan"
+
+agent_panel_scope = "all"
+show_agent_labels_on_pane_borders = false
+agent_panel_sort = "spaces"
+[advanced]
+scrollback_limit_bytes = 5000000
+
+[ui.toast]
+delivery = "system"
