@@ -6,7 +6,7 @@ import { dirname as pathDirname, join } from "node:path";
 
 const herdr = process.env.HERDR_BIN_PATH || "herdr";
 const stateDir = process.env.HERDR_PLUGIN_STATE_DIR || "/tmp/herdr-agent-topic-sync";
-const statePath = join(stateDir, "last-applied.json");
+const statePath = join(stateDir, "selected-agents.json");
 
 const GENERATED_AGENT_PATTERN = /^(codex|claude|opencode|gemini|cursor|agent)\s*:\s+/i;
 
@@ -193,7 +193,7 @@ function saveState(state) {
   writeFileSync(statePath, `${JSON.stringify(state, null, 2)}\n`);
 }
 
-function titledWorkspaces(state) {
+function workspaceSelections(state) {
   if (!state.workspaces || typeof state.workspaces !== "object") {
     state.workspaces = {};
   }
@@ -203,47 +203,82 @@ function titledWorkspaces(state) {
 
 function pruneClosedWorkspaces(state, workspaces) {
   const liveWorkspaceIds = new Set(workspaces.map((workspace) => workspace.workspace_id).filter(Boolean));
-  const titled = titledWorkspaces(state);
+  const selections = workspaceSelections(state);
 
-  for (const workspaceId of Object.keys(titled)) {
-    if (!liveWorkspaceIds.has(workspaceId)) delete titled[workspaceId];
+  for (const workspaceId of Object.keys(selections)) {
+    if (!liveWorkspaceIds.has(workspaceId)) delete selections[workspaceId];
   }
 }
 
-function firstUsableAgentByWorkspace(agents) {
-  const selectedAgents = new Map();
+function agentKey(agent) {
+  return cleanText(agent?.pane_id || agent?.agent_session?.value);
+}
+
+function agentsByWorkspace(agents) {
+  const groupedAgents = new Map();
 
   for (const agent of agents) {
     const workspaceId = agent?.workspace_id;
-    if (!workspaceId || selectedAgents.has(workspaceId)) continue;
+    if (!workspaceId) continue;
 
-    const topic = topicFromPane(agent);
-    if (!topic) continue;
-
-    selectedAgents.set(workspaceId, { agent, topic });
+    const workspaceAgents = groupedAgents.get(workspaceId) || [];
+    workspaceAgents.push(agent);
+    groupedAgents.set(workspaceId, workspaceAgents);
   }
 
-  return selectedAgents;
+  return groupedAgents;
 }
 
-function renameWorkspace(workspace, topic, state) {
+function trackedAgent(agent) {
+  if (!agent) return null;
+  return { agent, topic: topicFromPane(agent) };
+}
+
+function findSelectedAgent(workspaceId, agents, selections) {
+  const previousSelection = selections?.[workspaceId];
+  const previousAgentKey = cleanText(previousSelection?.agentKey);
+
+  if (previousAgentKey) {
+    const existingAgent = agents.find((agent) => agentKey(agent) === previousAgentKey);
+    if (existingAgent) return trackedAgent(existingAgent);
+  }
+
+  return trackedAgent(agents[0]);
+}
+
+function rememberSelectedAgent(workspaceId, selectedAgent, selections) {
+  selections[workspaceId] = {
+    agentKey: agentKey(selectedAgent.agent),
+    paneId: selectedAgent.agent?.pane_id,
+    session: selectedAgent.agent?.agent_session,
+    selectedAt: new Date().toISOString(),
+  };
+}
+
+function selectedAgentForWorkspace(workspace, agents, state) {
+  const workspaceId = workspace?.workspace_id;
+  if (!workspaceId) return null;
+
+  const selections = workspaceSelections(state);
+  const selectedAgent = findSelectedAgent(workspaceId, agents, selections);
+  if (!selectedAgent) {
+    delete selections[workspaceId];
+    return null;
+  }
+
+  rememberSelectedAgent(workspaceId, selectedAgent, selections);
+
+  return selectedAgent;
+}
+
+function renameWorkspace(workspace, topic) {
   const workspaceId = workspace?.workspace_id;
   const desiredLabel = workspaceLabel(topic);
   if (!workspaceId || !desiredLabel) return { changed: false, reason: "missing workspace or topic" };
 
-  const titled = titledWorkspaces(state);
-  if (titled[workspaceId]) {
-    return { changed: false, reason: "workspace already titled" };
-  }
-
   if (workspace?.label !== desiredLabel) {
     run(["workspace", "rename", workspaceId, desiredLabel]);
   }
-
-  titled[workspaceId] = {
-    label: desiredLabel,
-    titledAt: new Date().toISOString(),
-  };
 
   const changed = workspace?.label !== desiredLabel;
   const reason = changed ? undefined : "workspace label already matched";
@@ -251,10 +286,19 @@ function renameWorkspace(workspace, topic, state) {
   return { changed, reason, workspace: desiredLabel };
 }
 
-function syncWorkspace(workspace, selectedAgent, state) {
-  if (!selectedAgent) return { changed: false, reason: "no usable agent topic" };
+function syncWorkspace(workspace, workspaceAgents, state) {
+  const selectedAgent = selectedAgentForWorkspace(workspace, workspaceAgents, state);
+  if (!selectedAgent) return { changed: false, reason: "no running agents in workspace" };
+  if (!selectedAgent.topic) {
+    return {
+      changed: false,
+      reason: "selected agent has no usable topic",
+      pane_id: selectedAgent.agent?.pane_id,
+      workspace: workspace?.label,
+    };
+  }
 
-  const result = renameWorkspace(workspace, selectedAgent.topic, state);
+  const result = renameWorkspace(workspace, selectedAgent.topic);
 
   return {
     changed: result.changed,
@@ -273,9 +317,9 @@ function syncNames() {
   const state = loadState();
   pruneClosedWorkspaces(state, workspaces);
 
-  const selectedAgents = firstUsableAgentByWorkspace(agents);
+  const workspaceAgents = agentsByWorkspace(agents);
   const results = workspaces.map((workspace) =>
-    syncWorkspace(workspace, selectedAgents.get(workspace.workspace_id), state),
+    syncWorkspace(workspace, workspaceAgents.get(workspace.workspace_id) || [], state),
   );
   const changed = results.some((result) => result.changed);
 
