@@ -1,0 +1,36 @@
+id = "local.smart-pane-navigation"
+name = "Smart Pane Navigation"
+version = "0.1.0"
+min_herdr_version = "0.7.0"
+description = "Provide smart splits and Vim-aware pane navigation."
+platforms = ["macos", "linux"]
+
+[[actions]]
+id = "smart-split"
+title = "Split pane along its longest visual axis"
+contexts = ["pane"]
+command = ["bun", "pane-actions.js", "smart-split"]
+
+[[actions]]
+id = "navigate-left"
+title = "Navigate left with Vim awareness"
+contexts = ["pane"]
+command = ["bun", "pane-actions.js", "navigate", "left"]
+
+[[actions]]
+id = "navigate-down"
+title = "Navigate down with Vim awareness"
+contexts = ["pane"]
+command = ["bun", "pane-actions.js", "navigate", "down"]
+
+[[actions]]
+id = "navigate-up"
+title = "Navigate up with Vim awareness"
+contexts = ["pane"]
+command = ["bun", "pane-actions.js", "navigate", "up"]
+
+[[actions]]
+id = "navigate-right"
+title = "Navigate right with Vim awareness"
+contexts = ["pane"]
+command = ["bun", "pane-actions.js", "navigate", "right"]

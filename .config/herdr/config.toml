@@ -24,7 +24,7 @@ settings = "prefix+s"
 detach = "prefix+q"
 workspace_picker = "prefix+w"
 goto = "prefix+g"
-new_workspace = "prefix+shift+n"
+new_workspace = "prefix+n"
 new_worktree = "prefix+shift+g"
 rename_workspace = "prefix+shift+w"
 close_workspace = "prefix+shift+d"
@@ -32,8 +32,8 @@ focus_agent = "prefix+ctrl+1..9"
 
 # tmux windows map to Herdr tabs.
 new_tab = "prefix+c"
-previous_tab = "prefix+p"
-next_tab = "prefix+n"
+previous_tab = "prefix+shift+tab"
+next_tab = "prefix+tab"
 switch_tab = "prefix+1..9"
 switch_workspace = "ctrl+1..9"
 rename_tab = "prefix+shift+t"
@@ -45,8 +45,8 @@ focus_pane_down = "prefix+j"
 focus_pane_up = "prefix+k"
 focus_pane_right = "prefix+l"
 last_pane = "ctrl+backslash"
-cycle_pane_next = "prefix+tab"
-cycle_pane_previous = "prefix+shift+tab"
+cycle_pane_next = ""
+cycle_pane_previous = ""
 split_vertical = "prefix+v"
 split_horizontal = ["prefix+minus", "ctrl+shift+enter"]
 close_pane = ["prefix+x", "prefix+shift+x"]
@@ -76,32 +76,32 @@ description = "open workspace from directory picker"
 
 [[keys.command]]
 key = "ctrl+enter"
-type = "shell"
-command = "~/configs/.config/zsh/scripts/herdr-smart-split.sh"
+type = "plugin_action"
+command = "local.smart-pane-navigation.smart-split"
 description = "smart pane split"
 
 [[keys.command]]
 key = "ctrl+h"
-type = "shell"
-command = "~/configs/.config/zsh/scripts/herdr-vim-navigator.sh left"
+type = "plugin_action"
+command = "local.smart-pane-navigation.navigate-left"
 description = "vim-aware pane focus left"
 
 [[keys.command]]
 key = "ctrl+j"
-type = "shell"
-command = "~/configs/.config/zsh/scripts/herdr-vim-navigator.sh down"
+type = "plugin_action"
+command = "local.smart-pane-navigation.navigate-down"
 description = "vim-aware pane focus down"
 
 [[keys.command]]
 key = "ctrl+k"
-type = "shell"
-command = "~/configs/.config/zsh/scripts/herdr-vim-navigator.sh up"
+type = "plugin_action"
+command = "local.smart-pane-navigation.navigate-up"
 description = "vim-aware pane focus up"
 
 [[keys.command]]
 key = "ctrl+l"
-type = "shell"
-command = "~/configs/.config/zsh/scripts/herdr-vim-navigator.sh right"
+type = "plugin_action"
+command = "local.smart-pane-navigation.navigate-right"
 description = "vim-aware pane focus right"
 
 [[keys.command]]
