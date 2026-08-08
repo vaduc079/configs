@@ -1,0 +1,19 @@
+# Shell editing and prompt navigation.
+keybind = alt+backspace=text:\x17
+keybind = alt+arrow_left=esc:b
+keybind = alt+arrow_right=esc:f
+keybind = shift+enter=text:\x1b\r
+keybind = shift+up=jump_to_prompt:-1
+keybind = shift+down=jump_to_prompt:1
+
+# Native Ghostty tabs and panes.
+keybind = cmd+t=new_tab
+keybind = cmd+w=close_surface
+keybind = cmd+enter=new_split:auto
+keybind = ctrl+enter=new_split:auto
+
+# Navigate native Ghostty splits with the Vim home row.
+keybind = ctrl+h=goto_split:left
+keybind = ctrl+j=goto_split:down
+keybind = ctrl+k=goto_split:up
+keybind = ctrl+l=goto_split:right

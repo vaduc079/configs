@@ -9,6 +9,7 @@ alias load_zshrc='source ~/.zshrc'
 # short alias
 alias lzg='lazygit'
 alias lzd='lazydocker'
+alias herdr='$HOME/.config/zsh/scripts/herdr-with-ghostty-keybinds.sh'
 
 # vim
 alias vim='nvim'

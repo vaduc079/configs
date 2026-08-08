@@ -1,13 +1,9 @@
-# command = /Users/duc.vu/configs/.config/zsh/scripts/ghostty-tmux-session.sh
-# command = /opt/homebrew/bin/tmux new-session -A -s duc-vu
-# command = ~/.local/bin/herdr
-
 font-family = CaskaydiaCove Nerd Font Mono
 font-size = 13
 
 theme = Gruvbox Dark
 
-macos-titlebar-style = hidden
+macos-titlebar-style = tabs
 macos-option-as-alt = true
 confirm-close-surface = false
 
@@ -15,11 +11,12 @@ focus-follows-mouse = true
 mouse-shift-capture = false
 mouse-hide-while-typing = true
 
-window-padding-x = 0
-window-padding-y = 10,0
+window-padding-x = 1
+window-padding-y = 0
 
 background-opacity = 0.98
 background-blur = 30
+unfocused-split-opacity = 1
 
 shell-integration = detect
 shell-integration-features = no-cursor,title
@@ -33,44 +30,6 @@ scrollback-limit = 5000000
 tab-inherit-working-directory = true
 split-inherit-working-directory = true
 
-# send delete word (ctrl+w)
-keybind = alt+backspace=text:\x17
-
-# forward-word, backward-word
-keybind = alt+arrow_left=esc:b
-keybind = alt+arrow_right=esc:f
-
-# new line
-keybind = shift+enter=text:\x1b\r
-
-keybind = shift+up=jump_to_prompt:-1
-keybind = shift+down=jump_to_prompt:1
-
-########
-# tmux #
-########
-
-# split window, map to ctrl+enter
-keybind = cmd+enter=text:\x1b[13;5u
-
-# new-window, send tmux prefix + c
-keybind = cmd+t=text:\x01c
-
-# kill pane, map to ctrl+a X
-keybind = cmd+w=text:\x01X
-
-# switch window tmux
-# keybind = ctrl+1=text:\x011
-# keybind = ctrl+2=text:\x012
-# keybind = ctrl+3=text:\x013
-# keybind = ctrl+4=text:\x014
-# keybind = ctrl+5=text:\x015
-# keybind = ctrl+6=text:\x016
-# keybind = ctrl+7=text:\x017
-# keybind = ctrl+8=text:\x018
-# keybind = ctrl+9=text:\x019
-# keybind = ctrl+0=text:\x010
-
-############
-# end tmux #
-############
+config-file = keybinds/default.ghostty
+# The Herdr wrapper creates this temporary override while Herdr is running.
+config-file = ?keybinds/active.ghostty

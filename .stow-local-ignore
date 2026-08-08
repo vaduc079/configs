@@ -15,6 +15,7 @@
 ^/misc
 
 ^/\.ai-devkit.json$
+^/\.config/ghostty/keybinds/active\.ghostty$
 ^/AGENTS\.md$
 ^/CLAUDE\.md$
 ^/setup\.sh$

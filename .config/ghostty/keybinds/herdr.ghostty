@@ -1,0 +1,19 @@
+# Shell editing and prompt navigation.
+keybind = alt+backspace=text:\x17
+keybind = alt+arrow_left=esc:b
+keybind = alt+arrow_right=esc:f
+keybind = shift+enter=text:\x1b\r
+keybind = shift+up=jump_to_prompt:-1
+keybind = shift+down=jump_to_prompt:1
+
+# Translate macOS shortcuts to the equivalent Herdr input.
+keybind = cmd+t=text:\x01c
+keybind = cmd+w=text:\x01X
+keybind = cmd+enter=text:\x1b[13;5u
+keybind = ctrl+enter=text:\x1b[13;5u
+
+# Unbind these as they're being used in herdr
+keybind = ctrl+h=unbind
+keybind = ctrl+j=unbind
+keybind = ctrl+k=unbind
+keybind = ctrl+l=unbind
