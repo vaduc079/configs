@@ -1,4 +1,4 @@
-model = "gpt-5.5"
+model = "gpt-5.6-sol"
 model_reasoning_effort = "medium"
 approval_policy = "on-request"
 approvals_reviewer = "auto_review"
@@ -69,6 +69,7 @@ hooks = true
 [tui]
 status_line = [
   "model-with-reasoning",
+  "approval-mode",
   "project-name",
   "git-branch",
   "context-used",
@@ -79,12 +80,14 @@ status_line = [
 ]
 theme = "gruvbox-dark"
 status_line_use_colors = true
+terminal_title = ["activity", "thread-title"]
 
 [tui.keymap.editor]
 insert_newline = ["ctrl-j", "ctrl-m", "enter", "shift-enter", "alt-enter"]
 
 [tui.model_availability_nux]
 "gpt-5.5" = 4
+"gpt-5.6-sol" = 4
 
 [mcp_servers.openaiDeveloperDocs]
 enabled = false
