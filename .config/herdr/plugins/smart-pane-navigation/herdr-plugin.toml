@@ -9,28 +9,28 @@ platforms = ["macos", "linux"]
 id = "smart-split"
 title = "Split pane along its longest visual axis"
 contexts = ["pane"]
-command = ["bun", "pane-actions.js", "smart-split"]
+command = ["bash", "pane-actions.sh", "smart-split"]
 
 [[actions]]
 id = "navigate-left"
 title = "Navigate left with Vim awareness"
 contexts = ["pane"]
-command = ["bun", "pane-actions.js", "navigate", "left"]
+command = ["bash", "pane-actions.sh", "navigate", "left"]
 
 [[actions]]
 id = "navigate-down"
 title = "Navigate down with Vim awareness"
 contexts = ["pane"]
-command = ["bun", "pane-actions.js", "navigate", "down"]
+command = ["bash", "pane-actions.sh", "navigate", "down"]
 
 [[actions]]
 id = "navigate-up"
 title = "Navigate up with Vim awareness"
 contexts = ["pane"]
-command = ["bun", "pane-actions.js", "navigate", "up"]
+command = ["bash", "pane-actions.sh", "navigate", "up"]
 
 [[actions]]
 id = "navigate-right"
 title = "Navigate right with Vim awareness"
 contexts = ["pane"]
-command = ["bun", "pane-actions.js", "navigate", "right"]
+command = ["bash", "pane-actions.sh", "navigate", "right"]

@@ -25,5 +25,5 @@ herdr plugin link ~/configs/.config/herdr/plugins/smart-pane-navigation
 ## Test
 
 ```sh
-bun test ~/.config/herdr/plugins/smart-pane-navigation
+bash ~/.config/herdr/plugins/smart-pane-navigation/pane-actions.test.sh
 ```
