@@ -53,3 +53,9 @@ eval "$(starship init zsh)"
 eval "$(zoxide init zsh)"
 
 eval "$(/opt/homebrew/bin/mise activate zsh)"
+
+# bun completions
+[ -s "/Users/duc.vu/.bun/_bun" ] && source "/Users/duc.vu/.bun/_bun"
+
+# opencode
+export PATH=/Users/duc.vu/.opencode/bin:$PATH

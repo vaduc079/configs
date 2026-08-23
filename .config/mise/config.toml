@@ -1,5 +1,7 @@
 [settings]
 idiomatic_version_file_enable_tools = ["node"]
+minimum_release_age = "7d"
 
 [tools]
-node = "24.13.1"
+node = "26"
+"npm:@earendil-works/pi-coding-agent" = "0.84.1"

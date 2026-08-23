@@ -37,8 +37,8 @@ focus_agent = "prefix+ctrl+1..9"
 new_tab = "prefix+c"
 previous_tab = "prefix+shift+tab"
 next_tab = "prefix+tab"
-switch_tab = "prefix+1..9"
-switch_workspace = "ctrl+1..9"
+switch_tab = "ctrl+1..9"
+switch_workspace = "prefix+1..9"
 rename_tab = "prefix+shift+t"
 close_tab = ""
 
@@ -126,12 +126,17 @@ mouse_capture = true
 confirm_close = false
 prompt_new_tab_name = false
 pane_borders = true
+pane_outer_borders = false
+pane_scrollbars = false
 pane_gaps = false
 show_agent_labels_on_pane_borders = false
 accent = "cyan"
 agent_panel_sort = "spaces"
 sidebar_collapsed_mode = "hidden"
 hide_tab_bar_when_single_tab = true
+tab_bar_position = "top"
+tab_bar_right = [{ type = "zoom" }]
+tab_bar_right_separator = " · "
 
 [ui.sidebar.agents]
 row_gap = 1
@@ -164,6 +169,17 @@ codex = [
     "state_icon",
     { token = "workspace", dim = true },
     { token = "agent", fg = "#689D6A", dim = true },
+    "tab",
+  ],
+  [
+    { token = "terminal_title_stripped", fg = "#ebdbb2", dim = false },
+  ],
+]
+opencode = [
+  [
+    "state_icon",
+    { token = "workspace", dim = true },
+    { token = "agent", fg = "#79B8FF", dim = true },
     "tab",
   ],
   [
