@@ -1,7 +1,8 @@
 font-family = CaskaydiaCove Nerd Font Mono
 font-size = 13
 
-theme = Gruvbox Dark
+# theme = Gruvbox Dark
+theme = Kanagawa Wave
 
 macos-titlebar-style = tabs
 macos-option-as-alt = true
@@ -14,7 +15,7 @@ mouse-hide-while-typing = true
 window-padding-x = 1
 window-padding-y = 0
 
-background-opacity = 0.98
+background-opacity = 0.97
 background-blur = 30
 unfocused-split-opacity = 1
 

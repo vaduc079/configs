@@ -8,13 +8,13 @@ function shouldRedirectToChrome(hostname: string): boolean {
     hostname.includes("claude.ai") ||
     hostname.includes("claude.com") ||
     hostname.includes("mcp.atlassian.com") ||
-    hostname.includes("https://slack.com") ||
-    hostname.includes(".slack.com") ||
+    hostname.includes("slack.com") ||
     hostname.includes("shopback.slack.com") ||
     hostname.includes(".replit.app") ||
     // hostname.includes("console.jumpcloud.com") ||
     hostname.includes(".zscaler.com") ||
-    hostname.includes("n8n.svc.shopback.com")
+    hostname.includes("n8n.svc.shopback.com") ||
+    hostname.includes("api.anthropic.com")
   );
 }
 

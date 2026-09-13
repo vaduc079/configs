@@ -7,12 +7,16 @@ onboarding = false
 scrollback_limit_bytes = 5000000
 
 [theme]
-name = "gruvbox"
+name = "kanagawa"
 auto_switch = false
 
 [theme.custom]
-accent = "cyan"
-surface_dim = "#383838"
+panel_bg = "reset"
+surface0 = "reset"
+
+# Gruvbox
+# accent = "cyan"
+# surface_dim = "#383838"
 
 [terminal]
 shell_mode = "auto"
