@@ -114,8 +114,8 @@ description = "vim-aware pane focus right"
 [[keys.command]]
 key = "prefix+ctrl+d"
 type = "pane"
-command = "lumen diff"
-description = "run lumen diff"
+command = "mise exec -- hunk diff --fast"
+description = "run hunk diff"
 
 [[keys.command]]
 key = "prefix+ctrl+g"

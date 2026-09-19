@@ -1,0 +1,37 @@
+theme = "kanagawa-wave-custom"
+mode = "auto"
+line_numbers = true
+wrap_lines = true
+hunk_headers = true
+menu_bar = true
+agent_notes = false
+copy_decorations = false
+cursor_line = "row"
+transparent_background = true
+
+[themes.kanagawa-wave-custom]
+base = "kanagawa-wave"
+label = "Kanagawa Wave"
+addedBg = "#2B3328"
+removedBg = "#43242B"
+movedAddedBg = "#2D4F67"
+movedRemovedBg = "#223249"
+contextBg = "#1F1F28"
+addedContentBg = "#2B3328"
+removedContentBg = "#43242B"
+contextContentBg = "#1F1F28"
+addedSignColor = "#76946A"
+removedSignColor = "#C34043"
+lineNumberBg = "#181820"
+badgeAdded = "#98BB6C"
+badgeRemoved = "#E82424"
+badgeNeutral = "#E6C384"
+fileNew = "#98BB6C"
+fileDeleted = "#E82424"
+fileRenamed = "#C0A36E"
+fileModified = "#7E9CD8"
+fileUntracked = "#727169"
+noteBorder = "#957FB8"
+noteBackground = "#2A2A37"
+noteTitleBackground = "#957FB8"
+noteTitleText = "#181820"

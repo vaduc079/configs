@@ -3,6 +3,7 @@ idiomatic_version_file_enable_tools = ["node"]
 minimum_release_age = "7d"
 
 [tools]
+hunk = "0.22.0"
 node = "26"
 "npm:@devcontainers/cli" = "0.88.0"
 "npm:@earendil-works/pi-coding-agent" = "0.84.1"

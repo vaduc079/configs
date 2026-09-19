@@ -1,6 +1,27 @@
 gui:
   nerdFontsVersion: "3"
   showNumstatInFilesView: true
+  theme:
+    activeBorderColor:
+      - "#ff9e3b"
+      - "bold"
+    inactiveBorderColor:
+      - "#54546d"
+    searchingActiveBorderColor:
+      - "#ff9e3b"
+      - "bold"
+    optionsTextColor:
+      - "#7e9cd8"
+    selectedLineBgColor:
+      - "#223249"
+    cherryPickedCommitBgColor:
+      - "#e6c384"
+    cherryPickedCommitFgColor:
+      - "#7e9cd8"
+    unstagedChangesColor:
+      - "#e82424"
+    defaultFgColor:
+      - "#dcd7ba"
 os:
   openLink: open "$(echo {{link}} | sed 's/%2F/\//g')"
   editPreset: "nvim"
@@ -8,4 +29,4 @@ git:
   overrideGpg: true
   pagers:
     - colorArg: always
-      pager: delta --dark --syntax-theme=gruvbox-dark --paging=never --line-numbers --true-color=always --hyperlinks --hyperlinks-file-link-format="lazygit-edit://{path}:{line}"
+      pager: hunk pager
