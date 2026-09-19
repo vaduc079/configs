@@ -114,13 +114,13 @@ description = "vim-aware pane focus right"
 [[keys.command]]
 key = "prefix+ctrl+d"
 type = "pane"
-command = "mise exec -- hunk diff --fast"
-description = "run hunk diff"
+command = "~/configs/.config/herdr/scripts/select-hunk-repository.sh"
+description = "select repository and run hunk diff"
 
 [[keys.command]]
 key = "prefix+ctrl+g"
 type = "popup"
-command = "mise exec -- lazygit"
+command = "MISE_OFFLINE=1 mise exec node -- lazygit"
 description = "run lazygit"
 width = "90%"
 height = "90%"
