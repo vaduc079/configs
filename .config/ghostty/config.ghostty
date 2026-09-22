@@ -1,10 +1,13 @@
-font-family = CaskaydiaCove Nerd Font Mono
+# font-family = CaskaydiaCove Nerd Font Mono
+# font-family = IoskeleyMonoTerm Nerd Font Mono
+# font-family = Iosevka Term Extended
+font-family = CommitMonoNerd
 font-size = 13
 
 # theme = Gruvbox Dark
 theme = Kanagawa Wave
 
-macos-titlebar-style = tabs
+# macos-titlebar-style = tabs
 macos-option-as-alt = true
 confirm-close-surface = false
 
