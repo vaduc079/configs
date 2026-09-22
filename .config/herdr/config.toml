@@ -113,9 +113,11 @@ description = "vim-aware pane focus right"
 
 [[keys.command]]
 key = "prefix+ctrl+d"
-type = "pane"
-command = "~/configs/.config/herdr/scripts/select-hunk-repository.sh"
-description = "select repository and run hunk diff"
+type = "popup"
+command = "~/.config/herdr/scripts/select-hunk-repository.sh"
+description = "pick a repository via popup, then run hunk diff in a new tab"
+width = "50%"
+height = "50%"
 
 [[keys.command]]
 key = "prefix+ctrl+g"

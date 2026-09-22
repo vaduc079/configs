@@ -3,9 +3,17 @@
 set -euo pipefail
 setopt null_glob
 
+script_dir="${0:A:h}"
+
 fail() {
   echo "$1" >&2
+  echo "Press any key to exit..." >&2
+  read -k 1 -s
   exit 1
+}
+
+run_hunk() {
+  "$script_dir/open-tab-run.sh" hunk diff --fast --watch
 }
 
 main() {
@@ -28,13 +36,17 @@ main() {
     fi
   done
 
-  (( ${#repo_labels} > 0 )) || fail "No Git repositories found within two levels of $root"
+  if (( ${#repo_labels} == 0 )); then
+    git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1 || fail "No Git repositories found"
+    run_hunk
+    exit 0
+  fi
 
   if (( ${#repo_labels} == 1 )); then
     selected="${repo_labels[1]}"
   else
     command -v fzf >/dev/null 2>&1 || fail "fzf not found"
-    selected="$(printf '%s\n' "${repo_labels[@]}" | fzf --prompt='Git repository: ' --reverse)" || exit 0
+    selected="$(printf '%s\n' "${repo_labels[@]}" | fzf --prompt='Open hunk: ' --reverse)" || exit 0
     [[ -n "$selected" ]] || exit 0
   fi
 
@@ -45,7 +57,7 @@ main() {
   fi
 
   cd -- "$selected_repo"
-  MISE_OFFLINE=1 exec mise exec node -- hunk diff --fast
+  run_hunk
 }
 
 main "$@"
