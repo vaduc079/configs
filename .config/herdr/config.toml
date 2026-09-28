@@ -76,12 +76,6 @@ swap_pane_up = "prefix+shift+k"
 swap_pane_right = "prefix+shift+l"
 
 [[keys.command]]
-key = "prefix+ctrl+f"
-type = "pane"
-command = "~/configs/.config/zsh/scripts/herdr-sessionizer.sh"
-description = "open workspace from directory picker"
-
-[[keys.command]]
 key = "ctrl+enter"
 type = "plugin_action"
 command = "local.smart-pane-navigation.smart-split"
@@ -124,6 +118,14 @@ key = "prefix+ctrl+g"
 type = "popup"
 command = "MISE_OFFLINE=1 mise exec node -- lazygit"
 description = "run lazygit"
+width = "90%"
+height = "90%"
+
+[[keys.command]]
+key = "prefix+ctrl+f"
+type = "popup"
+command = "yazi"
+description = "run yazi"
 width = "90%"
 height = "90%"
 
