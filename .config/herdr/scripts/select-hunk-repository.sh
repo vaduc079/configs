@@ -13,7 +13,7 @@ fail() {
 }
 
 run_hunk() {
-  "$script_dir/open-tab-run.sh" hunk diff --fast --watch
+  HERDR_ACTIVE_PANE_CWD="$PWD" "$script_dir/open-tab-run.sh" hunk diff --fast --watch
 }
 
 main() {
