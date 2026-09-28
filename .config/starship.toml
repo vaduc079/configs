@@ -46,7 +46,7 @@ truncation_length = 35
 disabled = true
 
 [git_state]
-disabled = false
+disabled = true
 
 [git_metrics]
 disabled = true
@@ -96,7 +96,8 @@ symbol = " "
 
 [nodejs]
 symbol = " "
-disabled = true
+# Symbol only: $version and $style would both run `node --version`
+format = 'via [$symbol](bold green)'
 
 [custom.node]
 symbol = " "
@@ -120,7 +121,7 @@ detect_files = [
   '.tool-versions',
 ]
 style = 'bold green'
-disabled = false
+disabled = true
 
 [os.symbols]
 Alpaquita = " "
