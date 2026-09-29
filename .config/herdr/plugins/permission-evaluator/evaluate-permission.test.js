@@ -4,8 +4,9 @@ import { describe, expect, test } from "bun:test";
 import {
   buildClaudeArgs,
   claudeEnvironment,
-  decisionFromOutput,
+  evaluatorPrompt,
   eventPaneId,
+  verdictFromOutput,
 } from "./evaluate-permission.js";
 
 describe("eventPaneId", () => {
@@ -50,9 +51,15 @@ describe("buildClaudeArgs", () => {
       "Bash(herdr agent read w1:p2 --source visible)",
       "Bash(herdr agent explain w1:p2 --json --verbose)",
     ]);
-    expect(args).toContain("--restricted");
+    expect(args).not.toContain("--restricted");
     expect(args).not.toContain("--safe-mode");
     expect(args).not.toContain("--max-budget-usd");
+    expect(args.slice(args.indexOf("--tools") + 1, args.indexOf("--allowedTools"))).toEqual([
+      "Bash",
+    ]);
+    expect(args.slice(args.indexOf("--permission-mode") + 1, args.indexOf("--permission-prompts"))).toEqual([
+      "dontAsk",
+    ]);
   });
 
   test("active mode allows only Enter in the target pane", () => {
@@ -73,15 +80,32 @@ describe("buildClaudeArgs", () => {
   });
 });
 
-describe("decisionFromOutput", () => {
-  test("validates the decision against the current mode", () => {
+describe("evaluatorPrompt", () => {
+  test("judges rm and WebFetch by concrete risk instead of tool name", () => {
+    const prompt = evaluatorPrompt("w1:p2", false);
+
+    expect(prompt).toContain("rm -rf \"$f\"");
+    expect(prompt).toContain("WebFetch reading an explicitly shown public URL");
+    expect(prompt).toContain("A confirmation prompt itself is not evidence");
+    expect(prompt).toContain("globs or expansions whose values cannot be determined");
+  });
+});
+
+describe("verdictFromOutput", () => {
+  test("validates the decision and normalizes its reason", () => {
     const output = JSON.stringify({
       is_error: false,
-      structured_output: { decision: "dry_run_would_approve", reason: "safe" },
+      structured_output: {
+        decision: "dry_run_would_approve",
+        reason: "  Routine local\ninspection.  ",
+      },
     });
 
-    expect(decisionFromOutput(output, true)).toBe("dry_run_would_approve");
-    expect(decisionFromOutput(output, false)).toBeNull();
+    expect(verdictFromOutput(output, true)).toEqual({
+      decision: "dry_run_would_approve",
+      reason: "Routine local inspection.",
+    });
+    expect(verdictFromOutput(output, false)).toBeNull();
   });
 });
 

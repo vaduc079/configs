@@ -10,7 +10,8 @@ The script currently has `dryRun: true`, so the evaluator cannot send keys.
 
 1. Herdr emits `pane.agent_status_changed` after Claude becomes blocked.
 2. The script accepts only a blocked Claude pane with a valid pane ID.
-3. It launches restricted `claude -p` with only target-pane Herdr inspection commands allowed.
+3. It launches `claude -p` with only target-pane Herdr inspection commands allowed; `dontAsk`
+   denies every Bash command outside that exact allowlist.
 4. Claude checks the visible UI against the concise safety policy in the system prompt.
 5. In active mode, Claude can only send `enter` to the target pane when the one-time affirmative
    option is already selected.
@@ -49,8 +50,9 @@ For the default Herdr installation, this is normally:
 ~/.local/state/herdr/plugins/local.permission-evaluator/audit.jsonl
 ```
 
-Each entry contains timestamp, pane ID, dry-run mode, decision, completion status, exit status, and
-duration. It does not contain terminal contents or the model's reason.
+Each entry contains timestamp, pane ID, dry-run mode, decision, the model's concise reason,
+completion status, exit status, and duration. Reasons are normalized to one line and capped at 500
+characters. The audit does not contain raw terminal contents.
 
 `HERDR_PLUGIN_STATE_DIR` is required only when `auditEnabled` is `true`.
 
