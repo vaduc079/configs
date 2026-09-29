@@ -1,0 +1,10 @@
+id = "local.permission-evaluator"
+name = "Claude Permission Evaluator"
+version = "0.1.0"
+min_herdr_version = "0.9.1"
+description = "Evaluate visible Claude Code permission prompts and optionally approve them through Herdr."
+platforms = ["macos", "linux"]
+
+[[events]]
+on = "pane.agent_status_changed"
+command = ["bun", "evaluate-permission.js"]
