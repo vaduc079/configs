@@ -23,6 +23,7 @@ typeset -U path PATH
 [ -d "$HOME/.rd/bin" ] && path=($path $HOME/.rd/bin)
 [ -d "$HOME/.local/bin" ] && path=($path $HOME/.local/bin)
 [ -d "/opt/homebrew/opt/libpq/bin" ] && path=($path /opt/homebrew/opt/libpq/bin)
+[ -d "$HOME/.opencode/bin" ] && path=($path $HOME/.opencode/bin)
 export PATH
 
 # brew shell completion
