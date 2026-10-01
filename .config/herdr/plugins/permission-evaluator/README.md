@@ -4,7 +4,7 @@ This Herdr plugin reacts after a Claude Code pane displays a blocked UI. It laun
 headless Claude evaluator, which inspects the rendered prompt and either approves it once through
 Herdr or leaves it unchanged for human review.
 
-The script currently has `dryRun: true`, so the evaluator cannot send keys.
+The script currently has `dryRun: false`, so the evaluator can approve prompts by sending keys.
 
 ## Flow
 
@@ -12,7 +12,7 @@ The script currently has `dryRun: true`, so the evaluator cannot send keys.
 2. The script accepts only a blocked Claude pane with a valid pane ID.
 3. It launches `claude -p` with only target-pane Herdr inspection commands allowed; `dontAsk`
    denies every Bash command outside that exact allowlist.
-4. Claude checks the visible UI against the concise safety policy in the system prompt.
+4. Claude checks the visible UI against the approval policy in `policy.md`.
 5. In active mode, Claude can only send `enter` to the target pane when the one-time affirmative
    option is already selected.
 6. The script records the result in a persistent metadata-only audit log.
@@ -25,16 +25,27 @@ Configuration is the `CONFIG` object near the top of `evaluate-permission.js`:
 
 ```js
 const CONFIG = {
-  dryRun: true,
+  dryRun: false,
   auditEnabled: true,
   model: "sonnet",
   timeoutMs: 30_000,
 };
 ```
 
-Change `dryRun` to `false` only after validating dry-run results.
+Set `dryRun` to `true` to validate policy changes without sending keys.
 Set `auditEnabled` to `false` to stop appending the persistent audit log. Herdr's in-memory plugin
 command logs remain available independently.
+
+## Approval policy
+
+`policy.md` defines when the evaluator should approve and when it should leave the prompt for human
+review. It is local-only and ignored by Git, so create it next to the script on each machine. Edit it
+to change approval behavior; it is read on every event, so no relink is needed.
+
+The script embeds it in the system prompt between fixed guardrails that stay in code: untrusted pane
+text, the exact inspection commands, re-reading before approval, the single allowed `send-keys`
+command, never choosing persistent permission, and the JSON result. A missing or empty `policy.md`
+fails the evaluation, leaving the prompt for human review.
 
 ## Audit log
 
@@ -50,9 +61,10 @@ For the default Herdr installation, this is normally:
 ~/.local/state/herdr/plugins/local.permission-evaluator/audit.jsonl
 ```
 
-Each entry contains timestamp, pane ID, dry-run mode, decision, the model's concise reason,
-completion status, exit status, and duration. Reasons are normalized to one line and capped at 500
-characters. The audit does not contain raw terminal contents.
+Each entry contains timestamp, pane ID, dry-run mode, a short SHA-256 `policyHash` of `policy.md`,
+decision, the model's concise reason, completion status, exit status, and duration. Reasons are
+normalized to one line and capped at 500 characters. The audit does not contain raw terminal
+contents.
 
 `HERDR_PLUGIN_STATE_DIR` is required only when `auditEnabled` is `true`.
 

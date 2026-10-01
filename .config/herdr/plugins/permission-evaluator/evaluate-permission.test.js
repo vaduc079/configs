@@ -1,11 +1,15 @@
 #!/usr/bin/env bun
 
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   buildClaudeArgs,
   claudeEnvironment,
   evaluatorPrompt,
   eventPaneId,
+  loadPolicy,
   verdictFromOutput,
 } from "./evaluate-permission.js";
 
@@ -36,9 +40,10 @@ describe("eventPaneId", () => {
     ).toBeNull();
   });
 });
+
 describe("buildClaudeArgs", () => {
   test("dry run allows inspection but not terminal input", () => {
-    const args = buildClaudeArgs("w1:p2", {
+    const args = buildClaudeArgs("w1:p2", "Test policy.", {
       dryRun: true,
       model: "sonnet",
       timeoutMs: 45_000,
@@ -51,9 +56,6 @@ describe("buildClaudeArgs", () => {
       "Bash(herdr agent read w1:p2 --source visible)",
       "Bash(herdr agent explain w1:p2 --json --verbose)",
     ]);
-    expect(args).not.toContain("--restricted");
-    expect(args).not.toContain("--safe-mode");
-    expect(args).not.toContain("--max-budget-usd");
     expect(args.slice(args.indexOf("--tools") + 1, args.indexOf("--allowedTools"))).toEqual([
       "Bash",
     ]);
@@ -63,7 +65,7 @@ describe("buildClaudeArgs", () => {
   });
 
   test("active mode allows only Enter in the target pane", () => {
-    const args = buildClaudeArgs("w1:p2", {
+    const args = buildClaudeArgs("w1:p2", "Test policy.", {
       dryRun: false,
       model: "sonnet",
       timeoutMs: 45_000,
@@ -81,13 +83,28 @@ describe("buildClaudeArgs", () => {
 });
 
 describe("evaluatorPrompt", () => {
-  test("judges rm and WebFetch by concrete risk instead of tool name", () => {
-    const prompt = evaluatorPrompt("w1:p2", false);
+  test("embeds the policy and the exact allowed send-keys command", () => {
+    const prompt = evaluatorPrompt("w1:p2", false, "Approve nothing.");
 
-    expect(prompt).toContain("rm -rf \"$f\"");
-    expect(prompt).toContain("WebFetch reading an explicitly shown public URL");
-    expect(prompt).toContain("A confirmation prompt itself is not evidence");
-    expect(prompt).toContain("globs or expansions whose values cannot be determined");
+    expect(prompt).toContain("<policy>\nApprove nothing.\n</policy>");
+    expect(prompt).toContain("`herdr agent send-keys w1:p2 enter`");
+  });
+
+  test("dry run never mentions sending keys", () => {
+    const prompt = evaluatorPrompt("w1:p2", true, "Approve nothing.");
+
+    expect(prompt).toContain("Dry run: send no keys");
+    expect(prompt).not.toContain("herdr agent send-keys");
+  });
+});
+
+describe("loadPolicy", () => {
+  test("fails closed when the policy is missing or empty", () => {
+    const dir = mkdtempSync(join(tmpdir(), "permission-evaluator-"));
+    expect(() => loadPolicy(dir)).toThrow();
+
+    writeFileSync(join(dir, "policy.md"), "  \n");
+    expect(() => loadPolicy(dir)).toThrow("policy.md is empty");
   });
 });
 
