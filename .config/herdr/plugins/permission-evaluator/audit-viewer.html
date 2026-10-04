@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Permission Audit Log</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --text: #1d1d1b; --muted: #6b6b66; --border: #e3e3de;
+    --approved: #1f7a4d; --approved-bg: #e3f4ea; --review: #9a5b00; --review-bg: #fbf0dc;
+    --failed: #b42318; --failed-bg: #fde7e5; --dry: #3b5bb5; --dry-bg: #e6ecfb; --accent: #1d1d1b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151514; --panel: #1e1e1c; --text: #ecece8; --muted: #9a9a93; --border: #33332f;
+      --approved: #6fd39b; --approved-bg: #16301f; --review: #f0b65a; --review-bg: #33270f;
+      --failed: #ff8a80; --failed-bg: #3a1714; --dry: #9db3ff; --dry-bg: #1b2340; --accent: #ecece8;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: 13px; }
+  .sub code { font-size: 12px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px; }
+  button, select, input[type=search] {
+    font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 10px;
+  }
+  button { cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  input[type=search] { flex: 1; min-width: 180px; }
+  .live { color: var(--muted); font-size: 12px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .stat .k { color: var(--muted); font-size: 12px; }
+  .stat .v { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .drop { border: 2px dashed var(--border); border-radius: 10px; padding: 40px 16px; text-align: center; color: var(--muted); }
+  .drop.over { border-color: var(--accent); color: var(--text); }
+  .wrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 12px; color: var(--muted); font-weight: 500; white-space: nowrap; position: sticky; top: 0; background: var(--panel); }
+  tr:last-child td { border-bottom: 0; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.time, td.pane { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  td.pane, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  td.reason { min-width: 320px; }
+  td.reason.empty { color: var(--muted); font-style: italic; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+  .approved { color: var(--approved); background: var(--approved-bg); }
+  .human_review { color: var(--review); background: var(--review-bg); }
+  .dry_run_would_approve { color: var(--dry); background: var(--dry-bg); }
+  .failed { color: var(--failed); background: var(--failed-bg); }
+  .pane-link { cursor: pointer; text-decoration: underline dotted; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Permission Evaluator Audit</h1>
+  <p class="sub">Run <code>bun audit-viewer.js</code> to load the log automatically, or open <code>~/.local/state/herdr/plugins/local.permission-evaluator/audit.jsonl</code>.
+    In Chromium browsers, “Open (live)” re-reads the file every 3s.</p>
+
+  <div class="bar">
+    <button class="primary" id="open-live">Open (live)</button>
+    <button id="open-once">Open file…</button>
+    <input type="file" id="file-input" accept=".jsonl,.json,.txt" class="hidden">
+    <span class="live" id="live-status"></span>
+  </div>
+
+  <div id="drop" class="drop">Drop <code>audit.jsonl</code> here, or use the buttons above.</div>
+
+  <section id="view" class="hidden">
+    <div class="stats" id="stats"></div>
+    <div class="bar">
+      <select id="f-decision">
+        <option value="">All decisions</option>
+        <option value="approved">Approved</option>
+        <option value="human_review">Human review</option>
+        <option value="dry_run_would_approve">Dry run would approve</option>
+        <option value="failed">Failed / incomplete</option>
+      </select>
+      <select id="f-pane"><option value="">All panes</option></select>
+      <select id="f-policy"><option value="">All policies</option></select>
+      <input type="search" id="f-text" placeholder="Search reasons…">
+    </div>
+    <div class="wrap">
+      <table>
+        <thead><tr>
+          <th>Time</th><th>Pane</th><th>Decision</th><th>Reason</th>
+          <th>Duration</th><th>Exit</th><th>Policy</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+const POLL_MS = 3000;
+const $ = (id) => document.getElementById(id);
+
+let entries = [];
+let parseErrors = 0;
+let lastText = null;
+
+function parseLog(text) {
+  parseErrors = 0;
+  return text.split("\n").filter((line) => line.trim()).flatMap((line) => {
+    try { return [JSON.parse(line)]; } catch { parseErrors++; return []; }
+  }).reverse();
+}
+
+function decisionKey(entry) {
+  return entry.completed && entry.decision ? entry.decision : "failed";
+}
+
+function decisionLabel(key) {
+  return {
+    approved: "approved", human_review: "human review",
+    dry_run_would_approve: "dry run · would approve", failed: "failed",
+  }[key] || key;
+}
+
+function formatTime(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return iso || "";
+  return d.toLocaleString(undefined, {
+    month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+  });
+}
+
+function median(values) {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+function seconds(ms) {
+  return ms == null ? "—" : `${(ms / 1000).toFixed(1)}s`;
+}
+
+function fillSelect(select, values) {
+  const current = select.value;
+  const first = select.options[0];
+  select.replaceChildren(first, ...values.map((v) => new Option(v, v)));
+  select.value = values.includes(current) ? current : "";
+}
+
+function renderFilters() {
+  fillSelect($("f-pane"), [...new Set(entries.map((e) => e.paneId).filter(Boolean))].sort());
+  fillSelect($("f-policy"), [...new Set(entries.map((e) => e.policyHash).filter(Boolean))]);
+}
+
+function renderStats(list) {
+  const count = (key) => list.filter((e) => decisionKey(e) === key).length;
+  const stats = [
+    ["Evaluations", list.length],
+    ["Approved", count("approved")],
+    ["Human review", count("human_review")],
+    ["Failed", count("failed")],
+    ["Median duration", seconds(median(list.map((e) => e.durationMs).filter(Number.isFinite)))],
+  ];
+  if (count("dry_run_would_approve")) stats.splice(3, 0, ["Dry run approve", count("dry_run_would_approve")]);
+  if (parseErrors) stats.push(["Unparsed lines", parseErrors]);
+
+  $("stats").replaceChildren(...stats.map(([k, v]) => {
+    const div = document.createElement("div");
+    div.className = "stat";
+    div.innerHTML = `<div class="k"></div><div class="v"></div>`;
+    div.children[0].textContent = k;
+    div.children[1].textContent = v;
+    return div;
+  }));
+}
+
+function cell(text, className) {
+  const td = document.createElement("td");
+  if (className) td.className = className;
+  td.textContent = text ?? "";
+  return td;
+}
+
+function renderRows(list) {
+  const rows = list.map((e) => {
+    const tr = document.createElement("tr");
+    const key = decisionKey(e);
+
+    const time = cell(formatTime(e.timestamp), "time");
+    time.title = e.timestamp || "";
+
+    const pane = cell("", "pane");
+    const paneLink = document.createElement("span");
+    paneLink.className = "pane-link";
+    paneLink.textContent = e.paneId || "";
+    paneLink.title = "Filter by this pane";
+    paneLink.onclick = () => { $("f-pane").value = e.paneId; render(); };
+    pane.append(paneLink);
+
+    const decision = cell("");
+    const pill = document.createElement("span");
+    pill.className = `pill ${key}`;
+    pill.textContent = decisionLabel(key);
+    decision.append(pill);
+    if (e.dryRun) decision.append(" ", Object.assign(document.createElement("span"),
+      { className: "pill dry_run_would_approve", textContent: "dry run" }));
+
+    const reasonText = e.reason || (e.error && `error: ${e.error}`);
+    const reason = cell(reasonText || "no reason recorded", reasonText ? "reason" : "reason empty");
+
+    tr.append(time, pane, decision, reason,
+      cell(seconds(e.durationMs), "num"),
+      cell(e.exitStatus ?? "—", "num"),
+      cell(e.policyHash || "—", "mono"));
+    return tr;
+  });
+
+  if (!rows.length) {
+    const tr = document.createElement("tr");
+    const td = cell("No entries match the filters.", "reason empty");
+    td.colSpan = 7;
+    tr.append(td);
+    rows.push(tr);
+  }
+  $("rows").replaceChildren(...rows);
+}
+
+function render() {
+  const decision = $("f-decision").value;
+  const pane = $("f-pane").value;
+  const policy = $("f-policy").value;
+  const text = $("f-text").value.trim().toLowerCase();
+
+  const filtered = entries.filter((e) =>
+    (!decision || decisionKey(e) === decision) &&
+    (!pane || e.paneId === pane) &&
+    (!policy || e.policyHash === policy) &&
+    (!text || `${e.reason || ""} ${e.error || ""}`.toLowerCase().includes(text)));
+
+  renderStats(filtered);
+  renderRows(filtered);
+}
+
+function load(text) {
+  if (text === lastText) return;
+  lastText = text;
+  entries = parseLog(text);
+  $("drop").classList.add("hidden");
+  $("view").classList.remove("hidden");
+  renderFilters();
+  render();
+}
+
+// Live mode: keep the file handle and re-read it on an interval (Chromium only).
+let pollTimer = null;
+async function openLive() {
+  if (!window.showOpenFilePicker) { $("file-input").click(); return; }
+  let handle;
+  try { [handle] = await window.showOpenFilePicker({ multiple: false }); } catch { return; }
+
+  clearInterval(pollTimer);
+  const refresh = async () => {
+    try {
+      load(await (await handle.getFile()).text());
+      $("live-status").textContent = `Live · ${handle.name} · checked ${new Date().toLocaleTimeString()}`;
+    } catch (error) {
+      $("live-status").textContent = `Live read failed: ${error.message}`;
+    }
+  };
+  await refresh();
+  pollTimer = setInterval(refresh, POLL_MS);
+}
+
+async function openOnce(file) {
+  if (!file) return;
+  clearInterval(pollTimer);
+  load(await file.text());
+  $("live-status").textContent = `Loaded ${file.name} (not live)`;
+}
+
+// Served by audit-viewer.js: fetch the log from the server and poll it.
+async function autoLoad() {
+  if (location.protocol === "file:") return;
+  const refresh = async () => {
+    try {
+      const response = await fetch("audit.jsonl", { cache: "no-store" });
+      if (!response.ok) throw new Error(response.status === 404 ? "audit.jsonl not found" : `HTTP ${response.status}`);
+      load(await response.text());
+      $("live-status").textContent = `Live · audit.jsonl · checked ${new Date().toLocaleTimeString()}`;
+    } catch (error) {
+      $("live-status").textContent = `Auto-load failed: ${error.message}`;
+    }
+  };
+  await refresh();
+  pollTimer = setInterval(refresh, POLL_MS);
+}
+autoLoad();
+
+$("open-live").onclick = openLive;
+$("open-once").onclick = () => $("file-input").click();
+$("file-input").onchange = (event) => openOnce(event.target.files[0]);
+for (const id of ["f-decision", "f-pane", "f-policy"]) $(id).onchange = render;
+$("f-text").oninput = render;
+
+document.addEventListener("dragover", (event) => { event.preventDefault(); $("drop").classList.add("over"); });
+document.addEventListener("dragleave", () => $("drop").classList.remove("over"));
+document.addEventListener("drop", (event) => {
+  event.preventDefault();
+  $("drop").classList.remove("over");
+  openOnce(event.dataTransfer.files[0]);
+});
+</script>
+</body>
+</html>

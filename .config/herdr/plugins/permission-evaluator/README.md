@@ -62,9 +62,11 @@ For the default Herdr installation, this is normally:
 ```
 
 Each entry contains timestamp, pane ID, dry-run mode, a short SHA-256 `policyHash` of `policy.md`,
-decision, the model's concise reason, completion status, exit status, and duration. Reasons are
-normalized to one line and capped at 500 characters. The audit does not contain raw terminal
-contents.
+decision, the model's concise reason, completion status, exit status, and duration. Failed runs,
+including a missing policy or a timeout, also record an `error` taken from the spawn error, the
+evaluator's stderr, or the exit status. Reasons and errors are normalized to one line and capped at
+500 characters. The audit does not contain raw terminal contents, though an `error` may include
+local file paths or evaluator stderr.
 
 `HERDR_PLUGIN_STATE_DIR` is required only when `auditEnabled` is `true`.
 
@@ -74,6 +76,26 @@ stderr. Those logs disappear when the server restarts:
 ```sh
 herdr plugin log list --plugin local.permission-evaluator --limit 20
 ```
+
+### Audit viewer
+
+`audit-viewer.html` shows the audit log with summary counts and filters. Open it through the plugin
+action, which starts a localhost server in the background (or reuses a running one) and opens the
+browser:
+
+```sh
+herdr plugin action invoke audit-view --plugin local.permission-evaluator
+```
+
+The background server listens on `127.0.0.1:7788` and exits after 15 minutes without requests. Stop
+it sooner with:
+
+```sh
+herdr plugin action invoke audit-view-stop --plugin local.permission-evaluator
+```
+
+To
+run it in the foreground instead, use `bun audit-viewer.js [--port N] [--no-open]`.
 
 ## Test
 

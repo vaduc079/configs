@@ -5,6 +5,18 @@ min_herdr_version = "0.9.1"
 description = "Evaluate visible Claude Code permission prompts and optionally approve them through Herdr."
 platforms = ["macos", "linux"]
 
+[[actions]]
+id = "audit-view"
+title = "Open permission audit viewer"
+contexts = ["workspace", "tab", "pane"]
+command = ["bun", "audit-viewer.js", "--background"]
+
+[[actions]]
+id = "audit-view-stop"
+title = "Stop permission audit viewer"
+contexts = ["workspace", "tab", "pane"]
+command = ["bun", "audit-viewer.js", "--stop"]
+
 [[events]]
 on = "pane.agent_status_changed"
 command = ["bun", "evaluate-permission.js"]

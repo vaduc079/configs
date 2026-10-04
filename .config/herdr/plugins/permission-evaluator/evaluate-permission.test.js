@@ -9,6 +9,7 @@ import {
   claudeEnvironment,
   evaluatorPrompt,
   eventPaneId,
+  failureMessage,
   loadPolicy,
   verdictFromOutput,
 } from "./evaluate-permission.js";
@@ -123,6 +124,17 @@ describe("verdictFromOutput", () => {
       reason: "Routine local inspection.",
     });
     expect(verdictFromOutput(output, false)).toBeNull();
+  });
+});
+
+describe("failureMessage", () => {
+  test("prefers the spawn error, then stderr, then the exit status", () => {
+    expect(failureMessage({ error: new Error("spawnSync claude ETIMEDOUT"), stderr: "x" })).toBe(
+      "spawnSync claude ETIMEDOUT",
+    );
+    expect(failureMessage({ status: 1, stderr: "  bad\n  flag " })).toBe("bad flag");
+    expect(failureMessage({ status: 2, stderr: "" })).toBe("exit status 2");
+    expect(failureMessage({ status: 0, stderr: "" })).toBe("no valid decision in evaluator output");
   });
 });
 

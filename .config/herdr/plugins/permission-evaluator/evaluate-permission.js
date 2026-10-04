@@ -143,17 +143,20 @@ export function appendAudit(stateDir, entry) {
   );
 }
 
-function main() {
-  const paneId = eventPaneId(process.env.HERDR_PLUGIN_EVENT_JSON);
-  if (!paneId) return;
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
 
-  const pluginRoot = process.env.HERDR_PLUGIN_ROOT || import.meta.dir;
-  const stateDir = process.env.HERDR_PLUGIN_STATE_DIR;
-  if (CONFIG.auditEnabled && !stateDir) {
-    throw new Error("HERDR_PLUGIN_STATE_DIR is not set");
-  }
+export function failureMessage(result) {
+  const message =
+    result.error?.message ||
+    result.stderr ||
+    (result.status === 0 ? "no valid decision in evaluator output" : `exit status ${result.status}`);
+  return String(message).replace(/\s+/g, " ").trim().slice(0, 500);
+}
+
+function evaluate(paneId, pluginRoot) {
   const policy = loadPolicy(pluginRoot);
-  const startedAt = Date.now();
   const result = spawnSync("claude", buildClaudeArgs(paneId, policy, CONFIG), {
     cwd: pluginRoot,
     encoding: "utf8",
@@ -165,33 +168,53 @@ function main() {
   const verdict = verdictFromOutput(result.stdout, CONFIG.dryRun);
   const completed = result.status === 0 && !result.error && verdict !== null;
 
-  appendAudit(
-    stateDir,
-    {
-      paneId,
-      dryRun: CONFIG.dryRun,
-      policyHash: policyHash(policy),
-      decision: verdict?.decision,
-      reason: verdict?.reason,
-      completed,
-      exitStatus: result.status,
-      durationMs: Date.now() - startedAt,
-    }
-  );
+  return {
+    policyHash: policyHash(policy),
+    decision: verdict?.decision,
+    reason: verdict?.reason,
+    completed,
+    exitStatus: result.status,
+    error: completed ? undefined : failureMessage(result),
+  };
+}
 
-  if (!completed) {
-    const failure = result.error?.message || result.stderr || `exit status ${result.status}`;
-    throw new Error(`permission evaluator failed: ${String(failure).trim()}`);
+function main() {
+  const paneId = eventPaneId(process.env.HERDR_PLUGIN_EVENT_JSON);
+  if (!paneId) return;
+
+  const pluginRoot = process.env.HERDR_PLUGIN_ROOT || import.meta.dir;
+  const stateDir = process.env.HERDR_PLUGIN_STATE_DIR;
+  if (CONFIG.auditEnabled && !stateDir) {
+    throw new Error("HERDR_PLUGIN_STATE_DIR is not set");
   }
 
-  console.log(JSON.stringify({ paneId, dryRun: CONFIG.dryRun, decision: verdict.decision }));
+  const startedAt = Date.now();
+  let outcome;
+  try {
+    outcome = evaluate(paneId, pluginRoot);
+  } catch (error) {
+    outcome = { completed: false, error: errorMessage(error) };
+  }
+
+  appendAudit(stateDir, {
+    paneId,
+    dryRun: CONFIG.dryRun,
+    ...outcome,
+    durationMs: Date.now() - startedAt,
+  });
+
+  if (!outcome.completed) {
+    throw new Error(`permission evaluator failed: ${outcome.error}`);
+  }
+
+  console.log(JSON.stringify({ paneId, dryRun: CONFIG.dryRun, decision: outcome.decision }));
 }
 
 if (import.meta.main) {
   try {
     main();
   } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
+    console.error(errorMessage(error));
     process.exit(1);
   }
 }
