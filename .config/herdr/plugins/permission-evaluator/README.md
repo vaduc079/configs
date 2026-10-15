@@ -70,7 +70,8 @@ ends up in the evaluator's Bash allowlist.
 1. Stow the dotfiles (`./setup.sh`); this links the plugin and
    `~/Library/LaunchAgents/com.duc.herdr-permission-runner.plist`.
 2. Create `policy.md` next to the scripts (see below).
-3. Register the Claude Code hook in `~/.claude/settings.json`:
+3. Register the Claude Code hook in `~/.claude/settings.json`. The `cd` keeps Bun from loading the
+   agent project's `.env` and `bunfig.toml`, since the hook otherwise runs in the project directory:
 
    ```json
    "PermissionRequest": [
@@ -78,7 +79,7 @@ ends up in the evaluator's Bash allowlist.
        "hooks": [
          {
            "type": "command",
-           "command": "bun '/Users/duc.vu/.config/herdr/plugins/permission-evaluator/queue.js' enqueue --harness claude",
+           "command": "cd '/Users/duc.vu/.config/herdr/plugins/permission-evaluator' && bun queue.js enqueue --harness claude",
            "timeout": 10
          }
        ]
