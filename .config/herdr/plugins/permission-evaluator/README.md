@@ -170,8 +170,11 @@ It reads `queue.db` live (every 3 s) and shows:
   **history** of the last 300 decisions including stale ones (filter, search, click for the full
   tool input and context), **live Herdr agents**, and **log tails**.
 
-The background server listens on `127.0.0.1:7788`, answers only requests addressed to that host,
-and exits after 15 minutes without requests. To run it in the foreground instead, use
+The background server listens on `127.0.0.1:7788` and exits after 15 minutes without requests.
+It answers only requests addressed to that host, and its API requires a per-launch token kept in
+`dashboard.token` in the state directory (0600), which the browser receives in the URL fragment, so
+other local users and processes cannot read the queue through the port. A tab left open across a
+server restart needs reopening. To run it in the foreground instead, use
 `bun dashboard.js [--port N] [--no-open]`.
 
 ## Test

@@ -200,6 +200,20 @@ const PANE_STATUS = {
   done: ["answered", "ok"], gone: ["pane closed", "idle"], unknown: ["pane unknown", "idle"],
 };
 
+// The server's token arrives in the URL fragment; keep it for reloads of this tab and drop it from
+// the address bar.
+const TOKEN = (() => {
+  const fromUrl = location.hash.slice(1);
+  try {
+    if (fromUrl) sessionStorage.setItem("dashboard-token", fromUrl);
+    return fromUrl || sessionStorage.getItem("dashboard-token") || "";
+  } catch {
+    return fromUrl;
+  }
+})();
+if (location.hash) history.replaceState(null, "", location.pathname);
+const api = (path, options = {}) => fetch(path, { ...options, headers: { [SERVER_HEADER]: TOKEN } });
+
 let state = null;
 let activeLog = "runner";
 const expanded = new Set();
@@ -256,7 +270,7 @@ function fill(el, ...children) {
 async function focusPane(id, button) {
   button.disabled = true;
   try {
-    const response = await fetch(`/api/asks/${id}/focus`, { method: "POST", headers: { [SERVER_HEADER]: "1" } });
+    const response = await api(`/api/asks/${id}/focus`, { method: "POST" });
     button.textContent = response.ok ? "Focused" : "Failed";
   } catch {
     button.textContent = "Failed";
@@ -404,7 +418,7 @@ async function toggle(id) {
   else {
     expanded.add(id);
     if (!details.has(id)) {
-      fetch(`/api/asks/${id}`).then((response) => (response.ok ? response.json() : { error: `HTTP ${response.status}` }))
+      api(`/api/asks/${id}`).then((response) => (response.ok ? response.json() : { error: `HTTP ${response.status}` }))
         .catch((error) => ({ error: String(error) }))
         .then((detail) => { details.set(id, detail); renderHistory(); });
     }
@@ -480,7 +494,8 @@ function render(dataChanged) {
 let lastKey = null;
 async function poll() {
   try {
-    const response = await fetch("/api/state");
+    const response = await api("/api/state");
+    if (response.status === 401) throw new Error("not authorized; reopen with prefix+p, the server restarted");
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     state = await response.json();
     $("error").classList.add("hidden");

@@ -12,6 +12,8 @@
 // polls every few seconds, so it stays alive while you are looking at it.
 
 import { spawn } from "node:child_process";
+import { randomBytes, timingSafeEqual } from "node:crypto";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { holderIsAlive, openQueue, stateDirectory } from "./db.js";
 import { loadPolicy, policyHash } from "./evaluator.js";
@@ -39,6 +41,24 @@ const ALLOWED_HOSTS = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
 
 const stateDir = stateDirectory();
 const pageFile = join(import.meta.dir, "dashboard.html");
+// Each server generates a token and keeps it in the 0700 state dir. The API and POSTs require it in
+// SERVER_HEADER, so other local users and processes cannot read the queue through the port. The
+// browser gets it in the URL fragment, which is never sent to the server or logged.
+const tokenFile = join(stateDir, "dashboard.token");
+
+function readToken() {
+  try {
+    return readFileSync(tokenFile, "utf8").trim();
+  } catch {
+    return null;
+  }
+}
+
+function hasToken(request, token) {
+  const given = Buffer.from(request.headers.get(SERVER_HEADER) ?? "");
+  const expected = Buffer.from(token);
+  return given.length === expected.length && timingSafeEqual(given, expected);
+}
 
 function iso(ms) {
   return new Date(ms).toISOString();
@@ -232,15 +252,26 @@ async function focusAsk(db, id) {
   return ok;
 }
 
-function openBrowser() {
-  const opener = process.platform === "darwin" ? "open" : "xdg-open";
-  spawn(opener, [url], { stdio: "ignore", detached: true }).on("error", () => {}).unref();
+function pageUrl(token) {
+  return `${url}#${token}`;
 }
 
+function openBrowser(token) {
+  const opener = process.platform === "darwin" ? "open" : "xdg-open";
+  spawn(opener, [pageUrl(token)], { stdio: "ignore", detached: true }).on("error", () => {}).unref();
+}
+
+// True only for our own server: it must accept the token from the state dir, so a process
+// squatting on the port is never handed the token through the browser.
 async function dashboardIsRunning() {
+  const token = readToken();
+  if (!token) return false;
   try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(500) });
-    return response.headers.has(SERVER_HEADER);
+    const response = await fetch(`${url}api/ping`, {
+      headers: { [SERVER_HEADER]: token },
+      signal: AbortSignal.timeout(500),
+    });
+    return response.ok;
   } catch {
     return false;
   }
@@ -248,6 +279,8 @@ async function dashboardIsRunning() {
 
 function serve({ idleExit }) {
   const db = openQueue();
+  const token = randomBytes(24).toString("hex");
+  writeFileSync(tokenFile, token, { mode: 0o600 });
   let lastRequestAt = Date.now();
 
   const server = Bun.serve({
@@ -261,16 +294,16 @@ function serve({ idleExit }) {
       }
 
       const { pathname } = new URL(request.url);
-      // The custom header forces a CORS preflight, which this server never answers, so other
-      // pages cannot send these; only the dashboard itself and local clients like --stop can.
-      const isTrustedPost = request.method === "POST" && request.headers.has(SERVER_HEADER);
-
+      // The page holds no data, so it is served without the token.
       if (pathname === "/") {
         return new Response(Bun.file(pageFile), {
           headers: { ...headers, "content-type": "text/html; charset=utf-8" },
         });
       }
+      if (!hasToken(request, token)) return new Response("Unauthorized", { status: 401, headers });
+      const isPost = request.method === "POST";
 
+      if (pathname === "/api/ping") return new Response("ok", { headers });
       if (pathname === "/api/state") return Response.json(await fullState(db), { headers });
 
       const askMatch = /^\/api\/asks\/(\d+)(\/focus)?$/.exec(pathname);
@@ -278,12 +311,12 @@ function serve({ idleExit }) {
         const ask = askDetail(db, Number(askMatch[1]));
         return ask ? Response.json(ask, { headers }) : new Response("Not found", { status: 404, headers });
       }
-      if (askMatch && isTrustedPost) {
+      if (askMatch && isPost) {
         const focused = await focusAsk(db, Number(askMatch[1]));
         return new Response(focused ? "focused" : "could not focus", { status: focused ? 200 : 502, headers });
       }
 
-      if (pathname === "/stop" && isTrustedPost) {
+      if (pathname === "/stop" && isPost) {
         setTimeout(() => {
           server.stop();
           process.exit(0);
@@ -323,7 +356,7 @@ async function startInBackground() {
     }
   }
 
-  openBrowser();
+  openBrowser(readToken());
   console.log(`Permission dashboard: ${url}`);
 }
 
@@ -333,7 +366,7 @@ async function stopServer() {
     return;
   }
 
-  await fetch(`${url}stop`, { method: "POST", headers: { [SERVER_HEADER]: "1" } });
+  await fetch(`${url}stop`, { method: "POST", headers: { [SERVER_HEADER]: readToken() ?? "" } });
   console.log(`Stopped dashboard on ${url}`);
 }
 
@@ -346,8 +379,9 @@ if (import.meta.main) {
     serve({ idleExit: true });
   } else {
     serve({ idleExit: false });
-    console.log(`Permission dashboard: ${url}`);
+    const token = readToken();
+    console.log(`Permission dashboard: ${pageUrl(token)}`);
     console.log(`Reading: ${stateDir}`);
-    if (!args.includes("--no-open")) openBrowser();
+    if (!args.includes("--no-open")) openBrowser(token);
   }
 }
