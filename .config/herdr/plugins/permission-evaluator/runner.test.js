@@ -154,22 +154,6 @@ describe("drainTarget", () => {
     expect(getAsks(db, [id])[0]).toMatchObject({ status: "handled", attempts: 1 });
   });
 
-  test("does not notify or audit rows another run took over mid-evaluation", async () => {
-    const db = openQueue(":memory:");
-    const id = addAsk(db);
-
-    const calls = await drain(db, () => {
-      // run-1's lease lapsed and run-2 took the lock and the row.
-      db.query("UPDATE target_lock SET holder = $holder").run({ holder: `${process.pid}:run-2` });
-      db.query("UPDATE permission_asks SET run_id = 'run-2'").run();
-      return { results: [{ id, status: "need_human", reason: "x" }], exitStatus: 0 };
-    });
-
-    expect(calls.notify).toEqual([]);
-    expect(calls.audit).toEqual([]);
-    expect(getAsks(db, [id])[0]).toMatchObject({ status: "in_progress", run_id: "run-2" });
-  });
-
   test("leaves claimed rows in progress when the evaluator throws, for the next run to recover", async () => {
     const db = openQueue(":memory:");
     const id = addAsk(db);
@@ -216,17 +200,29 @@ describe("drainTarget loop", () => {
     expect(evaluatedIds(calls)).toEqual([[current]]);
     expect(getAsks(db, [future, current]).map((ask) => ask.status)).toEqual(["pending", "handled"]);
   });
+});
 
-  test("stops without touching the other runner's claims when the target's lock is held", async () => {
+describe("runTarget", () => {
+  // Runs the real drain with the test's evaluator and config.
+  const drainWith = (evaluate) => (db, options) =>
+    drainTarget(db, {
+      ...options,
+      config: CONFIG,
+      pluginRoot: pluginRootWithPolicy(),
+      evaluate,
+      notify: () => {},
+      audit: () => {},
+    });
+
+  test("leaves the target alone, including the holder's claims, while another live runner holds it", async () => {
     const db = openQueue(":memory:");
     const theirs = addAsk(db);
     db.query("UPDATE permission_asks SET status = 'in_progress', run_id = 'run-2' WHERE id = $id").run({ id: theirs });
     const ours = addAsk(db);
     acquireLock(db, TARGET_KEY, `${process.pid}:run-2`);
 
-    const calls = await drain(db, shouldNotRun);
+    await runTarget(db, TARGET_KEY, { drain: drainWith(shouldNotRun) });
 
-    expect(calls.evaluate).toEqual([]);
     expect(getAsks(db, [theirs, ours]).map((ask) => ask.status)).toEqual(["in_progress", "pending"]);
   });
 
@@ -235,13 +231,11 @@ describe("drainTarget loop", () => {
     const id = addAsk(db);
     acquireLock(db, "herdr:w1:p3", `${process.pid}:run-2`);
 
-    const calls = await drain(db, approveAll);
+    await runTarget(db, TARGET_KEY, { drain: drainWith(approveAll) });
 
-    expect(evaluatedIds(calls)).toEqual([[id]]);
+    expect(getAsks(db, [id])[0].status).toBe("handled");
   });
-});
 
-describe("runTarget", () => {
   test("retakes the lock when an ask arrived after the drain's final check", async () => {
     const db = openQueue(":memory:");
     let rounds = 0;

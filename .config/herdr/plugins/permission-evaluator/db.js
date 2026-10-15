@@ -199,8 +199,8 @@ export function awaitingHuman(db, { targetKey, since }) {
   return row ? rowFromDb(row) : null;
 }
 
-// Writes below only touch rows this run still holds, so a run that lost its lease cannot
-// overwrite the verdicts of the run that took over.
+// Writes below only touch rows this run still holds, so a run that no longer holds a row cannot
+// overwrite another run's verdict on it.
 const OWNED_BY_RUN = "id = $id AND run_id = $runId AND status = 'in_progress'";
 
 // `results` come from a validated evaluator run. A deferred row goes back to pending without

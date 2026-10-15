@@ -108,6 +108,13 @@ function auditEntry({ ask, result, target, outcome, durationMs, config, policyDi
   return { ...entry, decision: AUDIT_DECISIONS[result.status](config.dryRun), reason: result.reason };
 }
 
+function escalationNotice(targetKey, ask) {
+  return {
+    title: `Permission needs you (${targetKey})`,
+    message: oneLine(`${ask.context.summary} — ${ask.reason}`).slice(0, 200),
+  };
+}
+
 // Claims, evaluates and records the target's oldest claimable rows, adding them to `attempted`.
 // The caller holds the target's lock.
 async function processTarget(targetKey, { db, runId, config, evaluate, notify, audit, pluginRoot, policy, policyDigest, attempted }) {
@@ -155,10 +162,7 @@ async function processTarget(targetKey, { db, runId, config, evaluate, notify, a
 
   // Notify before auditing so a failed audit write cannot swallow an escalation.
   for (const ask of recordedAsks.filter((row) => row.status === "need_human")) {
-    notify({
-      title: `Permission needs you (${targetKey})`,
-      message: oneLine(`${ask.context.summary} — ${ask.reason}`).slice(0, 200),
-    });
+    notify(escalationNotice(targetKey, ask));
   }
 
   const resultById = new Map(outcome.results?.map((result) => [result.id, result]));
@@ -180,8 +184,8 @@ function oldestUntried(asks, attempted) {
   return asks.find((ask) => !attempted.has(ask.id) && Date.parse(ask.created_at) <= Date.now());
 }
 
-// Drains one target: claims and evaluates until no untried row is pending on it, waiting for rows
-// that are still too young to claim. A row deferred or failed in this run is only retried
+// Drains one target, whose lock the caller holds: claims and evaluates until no untried row is
+// pending on it, waiting for rows that are still too young to claim. A row deferred or failed in this run is only retried
 // alongside a newer ask; otherwise the next run picks it up. Returns the highest pending id it
 // last saw, so the caller can tell which asks arrived after its final check.
 export async function drainTarget(db, {
@@ -194,11 +198,7 @@ export async function drainTarget(db, {
   audit = appendAudit,
   pluginRoot = import.meta.dir,
 }) {
-  let lastSeenId = 0;
   while (true) {
-    // Check before recovering in_progress rows: once another runner owns this target, recovery
-    // would hand that runner's claims out a second time.
-    if (!acquireLock(db, targetKey, runId)) return lastSeenId;
     // Runs before looking for work, so the claims of a crashed run (why the sweep may have
     // started this runner) are recovered even when nothing else is pending.
     const escalatedIds = prepareTarget(db, {
@@ -206,15 +206,10 @@ export async function drainTarget(db, {
       expireAfterMs: config.expireAfterMs,
       maxAttempts: config.maxAttempts,
     });
-    for (const ask of getAsks(db, escalatedIds)) {
-      notify({
-        title: `Permission needs you (${targetKey})`,
-        message: oneLine(`${ask.context.summary} — ${ask.reason}`).slice(0, 200),
-      });
-    }
+    for (const ask of getAsks(db, escalatedIds)) notify(escalationNotice(targetKey, ask));
 
     const pending = pendingAsks(db, targetKey);
-    lastSeenId = pending.at(-1)?.id ?? 0;
+    const lastSeenId = pending.at(-1)?.id ?? 0;
     const oldest = oldestUntried(pending, attempted);
     if (!oldest) return lastSeenId;
 
