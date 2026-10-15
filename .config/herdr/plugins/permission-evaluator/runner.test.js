@@ -5,7 +5,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { acquireLock, getAsks, insertAsk, openQueue } from "./db.js";
-import { drainTarget } from "./runner.js";
+import { drainTarget, runTarget, sweep } from "./runner.js";
 
 const CONFIG = {
   dryRun: false,
@@ -35,12 +35,11 @@ function addAsk(db, { target = PANE, harness = "claude", now } = {}) {
   });
 }
 
-// Drains TARGET_KEY as run-1, recording every evaluator, notification and audit call.
-async function drain(db, evaluate, { config = CONFIG, takeLock = true } = {}) {
+// Drains one target as run-1, recording every evaluator, notification and audit call.
+async function drain(db, evaluate, { config = CONFIG, targetKey = TARGET_KEY } = {}) {
   const calls = { evaluate: [], notify: [], audit: [] };
-  if (takeLock) acquireLock(db, TARGET_KEY, "run-1", config.lockLeaseMs);
   await drainTarget(db, {
-    targetKey: TARGET_KEY,
+    targetKey,
     runId: "run-1",
     config,
     pluginRoot: pluginRootWithPolicy(),
@@ -135,11 +134,34 @@ describe("drainTarget", () => {
     expect(getAsks(db, [id])[0].reason).toBe("evaluator failed: unsupported harness: retired");
   });
 
+  test("fails rows with an unsupported target without running the evaluator", async () => {
+    const db = openQueue(":memory:");
+    const id = addAsk(db, { target: { type: "tmux", pane_id: "%1" } });
+
+    const calls = await drain(db, shouldNotRun, { targetKey: "tmux:%1" });
+
+    expect(calls.evaluate).toEqual([]);
+    expect(getAsks(db, [id])[0].reason).toBe("evaluator failed: unsupported target: tmux:%1");
+  });
+
+  test("recovers a crashed run's claims even when nothing else is pending", async () => {
+    const db = openQueue(":memory:");
+    const id = addAsk(db);
+    db.query("UPDATE permission_asks SET status = 'in_progress', run_id = 'crashed' WHERE id = $id").run({ id });
+
+    const calls = await drain(db, approveAll);
+
+    expect(evaluatedIds(calls)).toEqual([[id]]);
+    expect(getAsks(db, [id])[0]).toMatchObject({ status: "handled", attempts: 1 });
+  });
+
   test("does not notify or audit rows another run took over mid-evaluation", async () => {
     const db = openQueue(":memory:");
     const id = addAsk(db);
 
     const calls = await drain(db, () => {
+      // run-1's lease lapsed and run-2 took the lock and the row.
+      db.query("UPDATE runner_lock SET holder = 'run-2'").run();
       db.query("UPDATE permission_asks SET run_id = 'run-2'").run();
       return { results: [{ id, status: "need_human", reason: "x" }], exitStatus: 0 };
     });
@@ -203,7 +225,7 @@ describe("drainTarget loop", () => {
     const ours = addAsk(db);
     acquireLock(db, TARGET_KEY, "run-2", CONFIG.lockLeaseMs);
 
-    const calls = await drain(db, shouldNotRun, { takeLock: false });
+    const calls = await drain(db, shouldNotRun);
 
     expect(calls.evaluate).toEqual([]);
     expect(getAsks(db, [theirs, ours]).map((ask) => ask.status)).toEqual(["in_progress", "pending"]);
@@ -214,8 +236,45 @@ describe("drainTarget loop", () => {
     const id = addAsk(db);
     acquireLock(db, "herdr:w1:p3", "run-2", CONFIG.lockLeaseMs);
 
-    const calls = await drain(db, approveAll, { takeLock: false });
+    const calls = await drain(db, approveAll);
 
     expect(evaluatedIds(calls)).toEqual([[id]]);
+  });
+});
+
+describe("runTarget", () => {
+  test("retakes the lock when an ask arrived after the drain's final check", async () => {
+    const db = openQueue(":memory:");
+    let rounds = 0;
+    let lateAsk;
+
+    await runTarget(db, TARGET_KEY, {
+      drain: async () => {
+        rounds += 1;
+        if (rounds > 1) return lateAsk;
+        // The drain saw nothing, then a hook inserted; its runner found our lock held and exited.
+        lateAsk = addAsk(db);
+        return 0;
+      },
+    });
+
+    expect(rounds).toBe(2);
+  });
+});
+
+describe("sweep", () => {
+  test("starts one runner per target with pending or in-progress rows", () => {
+    const db = openQueue(":memory:");
+    addAsk(db);
+    addAsk(db);
+    const crashed = addAsk(db, { target: { type: "herdr", pane_id: "w1:p3" } });
+    db.query("UPDATE permission_asks SET status = 'in_progress' WHERE id = $id").run({ id: crashed });
+    const decided = addAsk(db, { target: { type: "herdr", pane_id: "w1:p4" } });
+    db.query("UPDATE permission_asks SET status = 'handled' WHERE id = $id").run({ id: decided });
+
+    const started = [];
+    sweep(db, { start: (targetKey) => started.push(targetKey) });
+
+    expect(started.sort()).toEqual(["herdr:w1:p2", "herdr:w1:p3"]);
   });
 });

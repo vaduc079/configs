@@ -23,7 +23,7 @@ import {
   getAsks,
   openQueue,
   pendingAsks,
-  pendingTargetKeys,
+  openTargetKeys,
   prepareTarget,
   recordFailure,
   recordResults,
@@ -177,15 +177,14 @@ async function processTarget(targetKey, { db, runId, config, evaluate, notify, a
 }
 
 // A row dated in the future means the wall clock stepped back; it waits until the clock passes it.
-function isUntried(ask, attempted) {
-  return !attempted.has(ask.id) && Date.parse(ask.created_at) <= Date.now();
+function oldestUntried(asks, attempted) {
+  return asks.find((ask) => !attempted.has(ask.id) && Date.parse(ask.created_at) <= Date.now());
 }
 
 // Drains one target: claims and evaluates until no untried row is pending on it, waiting for rows
 // that are still too young to claim. A row deferred or failed in this run is only retried
 // alongside a newer ask; otherwise the next run picks it up. Returns the highest pending id it
-// last saw, so the caller can tell which asks arrived after its final check. Dependencies are
-// injectable for tests.
+// last saw, so the caller can tell which asks arrived after its final check.
 export async function drainTarget(db, {
   targetKey,
   runId,
@@ -196,20 +195,23 @@ export async function drainTarget(db, {
   audit = appendAudit,
   pluginRoot = import.meta.dir,
 }) {
+  let lastSeenId = 0;
   while (true) {
+    // Check before recovering in_progress rows: once another runner owns this target, recovery
+    // would hand that runner's claims out a second time.
+    if (!acquireLock(db, targetKey, runId, config.lockLeaseMs)) return lastSeenId;
+    // Runs before looking for work, so the claims of a crashed run (why the sweep may have
+    // started this runner) are recovered even when nothing else is pending.
+    prepareTarget(db, { targetKey, expireAfterMs: config.expireAfterMs });
+
     const pending = pendingAsks(db, targetKey);
-    const lastSeenId = pending.at(-1)?.id ?? 0;
-    const oldest = pending.find((ask) => isUntried(ask, attempted));
+    lastSeenId = pending.at(-1)?.id ?? 0;
+    const oldest = oldestUntried(pending, attempted);
     if (!oldest) return lastSeenId;
 
     const claimableAt = Date.parse(oldest.created_at) + config.minAgeMs;
     const msUntilClaimable = claimableAt - Date.now();
     if (msUntilClaimable > 0) await Bun.sleep(msUntilClaimable);
-
-    // Check before recovering in_progress rows: once another runner owns this target, recovery
-    // would hand that runner's claims out a second time.
-    if (!acquireLock(db, targetKey, runId, config.lockLeaseMs)) return lastSeenId;
-    prepareTarget(db, { targetKey, expireAfterMs: config.expireAfterMs });
 
     // A missing policy throws: the rows stay pending, expire to stale, and the human answers.
     const policy = loadPolicy(pluginRoot);
@@ -232,19 +234,19 @@ export async function drainTarget(db, {
     // claim limit is filled by rows already tried); stop instead of spinning. A row that is still
     // too young, e.g. after a wall-clock step, gets another wait.
     const oldestIsClaimable = claimableAt <= Date.now();
-    const stillOldest = pendingAsks(db, targetKey).find((ask) => isUntried(ask, attempted))?.id === oldest.id;
+    const stillOldest = oldestUntried(pendingAsks(db, targetKey), attempted)?.id === oldest.id;
     if (stillOldest && oldestIsClaimable) return lastSeenId;
   }
 }
 
-async function runTarget(db, targetKey) {
-  const runId = randomUUID();
+export async function runTarget(db, targetKey, { drain = drainTarget, config = CONFIG, ...options } = {}) {
+  const runId = `${process.pid}:${randomUUID()}`;
   const attempted = new Set();
 
-  while (acquireLock(db, targetKey, runId, CONFIG.lockLeaseMs)) {
+  while (acquireLock(db, targetKey, runId, config.lockLeaseMs)) {
     let lastSeenId;
     try {
-      lastSeenId = await drainTarget(db, { targetKey, runId, attempted });
+      lastSeenId = await drain(db, { ...options, config, targetKey, runId, attempted });
     } finally {
       releaseLock(db, targetKey, runId);
     }
@@ -255,16 +257,21 @@ async function runTarget(db, targetKey) {
   }
 }
 
-// launchd's sweep: starts one runner per target with pending rows. A target whose runner is
-// still working keeps it, since the new one exits on the held lock.
-function sweep(db) {
+// launchd's sweep: starts one runner per target with open rows. A target whose runner is still
+// working keeps it, since the new one exits on the held lock.
+export function sweep(db, { start = startRunner } = {}) {
   deleteOldRows(db, CONFIG);
-  for (const targetKey of pendingTargetKeys(db)) startRunner(targetKey);
+  for (const targetKey of openTargetKeys(db)) start(targetKey);
 }
 
 if (import.meta.main) {
-  const [flag, targetKey] = process.argv.slice(2);
-  const isTargetRun = flag === "--target" && Boolean(targetKey);
+  const args = process.argv.slice(2);
+  const isTargetRun = args.length === 2 && args[0] === "--target";
+  const targetKey = isTargetRun ? args[1] : null;
+  if (args.length > 0 && !isTargetRun) {
+    console.error("usage: runner.js [--target <key>]");
+    process.exit(2);
+  }
   try {
     // Match launchd's Umask when the hook starts the runner: the logs can contain command text.
     process.umask(0o077);

@@ -123,6 +123,17 @@ describe("runner lock", () => {
     releaseLock(db, "herdr:p1", "b");
     expect(acquireLock(db, "herdr:p1", "c", 60_000, now)).toBe(true);
   });
+
+  test("stays held past its lease while the holder process is alive", () => {
+    const db = openQueue(":memory:");
+    const now = Date.now();
+
+    acquireLock(db, "herdr:p1", `${process.pid}:run-a`, 60_000, now);
+    expect(acquireLock(db, "herdr:p1", "run-b", 60_000, now + 61_000)).toBe(false);
+
+    acquireLock(db, "herdr:p2", "999999999:run-a", 60_000, now);
+    expect(acquireLock(db, "herdr:p2", "run-b", 60_000, now + 61_000)).toBe(true);
+  });
 });
 
 describe("queue lifecycle", () => {

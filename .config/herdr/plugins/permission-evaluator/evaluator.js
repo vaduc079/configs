@@ -86,6 +86,8 @@ The user message lists rows in the order the agent asked. Handle them strictly i
 2. If the visible prompt is the awaiting_human prompt, return "deferred" for this row and every
    remaining row, then stop.
 3. If the visible prompt is not this row's request, return "stale" and continue with the next row.
+   For the first row, if no permission prompt is visible at all, read the pane once more first:
+   the dialog may still be drawing.
 4. If it is, decide with the approval policy below.
    - If the row context contains "${TRUNCATION_MARKER}", or the full request is not visible on screen,
      treat it as needing a human: part of the request is hidden from you.
@@ -173,7 +175,6 @@ function failureMessage({ exitStatus, signal, stderr, timeoutMs }) {
   return exitStatus === 0 ? "no valid results in evaluator output" : `exit status ${exitStatus}`;
 }
 
-// Async so the runner can evaluate several targets at once.
 export async function evaluateTarget({ driver, target, rows, awaitingHuman, policy, config, pluginRoot }) {
   const timeoutMs = config.baseTimeoutMs + config.perRowTimeoutMs * rows.length;
 

@@ -25,9 +25,9 @@ runner.js --target <pane> ──> lock <pane> ──> claude -p ──> herdr se
    ask it starts a detached `runner.js --target <pane>` from the plugin directory with launchd's
    environment.
 2. The runner takes that pane's lock in the DB (a runner that finds it held exits: the holder
-   handles the ask). It waits until the pane's oldest untried row is `minAgeMs` old so the dialog
-   is drawn, puts the pane's rows from a dead run back to pending, and expires its rows pending for
-   more than 15 minutes.
+   handles the ask; a lock stays held while its runner process lives, even past its lease). It puts
+   the pane's rows from a dead run back to pending, expires its rows pending for more than 15
+   minutes, and waits until the oldest untried row is `minAgeMs` old so the dialog is drawn.
 3. It claims the pane's pending rows and starts one `claude -p` with only that pane's inspection
    commands allowed, plus `enter` on that pane in active mode.
 4. The evaluator handles rows in order. For each it reads the screen:
@@ -42,8 +42,8 @@ runner.js --target <pane> ──> lock <pane> ──> claude -p ──> herdr se
    it. Rows it deferred or failed wait for the next run, unless a newer ask on the pane brings them
    back. After releasing the lock it retakes it if a new ask arrived meanwhile.
 7. The launchd sweep (`runner.js` without arguments) deletes decided rows past retention and starts
-   a runner for each pane with pending rows: asks whose own runner never started, and asks deferred
-   behind an escalation.
+   a runner for each pane with pending or in-progress rows: asks whose own runner never started,
+   asks deferred behind an escalation, and claims of a runner that crashed.
 
 Every failure path leaves the prompt on screen for you; nothing is approved on error.
 

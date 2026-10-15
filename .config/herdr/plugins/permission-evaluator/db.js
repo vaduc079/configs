@@ -82,14 +82,29 @@ export function insertAsk(db, { harness, sessionId, target, targetKey, context, 
   return Number(result.lastInsertRowid);
 }
 
+// Holders are "<pid>:<run id>". A lease can expire while its holder still runs (the laptop slept
+// mid-evaluation); taking the lock then would put two evaluators on one pane, so a live pid keeps
+// it. A reused pid only delays the pane's next run until that process exits.
+function holderIsAlive(holder) {
+  const pid = Number.parseInt(holder, 10);
+  if (!(pid > 0)) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === "EPERM";
+  }
+}
+
 // Takes the lock `name` (one per target), or renews it when `holder` already owns it. Returns
-// false while another live run holds it; an expired lease means that run died and the lock is free.
+// false while another run holds it: its lease is current or its process is still alive.
 export function acquireLock(db, name, holder, leaseMs, now = Date.now()) {
   const acquire = db.transaction(() => {
     const lock = db
       .query("SELECT holder, expires_at FROM runner_lock WHERE name = $name")
       .get({ name });
-    const heldByOther = lock && lock.holder !== holder && Date.parse(lock.expires_at) > now;
+    const leaseIsCurrent = lock && Date.parse(lock.expires_at) > now;
+    const heldByOther = lock && lock.holder !== holder && (leaseIsCurrent || holderIsAlive(lock.holder));
     if (heldByOther) return false;
 
     db.query(
@@ -128,12 +143,10 @@ export function deleteOldRows(db, { retentionMs, now = Date.now() }) {
   });
 }
 
-export function pendingTargetKeys(db) {
+// Targets with work: pending rows, or in_progress rows a crashed run left behind.
+export function openTargetKeys(db) {
   return db
-    .query(
-      `SELECT target_key FROM permission_asks WHERE status = 'pending'
-       GROUP BY target_key ORDER BY MIN(id)`,
-    )
+    .query("SELECT DISTINCT target_key FROM permission_asks WHERE status IN ('pending', 'in_progress')")
     .all()
     .map((row) => row.target_key);
 }
