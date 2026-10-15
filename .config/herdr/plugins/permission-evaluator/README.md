@@ -1,122 +1,151 @@
-# Claude Permission Evaluator
+# Permission Evaluator
 
-This Herdr plugin reacts after a Claude Code pane displays a blocked UI. It launches a short-lived
-headless Claude evaluator, which inspects the rendered prompt and either approves it once through
-Herdr or leaves it unchanged for human review.
+Approves safe agent permission prompts without a human. Every prompt is queued by the agent
+harness's permission hook; a runner started by launchd every minute evaluates the queue with a
+short-lived headless Claude, which either approves the prompt once through Herdr or leaves it for
+you and sends a notification.
 
-The script currently has `dryRun: false`, so the evaluator can approve prompts by sending keys.
+The runner currently has `dryRun: true`: it records what it would approve but sends no keys.
 
 ## Flow
 
-1. Herdr emits `pane.agent_status_changed` after Claude becomes blocked.
-2. The script accepts only a blocked Claude pane with a valid pane ID.
-3. It launches `claude -p` with only target-pane Herdr inspection commands allowed; `dontAsk`
-   denies every Bash command outside that exact allowlist.
-4. Claude checks the visible UI against the approval policy in `policy.md`.
-5. In active mode, Claude can only send `enter` to the target pane when the one-time affirmative
-   option is already selected.
-6. The script records the result in a persistent metadata-only audit log.
+```text
+harness permission hook ──> queue.js enqueue ──> queue.db (pending)
+launchd (60 s) ──> runner.js ──> one claude -p per target ──> herdr send-keys enter
+                                  └─> handled / need_human (+ notification) / stale
+```
 
-This initial version intentionally has no event deduplication or concurrency lock.
+1. The harness hook (Claude Code `PermissionRequest`) runs `queue.js enqueue`, which stores the ask
+   with its target (where the agent runs) and context (tool and input), then exits 0 without a
+   decision, so the normal dialog shows. Asks outside a supported target are ignored.
+2. `runner.js` takes a lock in the DB (one runner at a time), puts rows from a dead run back to
+   pending, expires rows pending for more than 15 minutes, and exits if nothing is pending.
+3. For each target, oldest first and up to `maxConcurrentTargets` at once, it claims the pending
+   rows and starts one `claude -p` with only
+   that target's inspection commands allowed, plus `enter` on that target in active mode.
+4. The evaluator handles rows in order. For each it reads the screen:
+   - showing an escalation still waiting for you -> `deferred` (stays pending) for the rest;
+   - not this row's prompt -> `stale` (answered elsewhere);
+   - this row's prompt -> approve once (`handled`) or leave it (`need_human`, rest `deferred`).
+5. The runner validates the result (one result per claimed row), records it, appends the audit
+   log and notifies you for each `need_human`. A failed evaluation returns the rows to pending;
+   after 3 failures they become `need_human`.
+
+Every failure path leaves the prompt on screen for you; nothing is approved on error.
+
+## Layout
+
+| Path | Role |
+|---|---|
+| `queue.js` | Hook entry point (`enqueue --harness <name>`) and `status` |
+| `runner.js` | launchd entry point; `CONFIG` lives here |
+| `db.js` | SQLite schema and queue operations |
+| `evaluator.js` | Evaluator prompt, `claude -p` arguments, result validation |
+| `harnesses/` | One adapter per agent harness: parse the hook payload, describe the prompt UI |
+| `targets/` | One driver per multiplexer: detect from env, allowed commands, environment |
+
+### Adding a harness
+
+Write `harnesses/<name>.js` exporting `{ name, promptGuide, parseHookInput }` (see `claude.js`),
+register it in `harnesses/index.js`, and make the harness's permission hook run
+`bun ~/.config/herdr/plugins/permission-evaluator/queue.js enqueue --harness <name>` with the
+payload on stdin.
+
+### Adding a multiplexer
+
+Write `targets/<type>.js` exporting `{ type, fromEnvironment, isValid, key, label, readCommand,
+inspectCommands, approveCommand, environment }` (see `herdr.js`) and register it in
+`targets/index.js`. Anything interpolated into commands must be validated in `isValid`, because it
+ends up in the evaluator's Bash allowlist.
+
+## Setup
+
+1. Stow the dotfiles (`./setup.sh`); this links the plugin and
+   `~/Library/LaunchAgents/com.duc.herdr-permission-runner.plist`.
+2. Create `policy.md` next to the scripts (see below).
+3. Register the Claude Code hook in `~/.claude/settings.json`:
+
+   ```json
+   "PermissionRequest": [
+     {
+       "hooks": [
+         {
+           "type": "command",
+           "command": "bun '/Users/duc.vu/.config/herdr/plugins/permission-evaluator/queue.js' enqueue --harness claude",
+           "timeout": 10
+         }
+       ]
+     }
+   ]
+   ```
+
+4. Load the runner:
+
+   ```sh
+   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.duc.herdr-permission-runner.plist
+   ```
+
+   Reload after editing the plist with `launchctl bootout gui/$(id -u)/com.duc.herdr-permission-runner`
+   followed by the bootstrap command. Script and policy changes need no reload.
 
 ## Configuration
 
-Configuration is the `CONFIG` object near the top of `evaluate-permission.js`:
+`CONFIG` near the top of `runner.js`:
 
-```js
-const CONFIG = {
-  dryRun: false,
-  auditEnabled: true,
-  model: "sonnet",
-  timeoutMs: 30_000,
-};
-```
-
-Set `dryRun` to `true` to validate policy changes without sending keys.
-Set `auditEnabled` to `false` to stop appending the persistent audit log. Herdr's in-memory plugin
-command logs remain available independently.
+| Key | Default | Meaning |
+|---|---|---|
+| `dryRun` | `true` | Record would-approve decisions without sending keys |
+| `auditEnabled` | `true` | Append `audit.jsonl` for the viewer |
+| `notifyEnabled` | `true` | macOS notification for each `need_human` |
+| `model` | `sonnet` | Evaluator model |
+| `maxRowsPerTarget` | `10` | Rows per evaluator run |
+| `maxConcurrentTargets` | `3` | Targets evaluated in parallel (one `claude -p` each) |
+| `baseTimeoutMs`, `perRowTimeoutMs` | `45 s`, `15 s` | Evaluator timeout = base + per row |
+| `maxAttempts` | `3` | Failed evaluations before a row becomes `need_human` |
+| `minAgeMs` | `5 s` | Rows younger than this wait for the next run (the dialog may not be drawn yet) |
+| `expireAfterMs` | `15 min` | Pending rows older than this become `stale` |
+| `lockLeaseMs` | `10 min` | Lock lease; renewed per target |
+| `retentionMs` | `30 days` | Decided rows older than this are deleted |
 
 ## Approval policy
 
-`policy.md` defines when the evaluator should approve and when it should leave the prompt for human
-review. It is local-only and ignored by Git, so create it next to the script on each machine. Edit it
-to change approval behavior; it is read on every event, so no relink is needed.
+`policy.md` defines when the evaluator should approve and when it should leave the prompt for you.
+It is local-only and ignored by Git. It is read on every run. The runner embeds it in the system
+prompt between fixed guardrails that stay in code: untrusted pane text and row context, the exact
+allowed commands, row order and screen matching, never choosing persistent permission, and the
+JSON result. A missing or empty `policy.md` stops the run; rows stay pending and expire.
 
-The script embeds it in the system prompt between fixed guardrails that stay in code: untrusted pane
-text, the exact inspection commands, re-reading before approval, the single allowed `send-keys`
-command, never choosing persistent permission, and the JSON result. A missing or empty `policy.md`
-fails the evaluation, leaving the prompt for human review.
+## State
 
-## Audit log
+All under `~/.local/state/herdr/plugins/local.permission-evaluator/` (or `$HERDR_PLUGIN_STATE_DIR`):
 
-The plugin appends one JSON object per evaluation to:
+| File | Content |
+|---|---|
+| `queue.db` | The queue (mode 0600; rows may contain command text) |
+| `audit.jsonl` | One entry per decided row: pane, ask id, summary, decision, reason, policy hash, duration |
+| `runner.log` | launchd stdout/stderr: one line per evaluated target and runner errors |
+| `enqueue.err.log` | Hook failures |
 
-```text
-$HERDR_PLUGIN_STATE_DIR/audit.jsonl
-```
-
-For the default Herdr installation, this is normally:
-
-```text
-~/.local/state/herdr/plugins/local.permission-evaluator/audit.jsonl
-```
-
-Each entry contains timestamp, pane ID, dry-run mode, a short SHA-256 `policyHash` of `policy.md`,
-decision, the model's concise reason, completion status, exit status, and duration. Failed runs,
-including a missing policy or a timeout, also record an `error` taken from the spawn error, the
-evaluator's stderr, or the exit status. Reasons and errors are normalized to one line and capped at
-500 characters. The audit does not contain raw terminal contents, though an `error` may include
-local file paths or evaluator stderr.
-
-`HERDR_PLUGIN_STATE_DIR` is required only when `auditEnabled` is `true`.
-
-Herdr also keeps the latest 200 plugin command logs in server memory, including capped stdout and
-stderr. Those logs disappear when the server restarts:
+Inspect the queue:
 
 ```sh
-herdr plugin log list --plugin local.permission-evaluator --limit 20
+bun ~/.config/herdr/plugins/permission-evaluator/queue.js status
+sqlite3 ~/.local/state/herdr/plugins/local.permission-evaluator/queue.db \
+  "SELECT id, status, json_extract(context, '$.summary'), reason FROM permission_asks ORDER BY id DESC LIMIT 20"
 ```
 
 ### Audit viewer
 
-`audit-viewer.html` shows the audit log with summary counts and filters. Open it through the plugin
-action, which starts a localhost server in the background (or reuses a running one) and opens the
-browser:
-
 ```sh
 herdr plugin action invoke audit-view --plugin local.permission-evaluator
-```
-
-The background server listens on `127.0.0.1:7788` and exits after 15 minutes without requests. Stop
-it sooner with:
-
-```sh
 herdr plugin action invoke audit-view-stop --plugin local.permission-evaluator
 ```
 
-To
+The background server listens on `127.0.0.1:7788` and exits after 15 minutes without requests. To
 run it in the foreground instead, use `bun audit-viewer.js [--port N] [--no-open]`.
 
 ## Test
 
 ```sh
-bun test ~/.config/herdr/plugins/permission-evaluator/evaluate-permission.test.js
-```
-
-## Link
-
-After reviewing and stowing the dotfiles:
-
-```sh
-herdr plugin link ~/.config/herdr/plugins/permission-evaluator
-herdr plugin list
-```
-
-The plugin does not require a Herdr server restart.
-
-Disable or remove it with:
-
-```sh
-herdr plugin disable local.permission-evaluator
-herdr plugin unlink local.permission-evaluator
+cd ~/.config/herdr/plugins/permission-evaluator && bun test
 ```
