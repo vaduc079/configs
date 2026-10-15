@@ -129,6 +129,12 @@ description = "run yazi"
 width = "90%"
 height = "90%"
 
+[[keys.command]]
+key = "prefix+o"
+type = "plugin_action"
+command = "local.file-opener.pick"
+description = "pick a file path from the pane output and open it"
+
 [ui]
 mouse_capture = true
 confirm_close = false
@@ -201,3 +207,6 @@ rows = [["state_icon", "workspace"], ["branch", "git_status"]]
 
 [ui.toast]
 delivery = "terminal"
+
+[ui.sound]
+enabled = false
