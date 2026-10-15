@@ -185,9 +185,9 @@ function oldestUntried(asks, attempted) {
 }
 
 // Drains one target, whose lock the caller holds: claims and evaluates until no untried row is
-// pending on it, waiting for rows that are still too young to claim. A row deferred or failed in this run is only retried
-// alongside a newer ask; otherwise the next run picks it up. Returns the highest pending id it
-// last saw, so the caller can tell which asks arrived after its final check.
+// pending on it, waiting for rows that are still too young to claim. A row deferred or failed in
+// this run is only retried alongside a newer ask; otherwise the next run picks it up. Returns the
+// highest pending id it last saw, so the caller can tell which asks arrived after its final check.
 export async function drainTarget(db, {
   targetKey,
   runId,
