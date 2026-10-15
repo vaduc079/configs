@@ -37,6 +37,9 @@ export const herdr = {
 
   approveCommand: (target) => `herdr agent send-keys ${target.pane_id} enter`,
 
+  // Brings the pane forward for the human (dashboard); argv, not part of any allowlist.
+  focusCommand: (target) => ["herdr", "agent", "focus", target.pane_id],
+
   // Drops the runner's own HERDR_* variables: a runner started inside a pane would otherwise make
   // the evaluator report itself as that pane's agent. The socket points the CLI at the target's
   // server, since launchd starts the runner outside any pane.

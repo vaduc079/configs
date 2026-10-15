@@ -9,13 +9,13 @@ platforms = ["macos", "linux"]
 # not by Herdr events: Herdr reports one status change for several back-to-back prompts.
 
 [[actions]]
-id = "audit-view"
-title = "Open permission audit viewer"
+id = "dashboard"
+title = "Open permission dashboard"
 contexts = ["workspace", "tab", "pane"]
-command = ["bun", "audit-viewer.js", "--background"]
+command = ["bun", "dashboard.js", "--background"]
 
 [[actions]]
-id = "audit-view-stop"
-title = "Stop permission audit viewer"
+id = "dashboard-stop"
+title = "Stop permission dashboard"
 contexts = ["workspace", "tab", "pane"]
-command = ["bun", "audit-viewer.js", "--stop"]
+command = ["bun", "dashboard.js", "--stop"]

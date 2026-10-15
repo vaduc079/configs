@@ -85,7 +85,7 @@ export function insertAsk(db, { harness, sessionId, target, targetKey, context, 
 // lease would either block a pane after a crash or expire under a runner that is still
 // evaluating (the laptop slept), putting two evaluators on one pane. A reused pid only delays the
 // pane's next run until that process exits.
-function holderIsAlive(holder) {
+export function holderIsAlive(holder) {
   const match = /^(\d+):/.exec(holder);
   if (!match) return false;
   try {

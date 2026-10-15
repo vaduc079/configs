@@ -37,7 +37,7 @@ import { TARGETS } from "./targets/index.js";
 
 const MINUTE = 60_000;
 
-const CONFIG = {
+export const CONFIG = {
   dryRun: false,
   auditEnabled: true,
   notifyEnabled: true,

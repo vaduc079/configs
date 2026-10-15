@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Permission Dashboard</title>
+<style>
+  :root {
+    --bg: #f6f6f3; --panel: #ffffff; --text: #1c1c1a; --muted: #6b6b65; --border: #e2e2dc;
+    --ok: #1f7a4d; --ok-bg: #e2f3e9; --warn: #9a5b00; --warn-bg: #fbefd9;
+    --bad: #b42318; --bad-bg: #fde6e3; --info: #3b5bb5; --info-bg: #e6ecfb;
+    --idle: #6b6b65; --idle-bg: #ecece7; --accent: #1c1c1a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141413; --panel: #1d1d1b; --text: #ecece7; --muted: #9a9a92; --border: #31312d;
+      --ok: #6fd39b; --ok-bg: #15301f; --warn: #f0b65a; --warn-bg: #33270f;
+      --bad: #ff8a80; --bad-bg: #3a1714; --info: #9db3ff; --info-bg: #1b2340;
+      --idle: #9a9a92; --idle-bg: #2a2a27; --accent: #ecece7;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  main { max-width: 1280px; margin: 0 auto; padding: 20px 16px 48px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; margin-bottom: 16px; }
+  h1 { font-size: 20px; margin: 0; }
+  h2 { font-size: 15px; margin: 0; }
+  .muted { color: var(--muted); }
+  .small { font-size: 12px; }
+  .mono, pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  section { margin-bottom: 22px; }
+  .section-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+  .ok { color: var(--ok); background: var(--ok-bg); }
+  .warn { color: var(--warn); background: var(--warn-bg); }
+  .bad { color: var(--bad); background: var(--bad-bg); }
+  .info { color: var(--info); background: var(--info-bg); }
+  .idle { color: var(--idle); background: var(--idle-bg); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); margin-right: 6px; }
+  .dot.down { background: var(--bad); }
+
+  .health { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+  .card { padding: 10px 12px; border-left-width: 4px; }
+  .card.ok { border-left-color: var(--ok); background: var(--panel); color: inherit; }
+  .card.warn { border-left-color: var(--warn); background: var(--panel); color: inherit; }
+  .card.bad { border-left-color: var(--bad); background: var(--panel); color: inherit; }
+  .card .k { color: var(--muted); font-size: 12px; }
+  .card .v { font-size: 17px; font-weight: 600; margin: 2px 0; }
+  .card .d { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+
+  .asks { display: grid; gap: 8px; }
+  .ask { padding: 10px 12px; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; }
+  .ask .summary { font-weight: 500; overflow-wrap: anywhere; }
+  .ask .reason { color: var(--muted); overflow-wrap: anywhere; }
+  .ask .meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; color: var(--muted); }
+  .ask .actions { grid-row: 1 / span 3; grid-column: 2; align-self: center; }
+  .empty { padding: 14px; color: var(--muted); text-align: center; }
+
+  button, select, input[type=search] {
+    font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 10px;
+  }
+  button { cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+  input[type=search] { flex: 1; min-width: 160px; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 10px; }
+  .stat { padding: 8px 12px; }
+  .stat .k { color: var(--muted); font-size: 12px; }
+  .stat .v { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .chart { padding: 10px 12px; }
+  .bars { display: flex; align-items: flex-end; gap: 3px; height: 70px; }
+  .bars .col { flex: 1; display: flex; flex-direction: column-reverse; min-width: 0; height: 100%; }
+  .bars .seg { width: 100%; }
+  .seg.handled { background: var(--ok); } .seg.need_human { background: var(--warn); }
+  .seg.stale { background: var(--idle); } .seg.open { background: var(--info); }
+  .axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; background: var(--c); }
+
+  .wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 12px; color: var(--muted); font-weight: 500; white-space: nowrap; background: var(--panel); }
+  tbody tr:last-child td { border-bottom: 0; }
+  tr.row { cursor: pointer; }
+  tr.row:hover td { background: color-mix(in srgb, var(--panel) 92%, var(--text)); }
+  td.nowrap { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  td.text { min-width: 260px; overflow-wrap: anywhere; }
+  tr.detail td { background: var(--bg); }
+  pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 360px; overflow-y: auto; }
+  .detail-grid { display: grid; gap: 8px; }
+
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+  @media (max-width: 860px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+  .log { padding: 10px 12px; max-height: 340px; overflow: auto; }
+  .tabs { display: flex; gap: 4px; }
+  .tabs button[aria-selected=true] { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .error-banner { padding: 10px 12px; margin-bottom: 14px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Permission Dashboard</h1>
+    <span id="mode"></span>
+    <span class="muted small" id="updated">Loading…</span>
+  </header>
+
+  <div id="error" class="panel bad error-banner hidden"></div>
+
+  <section>
+    <div class="health" id="health"></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Needs you</h2><span class="muted small">escalations from the last 15 min and blocked panes the queue does not cover</span></div>
+    <div class="asks" id="needs-you"></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Queue</h2><span class="muted small">pending and being evaluated</span></div>
+    <div class="panel wrap"><table>
+      <thead><tr><th>#</th><th>Age</th><th>Pane</th><th>Ask</th><th>Status</th><th>Attempts</th><th>Note</th></tr></thead>
+      <tbody id="queue"></tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Last 24 hours</h2></div>
+    <div class="stats" id="stats"></div>
+    <div class="panel chart">
+      <div class="bars" id="bars"></div>
+      <div class="axis"><span>24 h ago</span><span>12 h ago</span><span>now</span></div>
+      <div class="legend">
+        <span style="--c: var(--ok)">approved</span><span style="--c: var(--warn)">needs you</span>
+        <span style="--c: var(--idle)">stale</span><span style="--c: var(--info)">open</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>History</h2><span class="muted small" id="history-count"></span></div>
+    <div class="bar">
+      <select id="f-status">
+        <option value="">All outcomes</option>
+        <option value="handled">Approved</option>
+        <option value="need_human">Needs you</option>
+        <option value="stale">Stale</option>
+        <option value="dry_run">Dry run</option>
+      </select>
+      <select id="f-pane"><option value="">All panes</option></select>
+      <input type="search" id="f-text" placeholder="Search ask or reason…">
+    </div>
+    <div class="panel wrap"><table>
+      <thead><tr><th>#</th><th>Asked</th><th>Pane</th><th>Ask</th><th>Outcome</th><th>Reason</th><th>Took</th></tr></thead>
+      <tbody id="history"></tbody>
+    </table></div>
+  </section>
+
+  <section class="cols">
+    <div>
+      <div class="section-head"><h2>Agents</h2><span class="muted small">live from Herdr</span></div>
+      <div class="panel wrap"><table>
+        <thead><tr><th>Pane</th><th>Agent</th><th>Status</th><th>Title</th></tr></thead>
+        <tbody id="agents"></tbody>
+      </table></div>
+    </div>
+    <div>
+      <div class="section-head">
+        <h2>Logs</h2>
+        <div class="tabs" role="tablist">
+          <button role="tab" data-log="runner" aria-selected="true">runner.log</button>
+          <button role="tab" data-log="enqueue" aria-selected="false">enqueue.err.log</button>
+        </div>
+      </div>
+      <div class="panel log"><pre id="log"></pre></div>
+      <p class="muted small" id="state-dir"></p>
+    </div>
+  </section>
+</main>
+
+<script>
+const POLL_MS = 3000;
+const SERVER_HEADER = "x-herdr-permission-dashboard";
+const $ = (id) => document.getElementById(id);
+
+const OUTCOMES = {
+  handled: ["approved", "ok"], need_human: ["needs you", "warn"], stale: ["stale", "idle"],
+  pending: ["pending", "info"], in_progress: ["evaluating", "info"],
+};
+const PANE_STATUS = {
+  blocked: ["still waiting", "warn"], working: ["answered", "ok"], idle: ["answered", "ok"],
+  done: ["answered", "ok"], gone: ["pane closed", "idle"], unknown: ["pane unknown", "idle"],
+};
+
+let state = null;
+let activeLog = "runner";
+const expanded = new Set();
+const details = new Map();
+
+// Builds an element; strings become text nodes, so queue text is never parsed as HTML.
+function h(tag, attrs = {}, ...children) {
+  const el = document.createElement(tag);
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value == null || value === false) continue;
+    if (key === "class") el.className = value;
+    else if (key.startsWith("on")) el.addEventListener(key.slice(2), value);
+    else el.setAttribute(key, value);
+  }
+  for (const child of children.flat()) {
+    if (child == null || child === false) continue;
+    el.append(child instanceof Node ? child : String(child));
+  }
+  return el;
+}
+
+function pill(text, tone) {
+  return h("span", { class: `pill ${tone}` }, text);
+}
+
+function outcomePill(ask) {
+  if (ask.status === "handled" && ask.dry_run) return pill("dry run · would approve", "info");
+  const [label, tone] = OUTCOMES[ask.status] ?? [ask.status, "idle"];
+  return pill(label, tone);
+}
+
+function duration(ms) {
+  if (ms == null || Number.isNaN(ms)) return "–";
+  if (ms < 1000) return `${ms} ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)} s`;
+  if (ms < 3_600_000) return `${Math.round(ms / 60_000)} min`;
+  return `${(ms / 3_600_000).toFixed(1)} h`;
+}
+
+function ago(isoTime) {
+  return `${duration(Date.now() - Date.parse(isoTime))} ago`;
+}
+
+function clock(isoTime) {
+  return new Date(isoTime).toLocaleString(undefined, {
+    month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+  });
+}
+
+function fill(el, ...children) {
+  el.replaceChildren(...children.flat().filter((child) => child != null && child !== false));
+}
+
+async function focusPane(id, button) {
+  button.disabled = true;
+  try {
+    const response = await fetch(`/api/asks/${id}/focus`, { method: "POST", headers: { [SERVER_HEADER]: "1" } });
+    button.textContent = response.ok ? "Focused" : "Failed";
+  } catch {
+    button.textContent = "Failed";
+  }
+  setTimeout(() => { button.disabled = false; button.textContent = "Focus pane"; }, 1500);
+}
+
+function healthCard(label, value, detail, tone) {
+  return h("div", { class: `panel card ${tone}` },
+    h("div", { class: "k" }, label), h("div", { class: "v" }, value), h("div", { class: "d" }, detail));
+}
+
+function countSince(lines, pattern, sinceMs) {
+  return lines.filter((line) => pattern.test(line) && Date.parse(line.slice(0, 24)) >= sinceMs).length;
+}
+
+function renderHealth() {
+  const { launchd, policy, queueHealth, locks, logs, open, agents } = state;
+  const dayAgo = Date.now() - 86_400_000;
+
+  const sweep = launchd.loaded
+    ? healthCard("Sweep (launchd)", launchd.lastExit === "0" || launchd.lastExit == null ? "Loaded" : `Last exit ${launchd.lastExit}`,
+      `${launchd.runs} runs · ${launchd.state ?? ""}`, launchd.lastExit === "0" || launchd.lastExit == null ? "ok" : "warn")
+    : healthCard("Sweep (launchd)", "Not loaded", "launchctl bootstrap the plist", "bad");
+
+  const problems = [];
+  if (queueHealth.slowPending) problems.push(`${queueHealth.slowPending} pending > 2 min`);
+  if (queueHealth.orphanedClaims) problems.push(`${queueHealth.orphanedClaims} orphaned claims`);
+  const queue = healthCard("Queue", `${open.length} open`, problems.join(" · ") || "flowing",
+    problems.length ? "warn" : "ok");
+
+  const live = locks.filter((lock) => lock.alive);
+  const runners = healthCard("Runners", `${live.length} active`,
+    live.map((lock) => lock.name.replace(/^herdr:/, "")).join(", ") || "idle", "ok");
+
+  const policyCard = policy.present
+    ? healthCard("Policy", policy.hash, "policy.md loaded", "ok")
+    : healthCard("Policy", "Missing", "policy.md missing or empty; asks expire to stale", "bad");
+
+  const runnerErrors = countSince(logs.runner.lines, /failed/, dayAgo);
+  const hookErrors = countSince(logs.enqueue.lines, /./, dayAgo);
+  const errors = healthCard("Errors (24 h)", `${runnerErrors + hookErrors}`,
+    `${runnerErrors} runner · ${hookErrors} hook`, runnerErrors + hookErrors ? "warn" : "ok");
+
+  const blocked = (agents ?? []).filter((agent) => agent.agent_status === "blocked").length;
+  const herdr = agents
+    ? healthCard("Herdr", `${agents.length} agents`, `${blocked} blocked`, "ok")
+    : healthCard("Herdr", "Unreachable", "herdr agent list failed", "warn");
+
+  fill($("health"), sweep, queue, runners, errors, policyCard, herdr);
+}
+
+function renderNeedsYou() {
+  const items = state.needsYou.map((ask) => {
+    const [label, tone] = PANE_STATUS[ask.pane_status] ?? [ask.pane_status, "idle"];
+    let button = null;
+    if (ask.pane_status !== "gone") {
+      button = h("button", { class: ask.pane_status === "blocked" ? "primary" : "" }, "Focus pane");
+      button.addEventListener("click", () => focusPane(ask.id, button));
+    }
+    return h("div", { class: "panel ask" },
+      h("div", { class: "summary" }, ask.summary),
+      button && h("div", { class: "actions" }, button),
+      h("div", { class: "reason" }, ask.reason ?? ""),
+      h("div", { class: "meta" }, pill(label, tone), h("span", { class: "mono" }, ask.pane_id),
+        h("span", {}, `#${ask.id}`), h("span", {}, ago(ask.decided_at)), ask.cwd && h("span", { class: "mono" }, ask.cwd)));
+  });
+  const untracked = state.untrackedBlocked.map((agent) =>
+    h("div", { class: "panel ask" },
+      h("div", { class: "summary" }, agent.title || "Blocked agent"),
+      h("div", { class: "reason" }, "Blocked, but the queue has no current ask for this pane (no hook, hook failure, or an older escalation)."),
+      h("div", { class: "meta" }, pill("blocked", "warn"), h("span", { class: "mono" }, agent.pane_id), h("span", {}, agent.agent))));
+  const all = [...items, ...untracked];
+  fill($("needs-you"), all.length ? all : h("div", { class: "panel empty" }, "Nothing waiting for you."));
+
+  const waiting = state.needsYou.filter((ask) => ask.pane_status === "blocked").length + untracked.length;
+  document.title = waiting ? `(${waiting}) Permission Dashboard` : "Permission Dashboard";
+}
+
+function renderQueue() {
+  const rows = state.open.map((ask) => h("tr", {},
+    h("td", { class: "nowrap" }, ask.id),
+    h("td", { class: "nowrap" }, duration(Date.now() - Date.parse(ask.created_at))),
+    h("td", { class: "nowrap mono" }, ask.pane_id),
+    h("td", { class: "text" }, ask.summary),
+    h("td", {}, outcomePill(ask)),
+    h("td", { class: "num" }, ask.attempts),
+    h("td", { class: "text muted" }, ask.reason ?? "")));
+  fill($("queue"), rows.length ? rows : h("tr", {}, h("td", { colspan: 7, class: "empty" }, "Queue is empty.")));
+}
+
+function renderStats() {
+  const { counts, hourly, approvalP50Ms, approvalP90Ms } = state.stats;
+  const decided = counts.handled + counts.dry_run + counts.need_human;
+  const rate = decided ? `${Math.round((100 * counts.handled) / decided)}%` : "–";
+  const stat = (k, v) => h("div", { class: "panel stat" }, h("div", { class: "k" }, k), h("div", { class: "v" }, v));
+  fill($("stats"),
+    stat("Approved", counts.handled), stat("Needs you", counts.need_human), stat("Stale", counts.stale),
+    counts.dry_run ? stat("Dry run", counts.dry_run) : null,
+    stat("Auto-approval", rate), stat("Approval p50", duration(approvalP50Ms)), stat("Approval p90", duration(approvalP90Ms)));
+
+  const max = Math.max(1, ...hourly.map((hour) => hour.handled + hour.need_human + hour.stale + hour.open));
+  fill($("bars"), hourly.map((hour, index) => {
+    const total = hour.handled + hour.need_human + hour.stale + hour.open;
+    return h("div", { class: "col", title: `${23 - index} h ago: ${hour.handled} approved, ${hour.need_human} needs you, ${hour.stale} stale, ${hour.open} open` },
+      ["handled", "need_human", "stale", "open"].filter((key) => hour[key]).map((key) =>
+        h("div", { class: `seg ${key}`, style: `height:${(100 * hour[key]) / max}%` })),
+      total ? null : h("div", { class: "seg", style: "height:0" }));
+  }));
+}
+
+function matchesFilters(ask) {
+  const status = $("f-status").value;
+  const pane = $("f-pane").value;
+  const text = $("f-text").value.trim().toLowerCase();
+  if (status === "dry_run" && !(ask.status === "handled" && ask.dry_run)) return false;
+  if (status && status !== "dry_run" && (ask.status !== status || (status === "handled" && ask.dry_run))) return false;
+  if (pane && ask.pane_id !== pane) return false;
+  if (text && !`${ask.summary} ${ask.reason ?? ""} ${ask.tool ?? ""}`.toLowerCase().includes(text)) return false;
+  return true;
+}
+
+function detailRow(ask) {
+  const detail = details.get(ask.id);
+  let body;
+  if (!detail) body = h("span", { class: "muted" }, "Loading…");
+  else if (detail.error) body = h("span", { class: "muted" }, detail.error);
+  else {
+    const { input, permission_suggestions, ...context } = detail.context;
+    body = h("div", { class: "detail-grid" },
+      h("div", { class: "small muted" },
+        `${detail.harness} · session ${detail.session_id ?? "–"} · asked ${clock(detail.created_at)}` +
+        (detail.decided_at ? ` · decided ${clock(detail.decided_at)}` : "") +
+        ` · attempts ${detail.attempts} · policy ${detail.policy_hash ?? "–"} · run ${detail.run_id ?? "–"}`),
+      detail.reason && h("div", {}, h("strong", {}, "Reason: "), detail.reason),
+      h("div", {}, h("div", { class: "small muted" }, "Tool input"), h("pre", {}, JSON.stringify(input, null, 2))),
+      h("details", {}, h("summary", { class: "small muted" }, "Full context and target"),
+        h("pre", {}, JSON.stringify({ ...context, permission_suggestions, target: detail.target }, null, 2))));
+  }
+  return h("tr", { class: "detail" }, h("td", { colspan: 7 }, body));
+}
+
+async function toggle(id) {
+  if (expanded.has(id)) expanded.delete(id);
+  else {
+    expanded.add(id);
+    if (!details.has(id)) {
+      fetch(`/api/asks/${id}`).then((response) => (response.ok ? response.json() : { error: `HTTP ${response.status}` }))
+        .catch((error) => ({ error: String(error) }))
+        .then((detail) => { details.set(id, detail); renderHistory(); });
+    }
+  }
+  renderHistory();
+}
+
+function renderHistory() {
+  const asks = state.history.filter(matchesFilters);
+  $("history-count").textContent = `${asks.length} of ${state.history.length} most recent decisions`;
+  const rows = asks.flatMap((ask) => {
+    const row = h("tr", { class: "row", onclick: () => toggle(ask.id) },
+      h("td", { class: "nowrap" }, ask.id),
+      h("td", { class: "nowrap" }, clock(ask.created_at)),
+      h("td", { class: "nowrap mono" }, ask.pane_id),
+      h("td", { class: "text" }, ask.summary),
+      h("td", {}, outcomePill(ask)),
+      h("td", { class: "text muted" }, ask.reason ?? ""),
+      h("td", { class: "num" }, duration(ask.latency_ms)));
+    return expanded.has(ask.id) ? [row, detailRow(ask)] : [row];
+  });
+  fill($("history"), rows.length ? rows : h("tr", {}, h("td", { colspan: 7, class: "empty" }, "No matching decisions.")));
+}
+
+function renderPaneFilter() {
+  const select = $("f-pane");
+  const current = select.value;
+  const panes = [...new Set(state.history.map((ask) => ask.pane_id))].sort();
+  const existing = [...select.options].slice(1).map((option) => option.value);
+  if (existing.join() === panes.join()) return;
+  fill(select, h("option", { value: "" }, "All panes"), panes.map((pane) => h("option", { value: pane }, pane)));
+  select.value = panes.includes(current) ? current : "";
+}
+
+function renderAgents() {
+  if (!state.agents) {
+    fill($("agents"), h("tr", {}, h("td", { colspan: 4, class: "empty" }, "Herdr is not reachable.")));
+    return;
+  }
+  const tone = { blocked: "warn", working: "info", idle: "idle", done: "ok" };
+  fill($("agents"), state.agents.map((agent) => h("tr", {},
+    h("td", { class: "nowrap mono" }, agent.pane_id),
+    h("td", {}, agent.agent),
+    h("td", {}, pill(agent.agent_status, tone[agent.agent_status] ?? "idle")),
+    h("td", { class: "text" }, agent.terminal_title_stripped ?? ""))));
+}
+
+function renderLog() {
+  const log = state.logs[activeLog];
+  const box = $("log");
+  const atBottom = box.parentElement.scrollTop + box.parentElement.clientHeight >= box.parentElement.scrollHeight - 4;
+  box.textContent = log.exists ? (log.lines.join("\n") || "(empty)") : "(no file yet)";
+  if (atBottom) box.parentElement.scrollTop = box.parentElement.scrollHeight;
+  $("state-dir").textContent = `State: ${state.stateDir}`;
+}
+
+// Times are relative, so the live parts re-render on every poll. History and logs only re-render
+// when their data changes, so an expanded row or a text selection survives.
+function render(dataChanged) {
+  fill($("mode"), state.config.dryRun ? pill("dry run", "info") : pill("active", "ok"),
+    " ", h("span", { class: "muted small" }, state.config.model));
+  renderHealth();
+  renderNeedsYou();
+  renderQueue();
+  renderStats();
+  renderAgents();
+  if (!dataChanged) return;
+  renderPaneFilter();
+  renderHistory();
+  renderLog();
+}
+
+let lastKey = null;
+async function poll() {
+  try {
+    const response = await fetch("/api/state");
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    state = await response.json();
+    $("error").classList.add("hidden");
+    const key = JSON.stringify([state.history, state.logs]);
+    render(key !== lastKey);
+    lastKey = key;
+    fill($("updated"), h("span", { class: "dot" }), `Live · updated ${clock(state.generatedAt)}`);
+  } catch (error) {
+    $("error").textContent = `Cannot reach the dashboard server (${error.message}). Reopen it with the Herdr action or bun dashboard.js.`;
+    $("error").classList.remove("hidden");
+    fill($("updated"), h("span", { class: "dot down" }), "Disconnected");
+  }
+}
+
+for (const id of ["f-status", "f-pane", "f-text"]) $(id).addEventListener("input", () => state && renderHistory());
+for (const tab of document.querySelectorAll("[data-log]")) {
+  tab.addEventListener("click", () => {
+    activeLog = tab.dataset.log;
+    for (const other of document.querySelectorAll("[data-log]")) other.setAttribute("aria-selected", String(other === tab));
+    if (state) renderLog();
+  });
+}
+
+poll();
+setInterval(poll, POLL_MS);
+</script>
+</body>
+</html>

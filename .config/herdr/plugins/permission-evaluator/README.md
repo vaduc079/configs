@@ -58,6 +58,7 @@ Every failure path leaves the prompt on screen for you; nothing is approved on e
 | `evaluator.js` | Evaluator prompt, `claude -p` arguments, result validation |
 | `harnesses/` | One adapter per agent harness: parse the hook payload, describe the prompt UI |
 | `targets/` | One driver per multiplexer: detect from env, allowed commands, environment |
+| `dashboard.js`, `dashboard.html` | Local dashboard over the queue, logs and live agents |
 
 ### Adding a harness
 
@@ -69,7 +70,7 @@ payload on stdin.
 ### Adding a multiplexer
 
 Write `targets/<type>.js` exporting `{ type, fromEnvironment, isValid, key, label, readCommand,
-inspectCommands, approveCommand, environment }` (see `herdr.js`) and register it in
+inspectCommands, approveCommand, focusCommand, environment }` (see `herdr.js`) and register it in
 `targets/index.js`. Anything interpolated into commands must be validated in `isValid`, because it
 ends up in the evaluator's Bash allowlist.
 
@@ -136,7 +137,7 @@ All under `~/.local/state/herdr/plugins/local.permission-evaluator/` (or `$HERDR
 | File | Content |
 |---|---|
 | `queue.db` | The queue (mode 0600; rows may contain command text) |
-| `audit.jsonl` | One entry per decided row: pane, ask id, summary, decision, reason, policy hash, duration |
+| `audit.jsonl` | One entry per decided row: pane, ask id, summary, decision, reason, policy hash, duration (the dashboard reads `queue.db` instead) |
 | `runner.log` | Runner stdout/stderr (launchd and hook-started): one line per evaluated target and runner errors |
 | `enqueue.err.log` | Hook failures |
 
@@ -148,15 +149,30 @@ sqlite3 ~/.local/state/herdr/plugins/local.permission-evaluator/queue.db \
   "SELECT id, status, json_extract(context, '$.summary'), reason FROM permission_asks ORDER BY id DESC LIMIT 20"
 ```
 
-### Audit viewer
+### Dashboard
+
+Press `prefix+p` in Herdr (or run the plugin action) to open the dashboard in the browser:
 
 ```sh
-herdr plugin action invoke audit-view --plugin local.permission-evaluator
-herdr plugin action invoke audit-view-stop --plugin local.permission-evaluator
+herdr plugin action invoke dashboard --plugin local.permission-evaluator
+herdr plugin action invoke dashboard-stop --plugin local.permission-evaluator
 ```
 
-The background server listens on `127.0.0.1:7788` and exits after 15 minutes without requests. To
-run it in the foreground instead, use `bun audit-viewer.js [--port N] [--no-open]`.
+It reads `queue.db` live (every 3 s) and shows:
+
+- **Health**: launchd sweep, open rows (flags pending > 2 min and claims whose runner died),
+  active runners (pane locks), errors in `runner.log` / `enqueue.err.log` over 24 h, policy hash,
+  Herdr reachability.
+- **Needs you**: escalations from the last 15 minutes, marked "still waiting" while the pane is
+  blocked, with a button that focuses the pane in Herdr; plus blocked panes the queue has no current
+  ask for (no hook, hook failure). The tab title shows the waiting count.
+- **Queue**, **last 24 hours** (counts, auto-approval rate, ask-to-approval p50/p90, hourly bars),
+  **history** of the last 300 decisions including stale ones (filter, search, click for the full
+  tool input and context), **live Herdr agents**, and **log tails**.
+
+The background server listens on `127.0.0.1:7788`, answers only requests addressed to that host,
+and exits after 15 minutes without requests. To run it in the foreground instead, use
+`bun dashboard.js [--port N] [--no-open]`.
 
 ## Test
 
