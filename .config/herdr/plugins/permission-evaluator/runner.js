@@ -51,7 +51,6 @@ const CONFIG = {
   minAgeMs: 1_000,
   // A prompt still pending after this long was almost certainly answered by a human.
   expireAfterMs: 15 * MINUTE,
-  lockLeaseMs: 10 * MINUTE,
   retentionMs: 30 * 24 * 60 * MINUTE,
 };
 
@@ -199,10 +198,20 @@ export async function drainTarget(db, {
   while (true) {
     // Check before recovering in_progress rows: once another runner owns this target, recovery
     // would hand that runner's claims out a second time.
-    if (!acquireLock(db, targetKey, runId, config.lockLeaseMs)) return lastSeenId;
+    if (!acquireLock(db, targetKey, runId)) return lastSeenId;
     // Runs before looking for work, so the claims of a crashed run (why the sweep may have
     // started this runner) are recovered even when nothing else is pending.
-    prepareTarget(db, { targetKey, expireAfterMs: config.expireAfterMs });
+    const escalatedIds = prepareTarget(db, {
+      targetKey,
+      expireAfterMs: config.expireAfterMs,
+      maxAttempts: config.maxAttempts,
+    });
+    for (const ask of getAsks(db, escalatedIds)) {
+      notify({
+        title: `Permission needs you (${targetKey})`,
+        message: oneLine(`${ask.context.summary} — ${ask.reason}`).slice(0, 200),
+      });
+    }
 
     const pending = pendingAsks(db, targetKey);
     lastSeenId = pending.at(-1)?.id ?? 0;
@@ -239,14 +248,14 @@ export async function drainTarget(db, {
   }
 }
 
-export async function runTarget(db, targetKey, { drain = drainTarget, config = CONFIG, ...options } = {}) {
+export async function runTarget(db, targetKey, { drain = drainTarget } = {}) {
   const runId = `${process.pid}:${randomUUID()}`;
   const attempted = new Set();
 
-  while (acquireLock(db, targetKey, runId, config.lockLeaseMs)) {
+  while (acquireLock(db, targetKey, runId)) {
     let lastSeenId;
     try {
-      lastSeenId = await drain(db, { ...options, config, targetKey, runId, attempted });
+      lastSeenId = await drain(db, { targetKey, runId, attempted });
     } finally {
       releaseLock(db, targetKey, runId);
     }
@@ -266,7 +275,7 @@ export function sweep(db, { start = startRunner } = {}) {
 
 if (import.meta.main) {
   const args = process.argv.slice(2);
-  const isTargetRun = args.length === 2 && args[0] === "--target";
+  const isTargetRun = args.length === 2 && args[0] === "--target" && args[1] !== "";
   const targetKey = isTargetRun ? args[1] : null;
   if (args.length > 0 && !isTargetRun) {
     console.error("usage: runner.js [--target <key>]");

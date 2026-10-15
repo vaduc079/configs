@@ -13,7 +13,6 @@ const CONFIG = {
   minAgeMs: 0,
   maxAttempts: 3,
   expireAfterMs: 15 * 60_000,
-  lockLeaseMs: 60_000,
 };
 
 const PANE = { type: "herdr", pane_id: "w1:p2" };
@@ -161,7 +160,7 @@ describe("drainTarget", () => {
 
     const calls = await drain(db, () => {
       // run-1's lease lapsed and run-2 took the lock and the row.
-      db.query("UPDATE runner_lock SET holder = 'run-2'").run();
+      db.query("UPDATE target_lock SET holder = $holder").run({ holder: `${process.pid}:run-2` });
       db.query("UPDATE permission_asks SET run_id = 'run-2'").run();
       return { results: [{ id, status: "need_human", reason: "x" }], exitStatus: 0 };
     });
@@ -223,7 +222,7 @@ describe("drainTarget loop", () => {
     const theirs = addAsk(db);
     db.query("UPDATE permission_asks SET status = 'in_progress', run_id = 'run-2' WHERE id = $id").run({ id: theirs });
     const ours = addAsk(db);
-    acquireLock(db, TARGET_KEY, "run-2", CONFIG.lockLeaseMs);
+    acquireLock(db, TARGET_KEY, `${process.pid}:run-2`);
 
     const calls = await drain(db, shouldNotRun);
 
@@ -234,7 +233,7 @@ describe("drainTarget loop", () => {
   test("is not blocked by another target's lock", async () => {
     const db = openQueue(":memory:");
     const id = addAsk(db);
-    acquireLock(db, "herdr:w1:p3", "run-2", CONFIG.lockLeaseMs);
+    acquireLock(db, "herdr:w1:p3", `${process.pid}:run-2`);
 
     const calls = await drain(db, approveAll);
 

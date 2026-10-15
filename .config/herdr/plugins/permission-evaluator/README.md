@@ -25,9 +25,10 @@ runner.js --target <pane> ──> lock <pane> ──> claude -p ──> herdr se
    ask it starts a detached `runner.js --target <pane>` from the plugin directory with launchd's
    environment.
 2. The runner takes that pane's lock in the DB (a runner that finds it held exits: the holder
-   handles the ask; a lock stays held while its runner process lives, even past its lease). It puts
-   the pane's rows from a dead run back to pending, expires its rows pending for more than 15
-   minutes, and waits until the oldest untried row is `minAgeMs` old so the dialog is drawn.
+   handles the ask; a lock is held exactly as long as its runner process lives). It puts the pane's
+   rows from a dead run back to pending (after `maxAttempts` crashes they go to you, with a
+   notification), expires its rows pending for more than 15 minutes, and waits until the oldest
+   untried row is `minAgeMs` old so the dialog is drawn.
 3. It claims the pane's pending rows and starts one `claude -p` with only that pane's inspection
    commands allowed, plus `enter` on that pane in active mode.
 4. The evaluator handles rows in order. For each it reads the screen:
@@ -115,10 +116,9 @@ ends up in the evaluator's Bash allowlist.
 | `model` | `claude-haiku-5-5` | Evaluator model |
 | `maxRowsPerTarget` | `10` | Rows per evaluator run |
 | `baseTimeoutMs`, `perRowTimeoutMs` | `45 s`, `15 s` | Evaluator timeout = base + per row |
-| `maxAttempts` | `3` | Failed evaluations before a row becomes `need_human` |
+| `maxAttempts` | `3` | Failed evaluations or runner crashes before a row becomes `need_human` |
 | `minAgeMs` | `1 s` | The runner waits until rows are this old before claiming them (the dialog may not be drawn yet) |
 | `expireAfterMs` | `15 min` | Pending rows older than this become `stale` |
-| `lockLeaseMs` | `10 min` | Per-pane lock lease; renewed before every claim |
 | `retentionMs` | `30 days` | Decided rows older than this are deleted |
 
 ## Approval policy

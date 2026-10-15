@@ -48,10 +48,9 @@ export function openQueue(path = join(stateDirectory(), "queue.db")) {
     );
     CREATE INDEX IF NOT EXISTS permission_asks_queue ON permission_asks (status, target_key, id);
 
-    CREATE TABLE IF NOT EXISTS runner_lock (
-      name       TEXT PRIMARY KEY,
-      holder     TEXT NOT NULL,
-      expires_at TEXT NOT NULL
+    CREATE TABLE IF NOT EXISTS target_lock (
+      name   TEXT PRIMARY KEY,
+      holder TEXT NOT NULL
     );
   `);
   return db;
@@ -82,59 +81,66 @@ export function insertAsk(db, { harness, sessionId, target, targetKey, context, 
   return Number(result.lastInsertRowid);
 }
 
-// Holders are "<pid>:<run id>". A lease can expire while its holder still runs (the laptop slept
-// mid-evaluation); taking the lock then would put two evaluators on one pane, so a live pid keeps
-// it. A reused pid only delays the pane's next run until that process exits.
+// Holders are "<pid>:<run id>"; the lock is held exactly as long as that process lives. A time
+// lease would either block a pane after a crash or expire under a runner that is still
+// evaluating (the laptop slept), putting two evaluators on one pane. A reused pid only delays the
+// pane's next run until that process exits.
 function holderIsAlive(holder) {
-  const pid = Number.parseInt(holder, 10);
-  if (!(pid > 0)) return false;
+  const match = /^(\d+):/.exec(holder);
+  if (!match) return false;
   try {
-    process.kill(pid, 0);
+    process.kill(Number(match[1]), 0);
     return true;
   } catch (error) {
     return error.code === "EPERM";
   }
 }
 
-// Takes the lock `name` (one per target), or renews it when `holder` already owns it. Returns
-// false while another run holds it: its lease is current or its process is still alive.
-export function acquireLock(db, name, holder, leaseMs, now = Date.now()) {
+// Takes the lock `name` (one per target), or confirms `holder` still owns it. Returns false while
+// another live run holds it.
+export function acquireLock(db, name, holder) {
   const acquire = db.transaction(() => {
-    const lock = db
-      .query("SELECT holder, expires_at FROM runner_lock WHERE name = $name")
-      .get({ name });
-    const leaseIsCurrent = lock && Date.parse(lock.expires_at) > now;
-    const heldByOther = lock && lock.holder !== holder && (leaseIsCurrent || holderIsAlive(lock.holder));
-    if (heldByOther) return false;
+    const lock = db.query("SELECT holder FROM target_lock WHERE name = $name").get({ name });
+    if (lock?.holder === holder) return true;
+    if (lock && holderIsAlive(lock.holder)) return false;
 
     db.query(
-      `INSERT INTO runner_lock (name, holder, expires_at) VALUES ($name, $holder, $expiresAt)
-       ON CONFLICT (name) DO UPDATE SET holder = excluded.holder, expires_at = excluded.expires_at`,
-    ).run({ name, holder, expiresAt: iso(now + leaseMs) });
+      `INSERT INTO target_lock (name, holder) VALUES ($name, $holder)
+       ON CONFLICT (name) DO UPDATE SET holder = excluded.holder`,
+    ).run({ name, holder });
     return true;
   });
   return acquire.immediate();
 }
 
 export function releaseLock(db, name, holder) {
-  db.query("DELETE FROM runner_lock WHERE name = $name AND holder = $holder").run({ name, holder });
+  db.query("DELETE FROM target_lock WHERE name = $name AND holder = $holder").run({ name, holder });
 }
 
 // Run with the target's lock held: any in_progress row on it belongs to a run that died
-// mid-evaluation.
-export function prepareTarget(db, { targetKey, expireAfterMs, now = Date.now() }) {
+// mid-evaluation. Rows that crashed a run `maxAttempts` times go to a human; returns their ids.
+export function prepareTarget(db, { targetKey, expireAfterMs, maxAttempts, now = Date.now() }) {
   const prepare = db.transaction(() => {
-    db.query(
-      `UPDATE permission_asks SET status = 'pending', attempts = attempts + 1
-       WHERE status = 'in_progress' AND target_key = $targetKey`,
-    ).run({ targetKey });
+    const recovered = db
+      .query(
+        `UPDATE permission_asks
+         SET attempts = attempts + 1,
+             status = CASE WHEN attempts + 1 >= $maxAttempts THEN 'need_human' ELSE 'pending' END,
+             reason = CASE WHEN attempts + 1 >= $maxAttempts THEN 'runner crashed while evaluating'
+                           ELSE reason END,
+             decided_at = CASE WHEN attempts + 1 >= $maxAttempts THEN $now ELSE decided_at END
+         WHERE status = 'in_progress' AND target_key = $targetKey
+         RETURNING id, status`,
+      )
+      .all({ targetKey, maxAttempts, now: iso(now) });
     db.query(
       `UPDATE permission_asks
        SET status = 'stale', reason = 'expired before evaluation', decided_at = $now
        WHERE status = 'pending' AND target_key = $targetKey AND created_at < $cutoff`,
     ).run({ targetKey, now: iso(now), cutoff: iso(now - expireAfterMs) });
+    return recovered.filter((row) => row.status === "need_human").map((row) => row.id);
   });
-  prepare.immediate();
+  return prepare.immediate();
 }
 
 export function deleteOldRows(db, { retentionMs, now = Date.now() }) {

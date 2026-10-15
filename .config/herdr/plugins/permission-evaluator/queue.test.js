@@ -109,35 +109,34 @@ describe("enqueue", () => {
   });
 });
 
-describe("runner lock", () => {
-  test("is exclusive per target until released or expired, and renewable by its holder", () => {
+describe("target lock", () => {
+  const live = (run) => `${process.pid}:${run}`;
+
+  test("is exclusive per target while its holder lives, until released", () => {
     const db = openQueue(":memory:");
-    const now = Date.now();
 
-    expect(acquireLock(db, "herdr:p1", "a", 60_000, now)).toBe(true);
-    expect(acquireLock(db, "herdr:p1", "b", 60_000, now)).toBe(false);
-    expect(acquireLock(db, "herdr:p2", "b", 60_000, now)).toBe(true);
-    expect(acquireLock(db, "herdr:p1", "a", 60_000, now)).toBe(true);
-    expect(acquireLock(db, "herdr:p1", "b", 60_000, now + 61_000)).toBe(true);
+    expect(acquireLock(db, "herdr:p1", live("a"))).toBe(true);
+    expect(acquireLock(db, "herdr:p1", live("b"))).toBe(false);
+    expect(acquireLock(db, "herdr:p2", live("b"))).toBe(true);
+    expect(acquireLock(db, "herdr:p1", live("a"))).toBe(true);
 
-    releaseLock(db, "herdr:p1", "b");
-    expect(acquireLock(db, "herdr:p1", "c", 60_000, now)).toBe(true);
+    releaseLock(db, "herdr:p1", live("a"));
+    expect(acquireLock(db, "herdr:p1", live("c"))).toBe(true);
   });
 
-  test("stays held past its lease while the holder process is alive", () => {
+  test("is free once its holder process is gone or the holder has no pid", () => {
     const db = openQueue(":memory:");
-    const now = Date.now();
 
-    acquireLock(db, "herdr:p1", `${process.pid}:run-a`, 60_000, now);
-    expect(acquireLock(db, "herdr:p1", "run-b", 60_000, now + 61_000)).toBe(false);
+    acquireLock(db, "herdr:p1", "999999999:dead-run");
+    expect(acquireLock(db, "herdr:p1", live("b"))).toBe(true);
 
-    acquireLock(db, "herdr:p2", "999999999:run-a", 60_000, now);
-    expect(acquireLock(db, "herdr:p2", "run-b", 60_000, now + 61_000)).toBe(true);
+    acquireLock(db, "herdr:p2", "12ab-uuid-without-pid");
+    expect(acquireLock(db, "herdr:p2", live("b"))).toBe(true);
   });
 });
 
 describe("queue lifecycle", () => {
-  const options = { targetKey: "herdr:w1:p2", expireAfterMs: 15 * 60_000 };
+  const options = { targetKey: "herdr:w1:p2", expireAfterMs: 15 * 60_000, maxAttempts: 3 };
 
   function claimAll(db, runId = "r") {
     return claimTarget(db, { targetKey: "herdr:w1:p2", runId, limit: 10 });
@@ -158,6 +157,20 @@ describe("queue lifecycle", () => {
     const asks = getAsks(db, [old, claimed, otherOld, otherClaimed]);
     expect(asks.map((ask) => ask.status)).toEqual(["stale", "pending", "pending", "in_progress"]);
     expect(asks[1].attempts).toBe(1);
+  });
+
+  test("sends rows that crashed a run maxAttempts times to a human", () => {
+    const db = openQueue(":memory:");
+    const [crashing, fresh] = [addAsk(db), addAsk(db)];
+    db.query("UPDATE permission_asks SET status = 'in_progress', attempts = 2 WHERE id = $id").run({ id: crashing });
+    db.query("UPDATE permission_asks SET status = 'in_progress' WHERE id = $id").run({ id: fresh });
+
+    const escalated = prepareTarget(db, options);
+
+    expect(escalated).toEqual([crashing]);
+    const asks = getAsks(db, [crashing, fresh]);
+    expect(asks.map((ask) => ask.status)).toEqual(["need_human", "pending"]);
+    expect(asks[0].reason).toBe("runner crashed while evaluating");
   });
 
   test("deletes only decided rows past retention", () => {
