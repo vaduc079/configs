@@ -5,7 +5,7 @@ min_herdr_version = "0.9.1"
 description = "Queue agent permission prompts from harness hooks and approve safe ones through Herdr."
 platforms = ["macos", "linux"]
 
-# Evaluation is driven by harness permission hooks (queue.js) and the launchd runner (runner.js),
+# Evaluation is driven by harness permission hooks (queue.js), which start runner.js, plus a launchd sweep,
 # not by Herdr events: Herdr reports one status change for several back-to-back prompts.
 
 [[actions]]

@@ -5,7 +5,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { acquireLock, getAsks, insertAsk, openQueue } from "./db.js";
-import { drainQueue } from "./runner.js";
+import { drainQueue, drainUntilIdle } from "./runner.js";
 
 const CONFIG = {
   dryRun: false,
@@ -222,5 +222,91 @@ describe("drainQueue ownership", () => {
     expect(calls.notify).toEqual([]);
     expect(calls.audit).toEqual([]);
     expect(getAsks(db, [id])[0]).toMatchObject({ status: "in_progress", run_id: "run-2" });
+  });
+});
+
+describe("drainUntilIdle", () => {
+  function untilIdle(db, evaluate, config = CONFIG) {
+    const evaluated = [];
+    acquireLock(db, "run-1", config.lockLeaseMs);
+    const claimedAny = drainUntilIdle(db, {
+      runId: "run-1",
+      config,
+      pluginRoot: pluginRootWithPolicy(),
+      evaluate: (input) => {
+        evaluated.push(input.rows.map((row) => row.id));
+        return evaluate(input);
+      },
+      notify: () => {},
+      audit: () => {},
+    });
+    return claimedAny.then((value) => ({ claimedAny: value, evaluated }));
+  }
+
+  const approveAll = ({ rows }) => ({
+    results: rows.map((row) => ({ id: row.id, status: "handled", reason: "ok" })),
+    exitStatus: 0,
+  });
+
+  test("handles an ask that arrives while the target is being evaluated", async () => {
+    const db = openQueue(":memory:");
+    const first = addAsk(db);
+    let second;
+
+    const { claimedAny, evaluated } = await untilIdle(db, (input) => {
+      second ??= addAsk(db);
+      return approveAll(input);
+    });
+
+    expect(claimedAny).toBe(true);
+    expect(evaluated).toEqual([[first], [second]]);
+    expect(getAsks(db, [first, second]).map((ask) => ask.status)).toEqual(["handled", "handled"]);
+  });
+
+  test("does not retry deferred or failed rows in the same run", async () => {
+    const db = openQueue(":memory:");
+    const deferred = addAsk(db);
+    const failed = addAsk(db, { type: "herdr", pane_id: "w1:p3" });
+
+    const { evaluated } = await untilIdle(db, ({ rows }) =>
+      rows[0].id === deferred
+        ? { results: [{ id: deferred, status: "deferred", reason: "behind prompt" }], exitStatus: 0 }
+        : { results: null, exitStatus: 1, error: "timeout" },
+    );
+
+    expect(evaluated).toEqual([[deferred], [failed]]);
+    expect(getAsks(db, [deferred, failed]).map((ask) => ask.status)).toEqual(["pending", "pending"]);
+  });
+
+  test("waits for a young row instead of leaving it for the next run", async () => {
+    const db = openQueue(":memory:");
+    const id = addAsk(db);
+    const startedAt = Date.now();
+
+    const { evaluated } = await untilIdle(db, approveAll, { ...CONFIG, minAgeMs: 100 });
+
+    expect(evaluated).toEqual([[id]]);
+    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(90);
+  });
+
+  test("stops when the lock is lost instead of spinning", async () => {
+    const db = openQueue(":memory:");
+    const id = addAsk(db);
+    acquireLock(db, "run-1", CONFIG.lockLeaseMs);
+    db.query("UPDATE runner_lock SET holder = 'run-2'").run();
+
+    const claimedAny = await drainUntilIdle(db, {
+      runId: "run-1",
+      config: CONFIG,
+      pluginRoot: pluginRootWithPolicy(),
+      evaluate: () => {
+        throw new Error("should not run");
+      },
+      notify: () => {},
+      audit: () => {},
+    });
+
+    expect(claimedAny).toBe(false);
+    expect(getAsks(db, [id])[0].status).toBe("pending");
   });
 });

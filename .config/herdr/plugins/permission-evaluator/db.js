@@ -129,14 +129,10 @@ export function prepareQueue(db, { expireAfterMs, retentionMs, now = Date.now() 
   prepare.immediate();
 }
 
-export function pendingTargetKeys(db) {
+export function pendingAsks(db) {
   return db
-    .query(
-      `SELECT target_key FROM permission_asks WHERE status = 'pending'
-       GROUP BY target_key ORDER BY MIN(id)`,
-    )
-    .all()
-    .map((row) => row.target_key);
+    .query("SELECT id, target_key, created_at FROM permission_asks WHERE status = 'pending' ORDER BY id")
+    .all();
 }
 
 // Claims the oldest pending rows created before `claimableBefore`.

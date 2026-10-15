@@ -8,7 +8,7 @@ import {
   getAsks,
   insertAsk,
   openQueue,
-  pendingTargetKeys,
+  pendingAsks,
   prepareQueue,
   recordFailure,
   recordResults,
@@ -77,7 +77,7 @@ describe("enqueue", () => {
     });
 
     expect([outsideHerdr, otherEvent, unsafePane]).toEqual([null, null, null]);
-    expect(pendingTargetKeys(db)).toEqual([]);
+    expect(pendingAsks(db)).toEqual([]);
   });
 
   test("rejects unknown harnesses", () => {
@@ -128,15 +128,6 @@ describe("queue lifecycle", () => {
     expect(oldAsk.status).toBe("stale");
     expect(claimedAsk.status).toBe("pending");
     expect(claimedAsk.attempts).toBe(1);
-  });
-
-  test("groups pending targets by oldest ask", () => {
-    const db = openQueue(":memory:");
-    addAsk(db, { pane: "w1:p3" });
-    addAsk(db, { pane: "w1:p2" });
-    addAsk(db, { pane: "w1:p3" });
-
-    expect(pendingTargetKeys(db)).toEqual(["herdr:w1:p3", "herdr:w1:p2"]);
   });
 
   test("leaves rows younger than claimableBefore for a later run", () => {

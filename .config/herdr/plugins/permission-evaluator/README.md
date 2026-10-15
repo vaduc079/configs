@@ -1,25 +1,28 @@
 # Permission Evaluator
 
 Approves safe agent permission prompts without a human. Every prompt is queued by the agent
-harness's permission hook; a runner started by launchd every minute evaluates the queue with a
-short-lived headless Claude, which either approves the prompt once through Herdr or leaves it for
-you and sends a notification.
+harness's permission hook, which also starts a runner right away (launchd starts one every minute
+as a sweep). The runner evaluates the queue with a short-lived headless Claude, which either
+approves the prompt once through Herdr or leaves it for you and sends a notification.
 
-The runner currently has `dryRun: true`: it records what it would approve but sends no keys.
+Set `dryRun: true` in `runner.js` to record what it would approve without sending keys.
 
 ## Flow
 
 ```text
 harness permission hook ──> queue.js enqueue ──> queue.db (pending)
-launchd (60 s) ──> runner.js ──> one claude -p per target ──> herdr send-keys enter
+                                   └─> starts runner.js (detached)
+launchd (60 s, sweep) ──> runner.js ──> one claude -p per target ──> herdr send-keys enter
                                   └─> handled / need_human (+ notification) / stale
 ```
 
 1. The harness hook (Claude Code `PermissionRequest`) runs `queue.js enqueue`, which stores the ask
    with its target (where the agent runs) and context (tool and input), then exits 0 without a
-   decision, so the normal dialog shows. Asks outside a supported target are ignored.
-2. `runner.js` takes a lock in the DB (one runner at a time), puts rows from a dead run back to
-   pending, expires rows pending for more than 15 minutes, and exits if nothing is pending.
+   decision, so the normal dialog shows. Asks outside a supported target are ignored. For a stored
+   ask it starts a detached `runner.js` with a launchd-like environment.
+2. `runner.js` takes a lock in the DB (one runner at a time; a runner that finds it held exits),
+   puts rows from a dead run back to pending, expires rows pending for more than 15 minutes, and
+   exits if nothing is pending. It waits until rows are `minAgeMs` old so the dialog is drawn.
 3. For each target, oldest first and up to `maxConcurrentTargets` at once, it claims the pending
    rows and starts one `claude -p` with only
    that target's inspection commands allowed, plus `enter` on that target in active mode.
@@ -30,6 +33,10 @@ launchd (60 s) ──> runner.js ──> one claude -p per target ──> herdr 
 5. The runner validates the result (one result per claimed row), records it, appends the audit
    log and notifies you for each `need_human`. A failed evaluation returns the rows to pending;
    after 3 failures they become `need_human`.
+6. The runner repeats steps 3–5 until no row it has not tried yet is pending, so asks that arrive
+   during a run (including ones whose own runner found the lock held) are handled by it. Rows it
+   deferred or failed wait for the next run. After releasing the lock it checks once more and
+   retakes it if an ask slipped in.
 
 Every failure path leaves the prompt on screen for you; nothing is approved on error.
 
@@ -38,7 +45,7 @@ Every failure path leaves the prompt on screen for you; nothing is approved on e
 | Path | Role |
 |---|---|
 | `queue.js` | Hook entry point (`enqueue --harness <name>`) and `status` |
-| `runner.js` | launchd entry point; `CONFIG` lives here |
+| `runner.js` | Runner started by the hook and by launchd; `CONFIG` lives here |
 | `db.js` | SQLite schema and queue operations |
 | `evaluator.js` | Evaluator prompt, `claude -p` arguments, result validation |
 | `harnesses/` | One adapter per agent harness: parse the hook payload, describe the prompt UI |
@@ -94,7 +101,7 @@ ends up in the evaluator's Bash allowlist.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `dryRun` | `true` | Record would-approve decisions without sending keys |
+| `dryRun` | `false` | Record would-approve decisions without sending keys |
 | `auditEnabled` | `true` | Append `audit.jsonl` for the viewer |
 | `notifyEnabled` | `true` | macOS notification for each `need_human` |
 | `model` | `claude-haiku-5-5` | Evaluator model |
@@ -102,7 +109,7 @@ ends up in the evaluator's Bash allowlist.
 | `maxConcurrentTargets` | `3` | Targets evaluated in parallel (one `claude -p` each) |
 | `baseTimeoutMs`, `perRowTimeoutMs` | `45 s`, `15 s` | Evaluator timeout = base + per row |
 | `maxAttempts` | `3` | Failed evaluations before a row becomes `need_human` |
-| `minAgeMs` | `5 s` | Rows younger than this wait for the next run (the dialog may not be drawn yet) |
+| `minAgeMs` | `5 s` | The runner waits until rows are this old before claiming them (the dialog may not be drawn yet) |
 | `expireAfterMs` | `15 min` | Pending rows older than this become `stale` |
 | `lockLeaseMs` | `10 min` | Lock lease; renewed per target |
 | `retentionMs` | `30 days` | Decided rows older than this are deleted |
@@ -123,7 +130,7 @@ All under `~/.local/state/herdr/plugins/local.permission-evaluator/` (or `$HERDR
 |---|---|
 | `queue.db` | The queue (mode 0600; rows may contain command text) |
 | `audit.jsonl` | One entry per decided row: pane, ask id, summary, decision, reason, policy hash, duration |
-| `runner.log` | launchd stdout/stderr: one line per evaluated target and runner errors |
+| `runner.log` | Runner stdout/stderr (launchd and hook-started): one line per evaluated target and runner errors |
 | `enqueue.err.log` | Hook failures |
 
 Inspect the queue:

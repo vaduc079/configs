@@ -6,9 +6,11 @@
 //   bun queue.js status                     Row counts by status.
 //
 // `enqueue` never decides or blocks the prompt: it always exits 0 and prints nothing, so the
-// harness shows its normal dialog. Failures go to enqueue.err.log in the state directory.
+// harness shows its normal dialog. It then starts a detached runner so the ask is evaluated within
+// seconds instead of at launchd's next tick. Failures go to enqueue.err.log in the state directory.
 
-import { appendFileSync, mkdirSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { appendFileSync, closeSync, mkdirSync, openSync } from "node:fs";
 import { join } from "node:path";
 import { insertAsk, openQueue, stateDirectory, statusCounts } from "./db.js";
 import { HARNESSES } from "./harnesses/index.js";
@@ -68,10 +70,32 @@ function logEnqueueError(error) {
   }
 }
 
+// The hook runs inside the agent's session; pass the runner only what launchd would, so the
+// evaluator's `claude -p` does not inherit that session's variables.
+const RUNNER_ENV_NAMES = ["HOME", "USER", "LOGNAME", "SHELL", "PATH", "HERDR_PLUGIN_STATE_DIR"];
+
+// If a runner already holds the lock, this one exits at once and the running one picks the row up.
+function startRunner() {
+  const environment = Object.fromEntries(
+    RUNNER_ENV_NAMES.filter((name) => process.env[name]).map((name) => [name, process.env[name]]),
+  );
+  const logFd = openSync(join(stateDirectory(), "runner.log"), "a", 0o600);
+  try {
+    spawn(process.execPath, [join(import.meta.dir, "runner.js")], {
+      detached: true,
+      stdio: ["ignore", logFd, logFd],
+      env: environment,
+    }).unref();
+  } finally {
+    closeSync(logFd);
+  }
+}
+
 async function runEnqueue(args) {
   try {
     const hookInput = JSON.parse(await Bun.stdin.text());
-    enqueue(openQueue(), { harnessName: flagValue(args, "--harness"), hookInput, env: process.env });
+    const id = enqueue(openQueue(), { harnessName: flagValue(args, "--harness"), hookInput, env: process.env });
+    if (id !== null) startRunner();
   } catch (error) {
     logEnqueueError(error);
   }
