@@ -495,7 +495,7 @@ let lastKey = null;
 async function poll() {
   try {
     const response = await api("/api/state");
-    if (response.status === 401) throw new Error("not authorized; reopen with prefix+p, the server restarted");
+    if (response.status === 401) throw new Error("not authorized; reopen with prefix+ctrl+p, the server restarted");
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     state = await response.json();
     $("error").classList.add("hidden");

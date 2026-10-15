@@ -20,7 +20,7 @@ import { loadPolicy, policyHash } from "./evaluator.js";
 import { CONFIG } from "./runner.js";
 import { TARGETS } from "./targets/index.js";
 
-const IDLE_EXIT_MS = 15 * 60_000;
+const IDLE_EXIT_MS = 5 * 60_000;
 const SERVER_HEADER = "x-herdr-permission-dashboard";
 const LAUNCHD_LABEL = "com.duc.herdr-permission-runner";
 const HOUR_MS = 60 * 60_000;

@@ -136,7 +136,7 @@ command = "local.file-opener.pick"
 description = "pick a file path from the pane output and open it"
 
 [[keys.command]]
-key = "prefix+p"
+key = "prefix+ctrl+p"
 type = "plugin_action"
 command = "local.permission-evaluator.dashboard"
 description = "open the permission dashboard in the browser"
