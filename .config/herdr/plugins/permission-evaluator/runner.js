@@ -1,10 +1,15 @@
 #!/usr/bin/env bun
 
-// Drains the permission queue. The enqueue hook starts it for every new ask, and launchd starts it
-// every minute as a sweep; a run that finds the lock held or nothing pending exits without
-// starting Claude. Pending rows are grouped by target and each target gets one evaluator run; up
-// to `maxConcurrentTargets` targets are evaluated at once. A run keeps going until no row it has
-// not yet tried is pending, so asks that arrive mid-run are handled by that run.
+// Drains the permission queue, one target (pane) per process.
+//
+//   bun runner.js --target <key>   Started by the enqueue hook. Takes that target's lock (or exits
+//                                  if another runner holds it) and keeps going until no row it has
+//                                  not yet tried is pending, so asks that arrive mid-run are handled.
+//   bun runner.js                  launchd's sweep, every minute: starts one runner per target with
+//                                  pending rows, for asks whose own runner never started or that
+//                                  were deferred.
+//
+// Targets have separate locks, so different panes are evaluated in parallel.
 
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -14,10 +19,12 @@ import {
   acquireLock,
   awaitingHuman,
   claimTarget,
+  deleteOldRows,
   getAsks,
   openQueue,
   pendingAsks,
-  prepareQueue,
+  pendingTargetKeys,
+  prepareTarget,
   recordFailure,
   recordResults,
   releaseLock,
@@ -25,6 +32,7 @@ import {
 } from "./db.js";
 import { evaluateTarget, loadPolicy, oneLine, policyHash } from "./evaluator.js";
 import { HARNESSES } from "./harnesses/index.js";
+import { startRunner } from "./queue.js";
 import { TARGETS } from "./targets/index.js";
 
 const MINUTE = 60_000;
@@ -35,13 +43,12 @@ const CONFIG = {
   notifyEnabled: true,
   model: "claude-haiku-5-5",
   maxRowsPerTarget: 10,
-  maxConcurrentTargets: 3,
   baseTimeoutMs: 45_000,
   perRowTimeoutMs: 15_000,
   maxAttempts: 3,
   // The hook runs just before the dialog is drawn; younger rows could be misread as stale, so a
   // run waits until its rows are this old.
-  minAgeMs: 5_000,
+  minAgeMs: 1_000,
   // A prompt still pending after this long was almost certainly answered by a human.
   expireAfterMs: 15 * MINUTE,
   lockLeaseMs: 10 * MINUTE,
@@ -102,12 +109,9 @@ function auditEntry({ ask, result, target, outcome, durationMs, config, policyDi
   return { ...entry, decision: AUDIT_DECISIONS[result.status](config.dryRun), reason: result.reason };
 }
 
-// Claims, evaluates and records one target. DB calls are synchronous, so concurrent targets
-// interleave only while their evaluators run.
+// Claims, evaluates and records the target's oldest claimable rows, adding them to `attempted`.
+// The caller holds the target's lock.
 async function processTarget(targetKey, { db, runId, config, evaluate, notify, audit, pluginRoot, policy, policyDigest, attempted }) {
-  // Another runner owns the queue once our lease is lost; claiming now could double-press enter.
-  if (!acquireLock(db, runId, config.lockLeaseMs)) throw new Error("runner lock lost");
-
   const rows = claimTarget(db, {
     targetKey,
     runId,
@@ -172,26 +176,18 @@ async function processTarget(targetKey, { db, runId, config, evaluate, notify, a
   log(`${targetKey} ${summary}`);
 }
 
-async function runWithConcurrency(items, limit, worker) {
-  const remaining = [...items];
-  const lanes = Array.from({ length: Math.min(limit, remaining.length) }, async () => {
-    while (remaining.length > 0) await worker(remaining.shift());
-  });
-  await Promise.all(lanes);
-}
-
 // A row dated in the future means the wall clock stepped back; it waits until the clock passes it.
 function isUntried(ask, attempted) {
   return !attempted.has(ask.id) && Date.parse(ask.created_at) <= Date.now();
 }
 
-function untriedAsks(db, attempted) {
-  return pendingAsks(db).filter((ask) => isUntried(ask, attempted));
-}
-
-// One pass over the targets with an untried pending row, with the lock already held. Every row
-// the pass claims is added to `attempted`. Dependencies are injectable for tests.
-export async function drainQueue(db, {
+// Drains one target: claims and evaluates until no untried row is pending on it, waiting for rows
+// that are still too young to claim. A row deferred or failed in this run is only retried
+// alongside a newer ask; otherwise the next run picks it up. Returns the highest pending id it
+// last saw, so the caller can tell which asks arrived after its final check. Dependencies are
+// injectable for tests.
+export async function drainTarget(db, {
+  targetKey,
   runId,
   attempted = new Set(),
   config = CONFIG,
@@ -199,43 +195,9 @@ export async function drainQueue(db, {
   notify = notifyHuman,
   audit = appendAudit,
   pluginRoot = import.meta.dir,
-} = {}) {
-  prepareQueue(db, config);
-  const targetKeys = [...new Set(untriedAsks(db, attempted).map((ask) => ask.target_key))];
-  if (targetKeys.length === 0) return;
-
-  // A missing policy leaves every row pending; it expires to stale and the human answers.
-  const policy = loadPolicy(pluginRoot);
-  const context = {
-    db,
-    runId,
-    config,
-    evaluate,
-    notify,
-    audit,
-    pluginRoot,
-    policy,
-    policyDigest: policyHash(policy),
-    attempted,
-  };
-
-  await runWithConcurrency(targetKeys, config.maxConcurrentTargets, async (targetKey) => {
-    // One target's failure must not stop the others; its claimed rows are recovered next run.
-    try {
-      await processTarget(targetKey, context);
-    } catch (error) {
-      log(`${targetKey} runner error: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  });
-}
-
-// Repeats passes until no untried row is pending, waiting for rows that are still too young to
-// claim. A row deferred or failed in this run is only retried alongside a newer ask on its target;
-// otherwise the next run picks it up. Returns the highest pending id it last saw, so the caller
-// can tell which asks arrived after its final check.
-export async function drainUntilIdle(db, { attempted = new Set(), config = CONFIG, ...options }) {
+}) {
   while (true) {
-    const pending = pendingAsks(db);
+    const pending = pendingAsks(db, targetKey);
     const lastSeenId = pending.at(-1)?.id ?? 0;
     const oldest = pending.find((ask) => isUntried(ask, attempted));
     if (!oldest) return lastSeenId;
@@ -244,52 +206,77 @@ export async function drainUntilIdle(db, { attempted = new Set(), config = CONFI
     const msUntilClaimable = claimableAt - Date.now();
     if (msUntilClaimable > 0) await Bun.sleep(msUntilClaimable);
 
-    // Check before the pass: once another runner owns the queue, even the pass's recovery of
-    // in_progress rows would hand that runner's claims out a second time.
-    if (!acquireLock(db, options.runId, config.lockLeaseMs)) return lastSeenId;
+    // Check before recovering in_progress rows: once another runner owns this target, recovery
+    // would hand that runner's claims out a second time.
+    if (!acquireLock(db, targetKey, runId, config.lockLeaseMs)) return lastSeenId;
+    prepareTarget(db, { targetKey, expireAfterMs: config.expireAfterMs });
 
+    // A missing policy throws: the rows stay pending, expire to stale, and the human answers.
+    const policy = loadPolicy(pluginRoot);
     const attemptedBefore = attempted.size;
-    await drainQueue(db, { ...options, attempted, config });
+    await processTarget(targetKey, {
+      db,
+      runId,
+      config,
+      evaluate,
+      notify,
+      audit,
+      pluginRoot,
+      policy,
+      policyDigest: policyHash(policy),
+      attempted,
+    });
     if (attempted.size > attemptedBefore) continue;
 
-    // A pass that claimed nothing although the oldest row was claimable cannot progress (its
-    // target's claim limit is filled by rows already tried); stop instead of spinning. A row
-    // that is still too young, e.g. after a wall-clock step, gets another wait.
+    // A claim that took nothing new although the oldest row was claimable cannot progress (the
+    // claim limit is filled by rows already tried); stop instead of spinning. A row that is still
+    // too young, e.g. after a wall-clock step, gets another wait.
     const oldestIsClaimable = claimableAt <= Date.now();
-    const stillOldest = untriedAsks(db, attempted)[0]?.id === oldest.id;
+    const stillOldest = pendingAsks(db, targetKey).find((ask) => isUntried(ask, attempted))?.id === oldest.id;
     if (stillOldest && oldestIsClaimable) return lastSeenId;
   }
 }
 
-async function main() {
-  // Match launchd's Umask when the hook starts the runner: the logs can contain command text.
-  process.umask(0o077);
-  const db = openQueue();
+async function runTarget(db, targetKey) {
   const runId = randomUUID();
   const attempted = new Set();
 
-  while (acquireLock(db, runId, CONFIG.lockLeaseMs)) {
+  while (acquireLock(db, targetKey, runId, CONFIG.lockLeaseMs)) {
     let lastSeenId;
     try {
-      lastSeenId = await drainUntilIdle(db, { runId, attempted });
+      lastSeenId = await drainTarget(db, { targetKey, runId, attempted });
     } finally {
-      releaseLock(db, runId);
+      releaseLock(db, targetKey, runId);
     }
-    // A hook that enqueued just before the release saw our lock held and started no runner,
+    // A hook that enqueued just before the release saw our lock held and its runner exited,
     // so pick its row up here. Each extra round needs a new ask, so this ends.
-    const missedAsk = pendingAsks(db).some((ask) => ask.id > lastSeenId);
+    const missedAsk = pendingAsks(db, targetKey).some((ask) => ask.id > lastSeenId);
     if (!missedAsk) return;
   }
 }
 
+// launchd's sweep: starts one runner per target with pending rows. A target whose runner is
+// still working keeps it, since the new one exits on the held lock.
+function sweep(db) {
+  deleteOldRows(db, CONFIG);
+  for (const targetKey of pendingTargetKeys(db)) startRunner(targetKey);
+}
+
 if (import.meta.main) {
+  const [flag, targetKey] = process.argv.slice(2);
+  const isTargetRun = flag === "--target" && Boolean(targetKey);
   try {
-    await main();
+    // Match launchd's Umask when the hook starts the runner: the logs can contain command text.
+    process.umask(0o077);
+    const db = openQueue();
+    if (isTargetRun) await runTarget(db, targetKey);
+    else sweep(db);
     // Exit explicitly: a pipe still held by a leftover evaluator grandchild would keep the process
     // alive, and launchd starts no new run while this one lives. Exiting also lets launchd reap it.
     process.exit(0);
   } catch (error) {
-    log(`runner failed: ${error instanceof Error ? error.message : String(error)}`);
+    const scope = isTargetRun ? targetKey : "sweep";
+    log(`${scope} runner failed: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);
   }
 }

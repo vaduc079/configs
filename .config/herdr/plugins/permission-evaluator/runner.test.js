@@ -5,18 +5,19 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { acquireLock, getAsks, insertAsk, openQueue } from "./db.js";
-import { drainQueue, drainUntilIdle } from "./runner.js";
+import { drainTarget } from "./runner.js";
 
 const CONFIG = {
   dryRun: false,
   maxRowsPerTarget: 10,
-  maxConcurrentTargets: 2,
   minAgeMs: 0,
   maxAttempts: 3,
   expireAfterMs: 15 * 60_000,
   lockLeaseMs: 60_000,
-  retentionMs: 30 * 86_400_000,
 };
+
+const PANE = { type: "herdr", pane_id: "w1:p2" };
+const TARGET_KEY = "herdr:w1:p2";
 
 function pluginRootWithPolicy() {
   const pluginRoot = mkdtempSync(join(tmpdir(), "permission-runner-"));
@@ -24,21 +25,24 @@ function pluginRootWithPolicy() {
   return pluginRoot;
 }
 
-function addAsk(db, target = { type: "herdr", pane_id: "w1:p2" }) {
+function addAsk(db, { target = PANE, harness = "claude", now } = {}) {
   return insertAsk(db, {
-    harness: "claude",
+    harness,
     target,
     targetKey: `${target.type}:${target.pane_id}`,
     context: { summary: "Bash: ls" },
+    now,
   });
 }
 
-async function run(db, evaluate) {
+// Drains TARGET_KEY as run-1, recording every evaluator, notification and audit call.
+async function drain(db, evaluate, { config = CONFIG, takeLock = true } = {}) {
   const calls = { evaluate: [], notify: [], audit: [] };
-  acquireLock(db, "run-1", CONFIG.lockLeaseMs);
-  await drainQueue(db, {
+  if (takeLock) acquireLock(db, TARGET_KEY, "run-1", config.lockLeaseMs);
+  await drainTarget(db, {
+    targetKey: TARGET_KEY,
     runId: "run-1",
-    config: CONFIG,
+    config,
     pluginRoot: pluginRootWithPolicy(),
     evaluate: (input) => {
       calls.evaluate.push(input);
@@ -47,42 +51,44 @@ async function run(db, evaluate) {
     notify: (notification) => calls.notify.push(notification),
     audit: (entries) => calls.audit.push(...entries),
   });
-  return { calls };
+  return calls;
 }
 
-describe("drainQueue", () => {
+const approveAll = ({ rows }) => ({
+  results: rows.map((row) => ({ id: row.id, status: "handled", reason: "ok" })),
+  exitStatus: 0,
+});
+
+const shouldNotRun = () => {
+  throw new Error("should not run");
+};
+
+const evaluatedIds = (calls) => calls.evaluate.map((input) => input.rows.map((row) => row.id));
+
+describe("drainTarget", () => {
   test("does not start an evaluator when nothing is pending", async () => {
     const db = openQueue(":memory:");
-    const { calls } = await run(db, () => {
-      throw new Error("should not run");
-    });
+    const calls = await drain(db, shouldNotRun);
 
     expect(calls.evaluate).toEqual([]);
   });
 
-  test("evaluates each target once with all of its rows in order", async () => {
+  test("evaluates the target's rows in order in one call and leaves other targets alone", async () => {
     const db = openQueue(":memory:");
-    const [a1, b1, a2] = [
-      addAsk(db),
-      addAsk(db, { type: "herdr", pane_id: "w1:p3" }),
-      addAsk(db),
-    ];
+    const [first, other, second] = [addAsk(db), addAsk(db, { target: { type: "herdr", pane_id: "w1:p3" } }), addAsk(db)];
 
-    const { calls } = await run(db, ({ rows }) => ({
-      results: rows.map((row) => ({ id: row.id, status: "handled", reason: "safe" })),
-      exitStatus: 0,
-    }));
+    const calls = await drain(db, approveAll);
 
-    expect(calls.evaluate.map((input) => input.rows.map((row) => row.id))).toEqual([[a1, a2], [b1]]);
-    expect(getAsks(db, [a1, b1, a2]).map((ask) => ask.status)).toEqual(["handled", "handled", "handled"]);
-    expect(calls.audit.map((entry) => entry.decision)).toEqual(["approved", "approved", "approved"]);
+    expect(evaluatedIds(calls)).toEqual([[first, second]]);
+    expect(getAsks(db, [first, other, second]).map((ask) => ask.status)).toEqual(["handled", "pending", "handled"]);
+    expect(calls.audit.map((entry) => entry.decision)).toEqual(["approved", "approved"]);
   });
 
   test("notifies escalations and keeps deferred rows pending without auditing them", async () => {
     const db = openQueue(":memory:");
     const [first, second] = [addAsk(db), addAsk(db)];
 
-    const { calls } = await run(db, () => ({
+    const calls = await drain(db, () => ({
       results: [
         { id: first, status: "need_human", reason: "pushes to remote" },
         { id: second, status: "deferred", reason: "behind prompt" },
@@ -99,112 +105,31 @@ describe("drainQueue", () => {
   test("passes the open escalation so the evaluator can defer behind it", async () => {
     const db = openQueue(":memory:");
     const first = addAsk(db);
-    await run(db, () => ({ results: [{ id: first, status: "need_human", reason: "x" }], exitStatus: 0 }));
+    await drain(db, () => ({ results: [{ id: first, status: "need_human", reason: "x" }], exitStatus: 0 }));
 
     const second = addAsk(db);
-    const { calls } = await run(db, () => ({
-      results: [{ id: second, status: "deferred", reason: "waiting" }],
-      exitStatus: 0,
-    }));
+    const calls = await drain(db, () => ({ results: [{ id: second, status: "deferred", reason: "waiting" }], exitStatus: 0 }));
 
     expect(calls.evaluate[0].awaitingHuman.id).toBe(first);
   });
 
-  test("returns rows to pending on evaluator failure", async () => {
+  test("returns rows to pending on evaluator failure and does not retry them in the same run", async () => {
     const db = openQueue(":memory:");
     const id = addAsk(db);
 
-    const { calls } = await run(db, () => ({ results: null, exitStatus: 1, error: "timeout" }));
+    const calls = await drain(db, () => ({ results: null, exitStatus: 1, error: "timeout" }));
 
-    const [ask] = getAsks(db, [id]);
-    expect(ask.status).toBe("pending");
-    expect(ask.attempts).toBe(1);
+    expect(getAsks(db, [id])[0]).toMatchObject({ status: "pending", attempts: 1 });
+    expect(calls.evaluate).toHaveLength(1);
     expect(calls.audit[0]).toMatchObject({ completed: false, error: "timeout" });
     expect(calls.notify).toEqual([]);
   });
 
-  test("fails rows with an unsupported target without running the evaluator", async () => {
-    const db = openQueue(":memory:");
-    const id = addAsk(db, { type: "tmux", pane_id: "%1" });
-
-    const { calls } = await run(db, () => {
-      throw new Error("should not run");
-    });
-
-    expect(calls.evaluate).toEqual([]);
-    expect(getAsks(db, [id])[0].reason).toBe("evaluator failed: unsupported target: tmux:%1");
-  });
-});
-
-describe("drainQueue concurrency", () => {
-  test("evaluates up to maxConcurrentTargets panes at once", async () => {
-    const db = openQueue(":memory:");
-    for (const pane of ["w1:p1", "w1:p2", "w1:p3", "w1:p4"]) addAsk(db, { type: "herdr", pane_id: pane });
-
-    let inFlight = 0;
-    let maxInFlight = 0;
-    const { calls } = await run(db, async ({ rows }) => {
-      inFlight += 1;
-      maxInFlight = Math.max(maxInFlight, inFlight);
-      await Bun.sleep(20);
-      inFlight -= 1;
-      return { results: rows.map((row) => ({ id: row.id, status: "handled", reason: "ok" })), exitStatus: 0 };
-    });
-
-    expect(calls.evaluate).toHaveLength(4);
-    expect(maxInFlight).toBe(CONFIG.maxConcurrentTargets);
-  });
-
-  test("keeps going when one target throws", async () => {
-    const db = openQueue(":memory:");
-    const broken = addAsk(db, { type: "herdr", pane_id: "w1:p1" });
-    const healthy = addAsk(db, { type: "herdr", pane_id: "w1:p2" });
-
-    await run(db, async ({ rows }) => {
-      if (rows[0].id === broken) throw new Error("boom");
-      return { results: [{ id: healthy, status: "handled", reason: "ok" }], exitStatus: 0 };
-    });
-
-    expect(getAsks(db, [broken, healthy]).map((ask) => ask.status)).toEqual(["in_progress", "handled"]);
-  });
-});
-
-describe("drainQueue lock", () => {
-  test("stops claiming once another runner has taken the lock", async () => {
-    const db = openQueue(":memory:");
-    const id = addAsk(db);
-    acquireLock(db, "run-1", CONFIG.lockLeaseMs);
-    // Simulates a lease that lapsed (e.g. during sleep) and was taken by another runner.
-    db.query("UPDATE runner_lock SET holder = 'run-2'").run();
-
-    const evaluated = [];
-    await drainQueue(db, {
-      runId: "run-1",
-      config: CONFIG,
-      pluginRoot: pluginRootWithPolicy(),
-      evaluate: (input) => evaluated.push(input),
-      notify: () => {},
-      audit: () => {},
-    });
-
-    expect(evaluated).toEqual([]);
-    expect(getAsks(db, [id])[0].status).toBe("pending");
-  });
-});
-
-describe("drainQueue ownership", () => {
   test("fails rows from an unregistered harness without running the evaluator", async () => {
     const db = openQueue(":memory:");
-    const id = insertAsk(db, {
-      harness: "retired",
-      target: { type: "herdr", pane_id: "w1:p2" },
-      targetKey: "herdr:w1:p2",
-      context: { summary: "Bash: ls" },
-    });
+    const id = addAsk(db, { harness: "retired" });
 
-    const { calls } = await run(db, () => {
-      throw new Error("should not run");
-    });
+    const calls = await drain(db, shouldNotRun);
 
     expect(calls.evaluate).toEqual([]);
     expect(getAsks(db, [id])[0].reason).toBe("evaluator failed: unsupported harness: retired");
@@ -214,7 +139,7 @@ describe("drainQueue ownership", () => {
     const db = openQueue(":memory:");
     const id = addAsk(db);
 
-    const { calls } = await run(db, () => {
+    const calls = await drain(db, () => {
       db.query("UPDATE permission_asks SET run_id = 'run-2'").run();
       return { results: [{ id, status: "need_human", reason: "x" }], exitStatus: 0 };
     });
@@ -223,58 +148,30 @@ describe("drainQueue ownership", () => {
     expect(calls.audit).toEqual([]);
     expect(getAsks(db, [id])[0]).toMatchObject({ status: "in_progress", run_id: "run-2" });
   });
+
+  test("leaves claimed rows in progress when the evaluator throws, for the next run to recover", async () => {
+    const db = openQueue(":memory:");
+    const id = addAsk(db);
+
+    await expect(drain(db, () => Promise.reject(new Error("boom")))).rejects.toThrow("boom");
+
+    expect(getAsks(db, [id])[0].status).toBe("in_progress");
+  });
 });
 
-describe("drainUntilIdle", () => {
-  function untilIdle(db, evaluate, config = CONFIG) {
-    const evaluated = [];
-    acquireLock(db, "run-1", config.lockLeaseMs);
-    const done = drainUntilIdle(db, {
-      runId: "run-1",
-      config,
-      pluginRoot: pluginRootWithPolicy(),
-      evaluate: (input) => {
-        evaluated.push(input.rows.map((row) => row.id));
-        return evaluate(input);
-      },
-      notify: () => {},
-      audit: () => {},
-    });
-    return done.then(() => ({ evaluated }));
-  }
-
-  const approveAll = ({ rows }) => ({
-    results: rows.map((row) => ({ id: row.id, status: "handled", reason: "ok" })),
-    exitStatus: 0,
-  });
-
+describe("drainTarget loop", () => {
   test("handles an ask that arrives while the target is being evaluated", async () => {
     const db = openQueue(":memory:");
     const first = addAsk(db);
     let second;
 
-    const { evaluated } = await untilIdle(db, (input) => {
+    const calls = await drain(db, (input) => {
       second ??= addAsk(db);
       return approveAll(input);
     });
 
-    expect(evaluated).toEqual([[first], [second]]);
+    expect(evaluatedIds(calls)).toEqual([[first], [second]]);
     expect(getAsks(db, [first, second]).map((ask) => ask.status)).toEqual(["handled", "handled"]);
-  });
-
-  test("does not retry deferred or failed rows in the same run", async () => {
-    const db = openQueue(":memory:");
-    const deferred = addAsk(db);
-    const failed = addAsk(db, { type: "herdr", pane_id: "w1:p3" });
-
-    const { evaluated } = await untilIdle(db, ({ rows }) =>
-      rows[0].id === deferred
-        ? { results: [{ id: deferred, status: "deferred", reason: "behind prompt" }], exitStatus: 0 }
-        : { results: null, exitStatus: 1, error: "timeout" },
-    );
-
-    expect(evaluated).toEqual([[deferred], [failed]]);
-    expect(getAsks(db, [deferred, failed]).map((ask) => ask.status)).toEqual(["pending", "pending"]);
   });
 
   test("waits for a young row instead of leaving it for the next run", async () => {
@@ -282,48 +179,43 @@ describe("drainUntilIdle", () => {
     const id = addAsk(db);
     const startedAt = Date.now();
 
-    const { evaluated } = await untilIdle(db, approveAll, { ...CONFIG, minAgeMs: 100 });
+    const calls = await drain(db, approveAll, { config: { ...CONFIG, minAgeMs: 100 } });
 
-    expect(evaluated).toEqual([[id]]);
+    expect(evaluatedIds(calls)).toEqual([[id]]);
     expect(Date.now() - startedAt).toBeGreaterThanOrEqual(90);
   });
 
   test("skips a row dated in the future (wall clock stepped back) without blocking newer rows", async () => {
     const db = openQueue(":memory:");
-    const future = insertAsk(db, {
-      harness: "claude",
-      target: { type: "herdr", pane_id: "w1:p2" },
-      targetKey: "herdr:w1:p2",
-      context: { summary: "Bash: ls" },
-      now: Date.now() + 60 * 60_000,
-    });
-    const current = addAsk(db, { type: "herdr", pane_id: "w1:p3" });
+    const future = addAsk(db, { now: Date.now() + 60 * 60_000 });
+    const current = addAsk(db);
 
-    const { evaluated } = await untilIdle(db, approveAll, { ...CONFIG, minAgeMs: 100 });
+    const calls = await drain(db, approveAll, { config: { ...CONFIG, minAgeMs: 100 } });
 
-    expect(evaluated).toEqual([[current]]);
+    expect(evaluatedIds(calls)).toEqual([[current]]);
     expect(getAsks(db, [future, current]).map((ask) => ask.status)).toEqual(["pending", "handled"]);
   });
 
-  test("stops without touching the other runner's claims when the lock is lost", async () => {
+  test("stops without touching the other runner's claims when the target's lock is held", async () => {
+    const db = openQueue(":memory:");
+    const theirs = addAsk(db);
+    db.query("UPDATE permission_asks SET status = 'in_progress', run_id = 'run-2' WHERE id = $id").run({ id: theirs });
+    const ours = addAsk(db);
+    acquireLock(db, TARGET_KEY, "run-2", CONFIG.lockLeaseMs);
+
+    const calls = await drain(db, shouldNotRun, { takeLock: false });
+
+    expect(calls.evaluate).toEqual([]);
+    expect(getAsks(db, [theirs, ours]).map((ask) => ask.status)).toEqual(["in_progress", "pending"]);
+  });
+
+  test("is not blocked by another target's lock", async () => {
     const db = openQueue(":memory:");
     const id = addAsk(db);
-    const theirs = addAsk(db, { type: "herdr", pane_id: "w1:p3" });
-    db.query("UPDATE permission_asks SET status = 'in_progress', run_id = 'run-2' WHERE id = $id").run({ id: theirs });
-    acquireLock(db, "run-1", CONFIG.lockLeaseMs);
-    db.query("UPDATE runner_lock SET holder = 'run-2'").run();
+    acquireLock(db, "herdr:w1:p3", "run-2", CONFIG.lockLeaseMs);
 
-    await drainUntilIdle(db, {
-      runId: "run-1",
-      config: CONFIG,
-      pluginRoot: pluginRootWithPolicy(),
-      evaluate: () => {
-        throw new Error("should not run");
-      },
-      notify: () => {},
-      audit: () => {},
-    });
+    const calls = await drain(db, approveAll, { takeLock: false });
 
-    expect(getAsks(db, [id, theirs]).map((ask) => ask.status)).toEqual(["pending", "in_progress"]);
+    expect(evaluatedIds(calls)).toEqual([[id]]);
   });
 });

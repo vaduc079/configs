@@ -5,11 +5,12 @@ import {
   acquireLock,
   awaitingHuman,
   claimTarget,
+  deleteOldRows,
   getAsks,
   insertAsk,
   openQueue,
   pendingAsks,
-  prepareQueue,
+  prepareTarget,
   recordFailure,
   recordResults,
   releaseLock,
@@ -42,8 +43,9 @@ function addAsk(db, { pane = "w1:p2", now = Date.now() } = {}) {
 describe("enqueue", () => {
   test("stores a Claude permission request for a herdr pane", () => {
     const db = openQueue(":memory:");
-    const id = enqueue(db, { harnessName: "claude", hookInput: permissionRequest(), env: HERDR_ENV });
+    const { id, targetKey } = enqueue(db, { harnessName: "claude", hookInput: permissionRequest(), env: HERDR_ENV });
 
+    expect(targetKey).toBe("herdr:w1:p2");
     const [ask] = getAsks(db, [id]);
     expect(ask.status).toBe("pending");
     expect(ask.target_key).toBe("herdr:w1:p2");
@@ -108,40 +110,55 @@ describe("enqueue", () => {
 });
 
 describe("runner lock", () => {
-  test("is exclusive until released or expired, and renewable by its holder", () => {
+  test("is exclusive per target until released or expired, and renewable by its holder", () => {
     const db = openQueue(":memory:");
     const now = Date.now();
 
-    expect(acquireLock(db, "a", 60_000, now)).toBe(true);
-    expect(acquireLock(db, "b", 60_000, now)).toBe(false);
-    expect(acquireLock(db, "a", 60_000, now)).toBe(true);
-    expect(acquireLock(db, "b", 60_000, now + 61_000)).toBe(true);
+    expect(acquireLock(db, "herdr:p1", "a", 60_000, now)).toBe(true);
+    expect(acquireLock(db, "herdr:p1", "b", 60_000, now)).toBe(false);
+    expect(acquireLock(db, "herdr:p2", "b", 60_000, now)).toBe(true);
+    expect(acquireLock(db, "herdr:p1", "a", 60_000, now)).toBe(true);
+    expect(acquireLock(db, "herdr:p1", "b", 60_000, now + 61_000)).toBe(true);
 
-    releaseLock(db, "b");
-    expect(acquireLock(db, "c", 60_000, now)).toBe(true);
+    releaseLock(db, "herdr:p1", "b");
+    expect(acquireLock(db, "herdr:p1", "c", 60_000, now)).toBe(true);
   });
 });
 
 describe("queue lifecycle", () => {
-  const options = { expireAfterMs: 15 * 60_000, retentionMs: 30 * 86_400_000 };
+  const options = { targetKey: "herdr:w1:p2", expireAfterMs: 15 * 60_000 };
 
   function claimAll(db, runId = "r") {
     return claimTarget(db, { targetKey: "herdr:w1:p2", runId, limit: 10 });
   }
 
-  test("recovers rows from a dead run and expires old pending rows", () => {
+  test("recovers rows from a dead run and expires old pending rows, on its own target only", () => {
     const db = openQueue(":memory:");
     const now = Date.now();
     const old = addAsk(db, { now: now - 20 * 60_000 });
-    const claimed = addAsk(db, { pane: "w1:p3", now });
-    claimTarget(db, { targetKey: "herdr:w1:p3", runId: "dead", limit: 10 });
+    const claimed = addAsk(db, { now });
+    const otherClaimed = addAsk(db, { pane: "w1:p3", now });
+    claimTarget(db, { targetKey: "herdr:w1:p2", runId: "dead", limit: 10, claimableBefore: now });
+    claimTarget(db, { targetKey: "herdr:w1:p3", runId: "live", limit: 10, claimableBefore: now });
+    const otherOld = addAsk(db, { pane: "w1:p3", now: now - 20 * 60_000 });
 
-    prepareQueue(db, { ...options, now });
+    prepareTarget(db, { ...options, now });
 
-    const [oldAsk, claimedAsk] = getAsks(db, [old, claimed]);
-    expect(oldAsk.status).toBe("stale");
-    expect(claimedAsk.status).toBe("pending");
-    expect(claimedAsk.attempts).toBe(1);
+    const asks = getAsks(db, [old, claimed, otherOld, otherClaimed]);
+    expect(asks.map((ask) => ask.status)).toEqual(["stale", "pending", "pending", "in_progress"]);
+    expect(asks[1].attempts).toBe(1);
+  });
+
+  test("deletes only decided rows past retention", () => {
+    const db = openQueue(":memory:");
+    const now = Date.now();
+    const [decided, pending] = [addAsk(db, { now: now - 40 * 86_400_000 }), addAsk(db, { now: now - 40 * 86_400_000 })];
+    db.query("UPDATE permission_asks SET status = 'handled' WHERE id = $id").run({ id: decided });
+
+    deleteOldRows(db, { retentionMs: 30 * 86_400_000, now });
+
+    expect(getAsks(db, [pending])[0].status).toBe("pending");
+    expect(db.query("SELECT COUNT(*) AS count FROM permission_asks WHERE id = $id").get({ id: decided }).count).toBe(0);
   });
 
   test("leaves rows younger than claimableBefore for a later run", () => {
@@ -180,7 +197,7 @@ describe("queue lifecycle", () => {
     const db = openQueue(":memory:");
     const id = addAsk(db);
     claimAll(db, "old-run");
-    prepareQueue(db, options);
+    prepareTarget(db, options);
     claimAll(db, "new-run");
 
     const recorded = recordResults(db, {

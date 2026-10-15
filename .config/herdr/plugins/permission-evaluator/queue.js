@@ -6,8 +6,8 @@
 //   bun queue.js status                     Row counts by status.
 //
 // `enqueue` never decides or blocks the prompt: it always exits 0 and prints nothing, so the
-// harness shows its normal dialog. It then starts a detached runner so the ask is evaluated within
-// seconds instead of at launchd's next tick. Failures go to enqueue.err.log in the state directory.
+// harness shows its normal dialog. It then starts a detached runner for the ask's target so the
+// ask is evaluated within seconds instead of at launchd's next sweep. Failures go to enqueue.err.log in the state directory.
 
 import { spawn } from "node:child_process";
 import { appendFileSync, closeSync, mkdirSync, openSync } from "node:fs";
@@ -34,7 +34,7 @@ export function truncateStrings(value) {
   return value;
 }
 
-// Returns the new row ID, or null when the ask is not one the runner could act on.
+// Returns the new row's ID and target key, or null when the ask is not one the runner could act on.
 export function enqueue(db, { harnessName, hookInput, env }) {
   const harness = HARNESSES[harnessName];
   if (!harness) throw new Error(`unknown harness: ${harnessName}`);
@@ -46,13 +46,15 @@ export function enqueue(db, { harnessName, hookInput, env }) {
   if (!ask) return null;
 
   const { driver, target } = detected;
-  return insertAsk(db, {
+  const targetKey = driver.key(target);
+  const id = insertAsk(db, {
     harness: harness.name,
     sessionId: ask.sessionId,
     target,
-    targetKey: driver.key(target),
+    targetKey,
     context: truncateStrings(ask.context),
   });
+  return { id, targetKey };
 }
 
 function flagValue(args, flag) {
@@ -87,11 +89,12 @@ export function runnerEnvironment(env) {
   return environment;
 }
 
-// If a runner already holds the lock, this one exits at once and the running one picks the row up.
-function startRunner() {
+// Starts a detached runner for one target. If a runner already holds that target's lock, the new
+// one exits at once and the running one picks the row up.
+export function startRunner(targetKey) {
   const logFd = openSync(join(stateDirectory(), "runner.log"), "a", 0o600);
   try {
-    spawn(process.execPath, [join(import.meta.dir, "runner.js")], {
+    spawn(process.execPath, [join(import.meta.dir, "runner.js"), "--target", targetKey], {
       // Bun loads `.env` and `bunfig.toml` from the working directory, which for the hook is the
       // agent's project; the plugin directory keeps that project out of the runner.
       cwd: import.meta.dir,
@@ -107,8 +110,8 @@ function startRunner() {
 async function runEnqueue(args) {
   try {
     const hookInput = JSON.parse(await Bun.stdin.text());
-    const id = enqueue(openQueue(), { harnessName: flagValue(args, "--harness"), hookInput, env: process.env });
-    if (id !== null) startRunner();
+    const queued = enqueue(openQueue(), { harnessName: flagValue(args, "--harness"), hookInput, env: process.env });
+    if (queued) startRunner(queued.targetKey);
   } catch (error) {
     logEnqueueError(error);
   }

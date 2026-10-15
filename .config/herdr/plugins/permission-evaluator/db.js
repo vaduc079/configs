@@ -5,8 +5,6 @@ import { chmodSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
-const LOCK_NAME = "runner";
-
 export function stateDirectory() {
   return (
     process.env.HERDR_PLUGIN_STATE_DIR ||
@@ -84,55 +82,69 @@ export function insertAsk(db, { harness, sessionId, target, targetKey, context, 
   return Number(result.lastInsertRowid);
 }
 
-// Takes the lock, or renews it when `holder` already owns it. Returns false while another
-// live run holds it; an expired lease means that run died and the lock is free.
-export function acquireLock(db, holder, leaseMs, now = Date.now()) {
+// Takes the lock `name` (one per target), or renews it when `holder` already owns it. Returns
+// false while another live run holds it; an expired lease means that run died and the lock is free.
+export function acquireLock(db, name, holder, leaseMs, now = Date.now()) {
   const acquire = db.transaction(() => {
     const lock = db
       .query("SELECT holder, expires_at FROM runner_lock WHERE name = $name")
-      .get({ name: LOCK_NAME });
+      .get({ name });
     const heldByOther = lock && lock.holder !== holder && Date.parse(lock.expires_at) > now;
     if (heldByOther) return false;
 
     db.query(
       `INSERT INTO runner_lock (name, holder, expires_at) VALUES ($name, $holder, $expiresAt)
        ON CONFLICT (name) DO UPDATE SET holder = excluded.holder, expires_at = excluded.expires_at`,
-    ).run({ name: LOCK_NAME, holder, expiresAt: iso(now + leaseMs) });
+    ).run({ name, holder, expiresAt: iso(now + leaseMs) });
     return true;
   });
   return acquire.immediate();
 }
 
-export function releaseLock(db, holder) {
-  db.query("DELETE FROM runner_lock WHERE name = $name AND holder = $holder").run({
-    name: LOCK_NAME,
-    holder,
-  });
+export function releaseLock(db, name, holder) {
+  db.query("DELETE FROM runner_lock WHERE name = $name AND holder = $holder").run({ name, holder });
 }
 
-// Run with the lock held: any in_progress row belongs to a run that died mid-evaluation.
-export function prepareQueue(db, { expireAfterMs, retentionMs, now = Date.now() }) {
+// Run with the target's lock held: any in_progress row on it belongs to a run that died
+// mid-evaluation.
+export function prepareTarget(db, { targetKey, expireAfterMs, now = Date.now() }) {
   const prepare = db.transaction(() => {
     db.query(
       `UPDATE permission_asks SET status = 'pending', attempts = attempts + 1
-       WHERE status = 'in_progress'`,
-    ).run();
+       WHERE status = 'in_progress' AND target_key = $targetKey`,
+    ).run({ targetKey });
     db.query(
       `UPDATE permission_asks
        SET status = 'stale', reason = 'expired before evaluation', decided_at = $now
-       WHERE status = 'pending' AND created_at < $cutoff`,
-    ).run({ now: iso(now), cutoff: iso(now - expireAfterMs) });
-    db.query("DELETE FROM permission_asks WHERE created_at < $cutoff AND status <> 'pending'").run({
-      cutoff: iso(now - retentionMs),
-    });
+       WHERE status = 'pending' AND target_key = $targetKey AND created_at < $cutoff`,
+    ).run({ targetKey, now: iso(now), cutoff: iso(now - expireAfterMs) });
   });
   prepare.immediate();
 }
 
-export function pendingAsks(db) {
+export function deleteOldRows(db, { retentionMs, now = Date.now() }) {
+  db.query("DELETE FROM permission_asks WHERE created_at < $cutoff AND status NOT IN ('pending', 'in_progress')").run({
+    cutoff: iso(now - retentionMs),
+  });
+}
+
+export function pendingTargetKeys(db) {
   return db
-    .query("SELECT id, target_key, created_at FROM permission_asks WHERE status = 'pending' ORDER BY id")
-    .all();
+    .query(
+      `SELECT target_key FROM permission_asks WHERE status = 'pending'
+       GROUP BY target_key ORDER BY MIN(id)`,
+    )
+    .all()
+    .map((row) => row.target_key);
+}
+
+export function pendingAsks(db, targetKey) {
+  return db
+    .query(
+      `SELECT id, created_at FROM permission_asks
+       WHERE status = 'pending' AND target_key = $targetKey ORDER BY id`,
+    )
+    .all({ targetKey });
 }
 
 // Claims the oldest pending rows created before `claimableBefore`.

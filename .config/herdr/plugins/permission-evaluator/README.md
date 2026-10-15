@@ -1,9 +1,10 @@
 # Permission Evaluator
 
 Approves safe agent permission prompts without a human. Every prompt is queued by the agent
-harness's permission hook, which also starts a runner right away (launchd starts one every minute
-as a sweep). The runner evaluates the queue with a short-lived headless Claude, which either
-approves the prompt once through Herdr or leaves it for you and sends a notification.
+harness's permission hook, which also starts a runner for that pane right away (launchd sweeps the
+queue every minute as a backup). The runner evaluates the pane's queue with a short-lived headless
+Claude, which either approves the prompt once through Herdr or leaves it for you and sends a
+notification. Each pane has its own lock, so different panes are evaluated in parallel.
 
 Set `dryRun: true` in `runner.js` to record what it would approve without sending keys.
 
@@ -11,21 +12,24 @@ Set `dryRun: true` in `runner.js` to record what it would approve without sendin
 
 ```text
 harness permission hook ──> queue.js enqueue ──> queue.db (pending)
-                                   └─> starts runner.js (detached)
-launchd (60 s, sweep) ──> runner.js ──> one claude -p per target ──> herdr send-keys enter
-                                  └─> handled / need_human (+ notification) / stale
+                                   └─> runner.js --target <pane> (detached)
+launchd (60 s) ──> runner.js (sweep) ──> runner.js --target <pane>, one per pane with pending rows
+
+runner.js --target <pane> ──> lock <pane> ──> claude -p ──> herdr send-keys enter
+                                         └─> handled / need_human (+ notification) / stale
 ```
 
 1. The harness hook (Claude Code `PermissionRequest`) runs `queue.js enqueue`, which stores the ask
    with its target (where the agent runs) and context (tool and input), then exits 0 without a
    decision, so the normal dialog shows. Asks outside a supported target are ignored. For a stored
-   ask it starts a detached `runner.js` from the plugin directory with launchd's environment.
-2. `runner.js` takes a lock in the DB (one runner at a time; a runner that finds it held exits),
-   puts rows from a dead run back to pending, expires rows pending for more than 15 minutes, and
-   exits if nothing is pending. It waits until rows are `minAgeMs` old so the dialog is drawn.
-3. For each target, oldest first and up to `maxConcurrentTargets` at once, it claims the pending
-   rows and starts one `claude -p` with only
-   that target's inspection commands allowed, plus `enter` on that target in active mode.
+   ask it starts a detached `runner.js --target <pane>` from the plugin directory with launchd's
+   environment.
+2. The runner takes that pane's lock in the DB (a runner that finds it held exits: the holder
+   handles the ask). It waits until the pane's oldest untried row is `minAgeMs` old so the dialog
+   is drawn, puts the pane's rows from a dead run back to pending, and expires its rows pending for
+   more than 15 minutes.
+3. It claims the pane's pending rows and starts one `claude -p` with only that pane's inspection
+   commands allowed, plus `enter` on that pane in active mode.
 4. The evaluator handles rows in order. For each it reads the screen:
    - showing an escalation still waiting for you -> `deferred` (stays pending) for the rest;
    - not this row's prompt -> `stale` (answered elsewhere);
@@ -33,10 +37,13 @@ launchd (60 s, sweep) ──> runner.js ──> one claude -p per target ──>
 5. The runner validates the result (one result per claimed row), records it, appends the audit
    log and notifies you for each `need_human`. A failed evaluation returns the rows to pending;
    after 3 failures they become `need_human`.
-6. The runner repeats steps 3–5 until no row it has not tried yet is pending, so asks that arrive
-   during a run (including ones whose own runner found the lock held) are handled by it. Rows it
-   deferred or failed wait for the next run, unless a newer ask on the same target brings them back. After releasing the lock it retakes it if a new ask
-   arrived meanwhile.
+6. The runner repeats steps 2–5 until no row it has not tried yet is pending on the pane, so asks
+   that arrive during a run (including ones whose own runner found the lock held) are handled by
+   it. Rows it deferred or failed wait for the next run, unless a newer ask on the pane brings them
+   back. After releasing the lock it retakes it if a new ask arrived meanwhile.
+7. The launchd sweep (`runner.js` without arguments) deletes decided rows past retention and starts
+   a runner for each pane with pending rows: asks whose own runner never started, and asks deferred
+   behind an escalation.
 
 Every failure path leaves the prompt on screen for you; nothing is approved on error.
 
@@ -45,7 +52,7 @@ Every failure path leaves the prompt on screen for you; nothing is approved on e
 | Path | Role |
 |---|---|
 | `queue.js` | Hook entry point (`enqueue --harness <name>`) and `status` |
-| `runner.js` | Runner started by the hook and by launchd; `CONFIG` lives here |
+| `runner.js` | Per-pane runner (`--target`, started by the hook) and launchd sweep; `CONFIG` lives here |
 | `db.js` | SQLite schema and queue operations |
 | `evaluator.js` | Evaluator prompt, `claude -p` arguments, result validation |
 | `harnesses/` | One adapter per agent harness: parse the hook payload, describe the prompt UI |
@@ -107,12 +114,11 @@ ends up in the evaluator's Bash allowlist.
 | `notifyEnabled` | `true` | macOS notification for each `need_human` |
 | `model` | `claude-haiku-5-5` | Evaluator model |
 | `maxRowsPerTarget` | `10` | Rows per evaluator run |
-| `maxConcurrentTargets` | `3` | Targets evaluated in parallel (one `claude -p` each) |
 | `baseTimeoutMs`, `perRowTimeoutMs` | `45 s`, `15 s` | Evaluator timeout = base + per row |
 | `maxAttempts` | `3` | Failed evaluations before a row becomes `need_human` |
-| `minAgeMs` | `5 s` | The runner waits until rows are this old before claiming them (the dialog may not be drawn yet) |
+| `minAgeMs` | `1 s` | The runner waits until rows are this old before claiming them (the dialog may not be drawn yet) |
 | `expireAfterMs` | `15 min` | Pending rows older than this become `stale` |
-| `lockLeaseMs` | `10 min` | Lock lease; renewed per target |
+| `lockLeaseMs` | `10 min` | Per-pane lock lease; renewed before every claim |
 | `retentionMs` | `30 days` | Decided rows older than this are deleted |
 
 ## Approval policy
