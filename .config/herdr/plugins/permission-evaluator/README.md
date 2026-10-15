@@ -97,7 +97,7 @@ ends up in the evaluator's Bash allowlist.
 | `dryRun` | `true` | Record would-approve decisions without sending keys |
 | `auditEnabled` | `true` | Append `audit.jsonl` for the viewer |
 | `notifyEnabled` | `true` | macOS notification for each `need_human` |
-| `model` | `sonnet` | Evaluator model |
+| `model` | `claude-haiku-5-5` | Evaluator model |
 | `maxRowsPerTarget` | `10` | Rows per evaluator run |
 | `maxConcurrentTargets` | `3` | Targets evaluated in parallel (one `claude -p` each) |
 | `baseTimeoutMs`, `perRowTimeoutMs` | `45 s`, `15 s` | Evaluator timeout = base + per row |

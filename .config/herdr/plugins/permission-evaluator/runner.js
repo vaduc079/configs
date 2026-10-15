@@ -28,10 +28,10 @@ import { TARGETS } from "./targets/index.js";
 const MINUTE = 60_000;
 
 const CONFIG = {
-  dryRun: true,
+  dryRun: false,
   auditEnabled: true,
   notifyEnabled: true,
-  model: "sonnet",
+  model: "claude-haiku-5-5",
   maxRowsPerTarget: 10,
   maxConcurrentTargets: 3,
   baseTimeoutMs: 45_000,
@@ -124,25 +124,25 @@ async function processTarget(targetKey, { db, runId, config, evaluate, notify, a
   const outcome = unsupported
     ? { results: null, error: unsupported }
     : await evaluate({
-        driver,
-        target,
-        rows,
-        awaitingHuman: awaitingHuman(db, { targetKey, since: Date.now() - config.expireAfterMs }),
-        policy,
-        config,
-        pluginRoot,
-      });
+      driver,
+      target,
+      rows,
+      awaitingHuman: awaitingHuman(db, { targetKey, since: Date.now() - config.expireAfterMs }),
+      policy,
+      config,
+      pluginRoot,
+    });
   const durationMs = Date.now() - startedAt;
 
   const recordedIds = outcome.results
     ? recordResults(db, { runId, results: outcome.results, policyHash: policyDigest, dryRun: config.dryRun })
     : recordFailure(db, {
-        runId,
-        ids: rows.map((row) => row.id),
-        error: outcome.error,
-        maxAttempts: config.maxAttempts,
-        policyHash: policyDigest,
-      });
+      runId,
+      ids: rows.map((row) => row.id),
+      error: outcome.error,
+      maxAttempts: config.maxAttempts,
+      policyHash: policyDigest,
+    });
   // Only rows this run actually wrote: if it lost them to another run, that run reports them.
   const recordedAsks = getAsks(db, recordedIds);
 
