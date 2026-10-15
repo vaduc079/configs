@@ -229,7 +229,7 @@ describe("drainUntilIdle", () => {
   function untilIdle(db, evaluate, config = CONFIG) {
     const evaluated = [];
     acquireLock(db, "run-1", config.lockLeaseMs);
-    const claimedAny = drainUntilIdle(db, {
+    const done = drainUntilIdle(db, {
       runId: "run-1",
       config,
       pluginRoot: pluginRootWithPolicy(),
@@ -240,7 +240,7 @@ describe("drainUntilIdle", () => {
       notify: () => {},
       audit: () => {},
     });
-    return claimedAny.then((value) => ({ claimedAny: value, evaluated }));
+    return done.then(() => ({ evaluated }));
   }
 
   const approveAll = ({ rows }) => ({
@@ -253,12 +253,11 @@ describe("drainUntilIdle", () => {
     const first = addAsk(db);
     let second;
 
-    const { claimedAny, evaluated } = await untilIdle(db, (input) => {
+    const { evaluated } = await untilIdle(db, (input) => {
       second ??= addAsk(db);
       return approveAll(input);
     });
 
-    expect(claimedAny).toBe(true);
     expect(evaluated).toEqual([[first], [second]]);
     expect(getAsks(db, [first, second]).map((ask) => ask.status)).toEqual(["handled", "handled"]);
   });
@@ -289,13 +288,15 @@ describe("drainUntilIdle", () => {
     expect(Date.now() - startedAt).toBeGreaterThanOrEqual(90);
   });
 
-  test("stops when the lock is lost instead of spinning", async () => {
+  test("stops without touching the other runner's claims when the lock is lost", async () => {
     const db = openQueue(":memory:");
     const id = addAsk(db);
+    const theirs = addAsk(db, { type: "herdr", pane_id: "w1:p3" });
+    db.query("UPDATE permission_asks SET status = 'in_progress', run_id = 'run-2' WHERE id = $id").run({ id: theirs });
     acquireLock(db, "run-1", CONFIG.lockLeaseMs);
     db.query("UPDATE runner_lock SET holder = 'run-2'").run();
 
-    const claimedAny = await drainUntilIdle(db, {
+    await drainUntilIdle(db, {
       runId: "run-1",
       config: CONFIG,
       pluginRoot: pluginRootWithPolicy(),
@@ -306,7 +307,6 @@ describe("drainUntilIdle", () => {
       audit: () => {},
     });
 
-    expect(claimedAny).toBe(false);
-    expect(getAsks(db, [id])[0].status).toBe("pending");
+    expect(getAsks(db, [id, theirs]).map((ask) => ask.status)).toEqual(["pending", "in_progress"]);
   });
 });

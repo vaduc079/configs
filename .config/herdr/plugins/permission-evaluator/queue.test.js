@@ -14,7 +14,7 @@ import {
   recordResults,
   releaseLock,
 } from "./db.js";
-import { enqueue, truncateStrings } from "./queue.js";
+import { enqueue, runnerEnvironment, truncateStrings } from "./queue.js";
 
 const HERDR_ENV = { HERDR_ENV: "1", HERDR_PANE_ID: "w1:p2", HERDR_SOCKET_PATH: "/tmp/herdr.sock" };
 
@@ -83,6 +83,23 @@ describe("enqueue", () => {
   test("rejects unknown harnesses", () => {
     const db = openQueue(":memory:");
     expect(() => enqueue(db, { harnessName: "nope", hookInput: {}, env: HERDR_ENV })).toThrow();
+  });
+
+  test("gives the runner launchd's environment, not the agent session's", () => {
+    const environment = runnerEnvironment({
+      HOME: "/Users/me",
+      USER: "me",
+      PATH: "/repo/node_modules/.bin:/usr/bin",
+      CLAUDECODE: "1",
+      ANTHROPIC_BASE_URL: "http://evil",
+      HERDR_PANE_ID: "w1:p2",
+    });
+
+    expect(environment).toEqual({
+      HOME: "/Users/me",
+      USER: "me",
+      PATH: "/Users/me/.local/bin:/Users/me/.bun/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+    });
   });
 
   test("truncates long strings anywhere in the context", () => {

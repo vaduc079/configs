@@ -19,7 +19,7 @@ launchd (60 s, sweep) ──> runner.js ──> one claude -p per target ──>
 1. The harness hook (Claude Code `PermissionRequest`) runs `queue.js enqueue`, which stores the ask
    with its target (where the agent runs) and context (tool and input), then exits 0 without a
    decision, so the normal dialog shows. Asks outside a supported target are ignored. For a stored
-   ask it starts a detached `runner.js` with a launchd-like environment.
+   ask it starts a detached `runner.js` from the plugin directory with launchd's environment.
 2. `runner.js` takes a lock in the DB (one runner at a time; a runner that finds it held exits),
    puts rows from a dead run back to pending, expires rows pending for more than 15 minutes, and
    exits if nothing is pending. It waits until rows are `minAgeMs` old so the dialog is drawn.
@@ -35,8 +35,8 @@ launchd (60 s, sweep) ──> runner.js ──> one claude -p per target ──>
    after 3 failures they become `need_human`.
 6. The runner repeats steps 3–5 until no row it has not tried yet is pending, so asks that arrive
    during a run (including ones whose own runner found the lock held) are handled by it. Rows it
-   deferred or failed wait for the next run. After releasing the lock it checks once more and
-   retakes it if an ask slipped in.
+   deferred or failed wait for the next run. After releasing the lock it retakes it if a new ask
+   arrived meanwhile.
 
 Every failure path leaves the prompt on screen for you; nothing is approved on error.
 

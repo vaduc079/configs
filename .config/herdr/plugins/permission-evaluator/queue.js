@@ -70,21 +70,31 @@ function logEnqueueError(error) {
   }
 }
 
-// The hook runs inside the agent's session; pass the runner only what launchd would, so the
-// evaluator's `claude -p` does not inherit that session's variables.
-const RUNNER_ENV_NAMES = ["HOME", "USER", "LOGNAME", "SHELL", "PATH", "HERDR_PLUGIN_STATE_DIR"];
+const RUNNER_ENV_NAMES = ["HOME", "USER", "LOGNAME", "SHELL", "HERDR_PLUGIN_STATE_DIR"];
+
+// The hook runs inside the agent's session. Give the runner what launchd gives it, including the
+// plist's PATH, so the evaluator's `claude -p` inherits none of that session's variables.
+export function runnerEnvironment(env) {
+  const environment = {
+    PATH: [`${env.HOME}/.local/bin`, `${env.HOME}/.bun/bin`, "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"].join(":"),
+  };
+  for (const name of RUNNER_ENV_NAMES) {
+    if (env[name]) environment[name] = env[name];
+  }
+  return environment;
+}
 
 // If a runner already holds the lock, this one exits at once and the running one picks the row up.
 function startRunner() {
-  const environment = Object.fromEntries(
-    RUNNER_ENV_NAMES.filter((name) => process.env[name]).map((name) => [name, process.env[name]]),
-  );
   const logFd = openSync(join(stateDirectory(), "runner.log"), "a", 0o600);
   try {
     spawn(process.execPath, [join(import.meta.dir, "runner.js")], {
+      // Bun loads `.env` and `bunfig.toml` from the working directory, which for the hook is the
+      // agent's project; the plugin directory keeps that project out of the runner.
+      cwd: import.meta.dir,
       detached: true,
       stdio: ["ignore", logFd, logFd],
-      env: environment,
+      env: runnerEnvironment(process.env),
     }).unref();
   } finally {
     closeSync(logFd);

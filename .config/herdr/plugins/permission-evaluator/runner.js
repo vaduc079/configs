@@ -226,25 +226,28 @@ export async function drainQueue(db, {
 
 // Repeats passes until no untried row is pending, waiting for rows that are still too young to
 // claim. A row deferred or failed in this run is not retried by it; the next run picks it up.
-// Returns whether any row was claimed.
 export async function drainUntilIdle(db, { attempted = new Set(), config = CONFIG, ...options }) {
-  let claimedAny = false;
   while (true) {
     const [oldest] = untriedAsks(db, attempted);
-    if (!oldest) return claimedAny;
+    if (!oldest) return;
 
     const msUntilClaimable = Date.parse(oldest.created_at) + config.minAgeMs - Date.now();
     if (msUntilClaimable > 0) await Bun.sleep(Math.min(msUntilClaimable, config.minAgeMs));
 
+    // Check before the pass: once another runner owns the queue, even the pass's recovery of
+    // in_progress rows would hand that runner's claims out a second time.
+    if (!acquireLock(db, options.runId, config.lockLeaseMs)) return;
+
     const attemptedBefore = attempted.size;
     await drainQueue(db, { ...options, attempted, config });
-    const claimedNow = attempted.size > attemptedBefore;
-    claimedAny ||= claimedNow;
+    if (attempted.size > attemptedBefore) continue;
 
-    // The oldest row still untried after a pass that claimed nothing means the lock was lost;
-    // stop instead of spinning. (An expired oldest row is no longer pending, so the loop goes on.)
-    const stuck = !claimedNow && untriedAsks(db, attempted)[0]?.id === oldest.id;
-    if (stuck) return claimedAny;
+    // A pass that claimed nothing although the oldest row was claimable cannot progress (its
+    // target's claim limit is filled by rows already tried); stop instead of spinning. A row
+    // that is still too young, e.g. after a wall-clock step, gets another wait.
+    const oldestIsClaimable = Date.parse(oldest.created_at) + config.minAgeMs <= Date.now();
+    const stillOldest = untriedAsks(db, attempted)[0]?.id === oldest.id;
+    if (stillOldest && oldestIsClaimable) return;
   }
 }
 
@@ -256,16 +259,17 @@ async function main() {
   const attempted = new Set();
 
   while (acquireLock(db, runId, CONFIG.lockLeaseMs)) {
-    let claimedAny;
+    let lastSeenId;
     try {
-      claimedAny = await drainUntilIdle(db, { runId, attempted });
+      await drainUntilIdle(db, { runId, attempted });
+      lastSeenId = pendingAsks(db).at(-1)?.id ?? 0;
     } finally {
       releaseLock(db, runId);
     }
     // A hook that enqueued just before the release saw our lock held and started no runner,
-    // so pick its row up here.
-    const missedAsk = untriedAsks(db, attempted).length > 0;
-    if (!claimedAny || !missedAsk) return;
+    // so pick its row up here. Each extra round needs a new ask, so this ends.
+    const missedAsk = pendingAsks(db).some((ask) => ask.id > lastSeenId);
+    if (!missedAsk) return;
   }
 }
 
