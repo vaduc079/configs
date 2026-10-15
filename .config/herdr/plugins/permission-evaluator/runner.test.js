@@ -288,20 +288,21 @@ describe("drainUntilIdle", () => {
     expect(Date.now() - startedAt).toBeGreaterThanOrEqual(90);
   });
 
-  test("leaves a row dated in the future (wall clock stepped back) to a later run", async () => {
+  test("skips a row dated in the future (wall clock stepped back) without blocking newer rows", async () => {
     const db = openQueue(":memory:");
-    const id = insertAsk(db, {
+    const future = insertAsk(db, {
       harness: "claude",
       target: { type: "herdr", pane_id: "w1:p2" },
       targetKey: "herdr:w1:p2",
       context: { summary: "Bash: ls" },
       now: Date.now() + 60 * 60_000,
     });
+    const current = addAsk(db, { type: "herdr", pane_id: "w1:p3" });
 
     const { evaluated } = await untilIdle(db, approveAll, { ...CONFIG, minAgeMs: 100 });
 
-    expect(evaluated).toEqual([]);
-    expect(getAsks(db, [id])[0].status).toBe("pending");
+    expect(evaluated).toEqual([[current]]);
+    expect(getAsks(db, [future, current]).map((ask) => ask.status)).toEqual(["pending", "handled"]);
   });
 
   test("stops without touching the other runner's claims when the lock is lost", async () => {

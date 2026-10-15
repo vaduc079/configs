@@ -180,8 +180,13 @@ async function runWithConcurrency(items, limit, worker) {
   await Promise.all(lanes);
 }
 
+// A row dated in the future means the wall clock stepped back; it waits until the clock passes it.
+function isUntried(ask, attempted) {
+  return !attempted.has(ask.id) && Date.parse(ask.created_at) <= Date.now();
+}
+
 function untriedAsks(db, attempted) {
-  return pendingAsks(db).filter((ask) => !attempted.has(ask.id));
+  return pendingAsks(db).filter((ask) => isUntried(ask, attempted));
 }
 
 // One pass over the targets with an untried pending row, with the lock already held. Every row
@@ -232,13 +237,11 @@ export async function drainUntilIdle(db, { attempted = new Set(), config = CONFI
   while (true) {
     const pending = pendingAsks(db);
     const lastSeenId = pending.at(-1)?.id ?? 0;
-    const oldest = pending.find((ask) => !attempted.has(ask.id));
+    const oldest = pending.find((ask) => isUntried(ask, attempted));
     if (!oldest) return lastSeenId;
 
     const claimableAt = Date.parse(oldest.created_at) + config.minAgeMs;
     const msUntilClaimable = claimableAt - Date.now();
-    // Further ahead than minAgeMs means the wall clock stepped back; leave the row to a later run.
-    if (msUntilClaimable > config.minAgeMs) return lastSeenId;
     if (msUntilClaimable > 0) await Bun.sleep(msUntilClaimable);
 
     // Check before the pass: once another runner owns the queue, even the pass's recovery of
