@@ -11,6 +11,7 @@
 
 import { spawn } from "node:child_process";
 import { appendFileSync, closeSync, mkdirSync, openSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { insertAsk, openQueue, stateDirectory, statusCounts } from "./db.js";
 import { HARNESSES } from "./harnesses/index.js";
@@ -72,11 +73,13 @@ function logEnqueueError(error) {
 
 const RUNNER_ENV_NAMES = ["HOME", "USER", "LOGNAME", "SHELL", "HERDR_PLUGIN_STATE_DIR"];
 
-// The hook runs inside the agent's session. Give the runner what launchd gives it, including the
-// plist's PATH, so the evaluator's `claude -p` inherits none of that session's variables.
+// The hook runs inside the agent's session. Give the runner what launchd gives it, so the
+// evaluator's `claude -p` inherits none of that session's variables. Keep PATH in sync with
+// Library/LaunchAgents/com.duc.herdr-permission-runner.plist.
 export function runnerEnvironment(env) {
+  const home = env.HOME || homedir();
   const environment = {
-    PATH: [`${env.HOME}/.local/bin`, `${env.HOME}/.bun/bin`, "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"].join(":"),
+    PATH: [`${home}/.local/bin`, `${home}/.bun/bin`, "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"].join(":"),
   };
   for (const name of RUNNER_ENV_NAMES) {
     if (env[name]) environment[name] = env[name];

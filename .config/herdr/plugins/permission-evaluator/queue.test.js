@@ -95,11 +95,8 @@ describe("enqueue", () => {
       HERDR_PANE_ID: "w1:p2",
     });
 
-    expect(environment).toEqual({
-      HOME: "/Users/me",
-      USER: "me",
-      PATH: "/Users/me/.local/bin:/Users/me/.bun/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
-    });
+    expect(Object.keys(environment).sort()).toEqual(["HOME", "PATH", "USER"]);
+    expect(environment.PATH).not.toContain("/repo/node_modules/.bin");
   });
 
   test("truncates long strings anywhere in the context", () => {

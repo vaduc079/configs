@@ -225,18 +225,25 @@ export async function drainQueue(db, {
 }
 
 // Repeats passes until no untried row is pending, waiting for rows that are still too young to
-// claim. A row deferred or failed in this run is not retried by it; the next run picks it up.
+// claim. A row deferred or failed in this run is only retried alongside a newer ask on its target;
+// otherwise the next run picks it up. Returns the highest pending id it last saw, so the caller
+// can tell which asks arrived after its final check.
 export async function drainUntilIdle(db, { attempted = new Set(), config = CONFIG, ...options }) {
   while (true) {
-    const [oldest] = untriedAsks(db, attempted);
-    if (!oldest) return;
+    const pending = pendingAsks(db);
+    const lastSeenId = pending.at(-1)?.id ?? 0;
+    const oldest = pending.find((ask) => !attempted.has(ask.id));
+    if (!oldest) return lastSeenId;
 
-    const msUntilClaimable = Date.parse(oldest.created_at) + config.minAgeMs - Date.now();
-    if (msUntilClaimable > 0) await Bun.sleep(Math.min(msUntilClaimable, config.minAgeMs));
+    const claimableAt = Date.parse(oldest.created_at) + config.minAgeMs;
+    const msUntilClaimable = claimableAt - Date.now();
+    // Further ahead than minAgeMs means the wall clock stepped back; leave the row to a later run.
+    if (msUntilClaimable > config.minAgeMs) return lastSeenId;
+    if (msUntilClaimable > 0) await Bun.sleep(msUntilClaimable);
 
     // Check before the pass: once another runner owns the queue, even the pass's recovery of
     // in_progress rows would hand that runner's claims out a second time.
-    if (!acquireLock(db, options.runId, config.lockLeaseMs)) return;
+    if (!acquireLock(db, options.runId, config.lockLeaseMs)) return lastSeenId;
 
     const attemptedBefore = attempted.size;
     await drainQueue(db, { ...options, attempted, config });
@@ -245,9 +252,9 @@ export async function drainUntilIdle(db, { attempted = new Set(), config = CONFI
     // A pass that claimed nothing although the oldest row was claimable cannot progress (its
     // target's claim limit is filled by rows already tried); stop instead of spinning. A row
     // that is still too young, e.g. after a wall-clock step, gets another wait.
-    const oldestIsClaimable = Date.parse(oldest.created_at) + config.minAgeMs <= Date.now();
+    const oldestIsClaimable = claimableAt <= Date.now();
     const stillOldest = untriedAsks(db, attempted)[0]?.id === oldest.id;
-    if (stillOldest && oldestIsClaimable) return;
+    if (stillOldest && oldestIsClaimable) return lastSeenId;
   }
 }
 
@@ -261,8 +268,7 @@ async function main() {
   while (acquireLock(db, runId, CONFIG.lockLeaseMs)) {
     let lastSeenId;
     try {
-      await drainUntilIdle(db, { runId, attempted });
-      lastSeenId = pendingAsks(db).at(-1)?.id ?? 0;
+      lastSeenId = await drainUntilIdle(db, { runId, attempted });
     } finally {
       releaseLock(db, runId);
     }

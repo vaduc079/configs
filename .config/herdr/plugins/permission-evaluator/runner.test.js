@@ -288,6 +288,22 @@ describe("drainUntilIdle", () => {
     expect(Date.now() - startedAt).toBeGreaterThanOrEqual(90);
   });
 
+  test("leaves a row dated in the future (wall clock stepped back) to a later run", async () => {
+    const db = openQueue(":memory:");
+    const id = insertAsk(db, {
+      harness: "claude",
+      target: { type: "herdr", pane_id: "w1:p2" },
+      targetKey: "herdr:w1:p2",
+      context: { summary: "Bash: ls" },
+      now: Date.now() + 60 * 60_000,
+    });
+
+    const { evaluated } = await untilIdle(db, approveAll, { ...CONFIG, minAgeMs: 100 });
+
+    expect(evaluated).toEqual([]);
+    expect(getAsks(db, [id])[0].status).toBe("pending");
+  });
+
   test("stops without touching the other runner's claims when the lock is lost", async () => {
     const db = openQueue(":memory:");
     const id = addAsk(db);

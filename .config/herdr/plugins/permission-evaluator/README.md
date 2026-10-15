@@ -35,7 +35,7 @@ launchd (60 s, sweep) ──> runner.js ──> one claude -p per target ──>
    after 3 failures they become `need_human`.
 6. The runner repeats steps 3–5 until no row it has not tried yet is pending, so asks that arrive
    during a run (including ones whose own runner found the lock held) are handled by it. Rows it
-   deferred or failed wait for the next run. After releasing the lock it retakes it if a new ask
+   deferred or failed wait for the next run, unless a newer ask on the same target brings them back. After releasing the lock it retakes it if a new ask
    arrived meanwhile.
 
 Every failure path leaves the prompt on screen for you; nothing is approved on error.
