@@ -1,7 +1,10 @@
 #!/usr/bin/env bun
 
-import { describe, expect, test } from "bun:test";
-import { askDetail, snapshot } from "./dashboard.js";
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdtempSync, readFileSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { askDetail, serve, snapshot } from "./dashboard.js";
 import { acquireLock, claimTarget, insertAsk, openQueue, recordResults } from "./db.js";
 
 const CONFIG = { dryRun: false, model: "test-model", expireAfterMs: 15 * 60_000 };
@@ -125,4 +128,54 @@ test("askDetail returns the full row with parsed JSON, or null", () => {
 
   expect(askDetail(db, id)).toMatchObject({ id, target: { pane_id: "w1:p2" }, context: { input: { command: "ls" } } });
   expect(askDetail(db, id + 1)).toBeNull();
+});
+
+describe("server", () => {
+  const servers = [];
+  afterEach(() => {
+    for (const server of servers.splice(0)) server.stop(true);
+  });
+
+  function start(db = openQueue(":memory:")) {
+    const tokenPath = join(mkdtempSync(join(tmpdir(), "dashboard-")), "dashboard.token");
+    const { server, token } = serve({ port: 0, db, tokenPath });
+    servers.push(server);
+    const get = (path, headers = {}) => fetch(`http://127.0.0.1:${server.port}${path}`, { headers });
+    return { server, token, tokenPath, get, auth: { "x-herdr-permission-dashboard": token } };
+  }
+
+  test("serves the page without a token but the API only with it", async () => {
+    const db = openQueue(":memory:");
+    const id = addAsk(db);
+    const { get, auth } = start(db);
+
+    expect((await get("/")).status).toBe(200);
+    expect((await get(`/api/asks/${id}`)).status).toBe(401);
+    expect((await get(`/api/asks/${id}`, { "x-herdr-permission-dashboard": "wrong" })).status).toBe(401);
+    expect(await (await get(`/api/asks/${id}`, auth)).json()).toMatchObject({ id });
+  });
+
+  test("rejects requests addressed to another host", async () => {
+    const { get, auth } = start();
+
+    expect((await get("/", { host: "attacker.example" })).status).toBe(403);
+    expect((await get("/api/ping", { ...auth, host: "attacker.example" })).status).toBe(403);
+  });
+
+  test("focuses only on POST", async () => {
+    const db = openQueue(":memory:");
+    const id = addAsk(db);
+    const { get, auth } = start(db);
+
+    expect((await get(`/api/asks/${id}/focus`, auth)).status).toBe(404);
+  });
+
+  test("writes its token privately, and a server that cannot bind leaves it alone", () => {
+    const { server, token, tokenPath } = start();
+
+    expect(readFileSync(tokenPath, "utf8")).toBe(token);
+    expect(statSync(tokenPath).mode & 0o777).toBe(0o600);
+    expect(() => serve({ port: server.port, db: openQueue(":memory:"), tokenPath })).toThrow();
+    expect(readFileSync(tokenPath, "utf8")).toBe(token);
+  });
 });

@@ -13,7 +13,7 @@
 
 import { spawn } from "node:child_process";
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { holderIsAlive, openQueue, stateDirectory } from "./db.js";
 import { loadPolicy, policyHash } from "./evaluator.js";
@@ -35,9 +35,6 @@ const args = process.argv.slice(2);
 const portFlag = args.indexOf("--port");
 const port = portFlag >= 0 ? Number(args[portFlag + 1]) : 7788;
 const url = `http://127.0.0.1:${port}/`;
-// The API serves command text, so only requests addressed to this host are answered: a page that
-// rebinds its own DNS name to 127.0.0.1 still sends that name in Host.
-const ALLOWED_HOSTS = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
 
 const stateDir = stateDirectory();
 const pageFile = join(import.meta.dir, "dashboard.html");
@@ -52,6 +49,13 @@ function readToken() {
   } catch {
     return null;
   }
+}
+
+// Through a rename, so a reader never sees a half-written token.
+function writeToken(path, token) {
+  const temporary = `${path}.${process.pid}.tmp`;
+  writeFileSync(temporary, token, { mode: 0o600 });
+  renameSync(temporary, path);
 }
 
 function hasToken(request, token) {
@@ -81,10 +85,6 @@ function preview(row) {
     cwd: cwd ?? null,
     latency_ms: row.decided_at ? Date.parse(row.decided_at) - Date.parse(row.created_at) : null,
   };
-}
-
-function isOpen(status) {
-  return status === "pending" || status === "in_progress";
 }
 
 // Everything the dashboard shows that comes from the queue. `agents` is the multiplexer's live
@@ -128,7 +128,7 @@ export function snapshot(db, { now = Date.now(), config = CONFIG, agents = null 
     .query("SELECT status, dry_run, created_at, decided_at FROM permission_asks WHERE created_at >= $since")
     .all({ since: iso(now - 24 * HOUR_MS) });
   for (const row of lastDay) {
-    const bucket = isOpen(row.status) ? "open" : row.status;
+    const bucket = row.status === "pending" || row.status === "in_progress" ? "open" : row.status;
     const hoursAgo = Math.floor((now - Date.parse(row.created_at)) / HOUR_MS);
     if (hoursAgo >= 0 && hoursAgo < 24) hourly[23 - hoursAgo][bucket] += 1;
     counts[row.status === "handled" && row.dry_run ? "dry_run" : bucket] += 1;
@@ -277,19 +277,22 @@ async function dashboardIsRunning() {
   }
 }
 
-function serve({ idleExit }) {
-  const db = openQueue();
+// Throws when the port is taken. The token is written only once the port is bound, so a server
+// that fails to start cannot replace the token of the one already running.
+export function serve({ port, db = openQueue(), tokenPath = tokenFile, idleExit = false }) {
   const token = randomBytes(24).toString("hex");
-  writeFileSync(tokenFile, token, { mode: 0o600 });
   let lastRequestAt = Date.now();
 
   const server = Bun.serve({
     hostname: "127.0.0.1",
     port,
-    async fetch(request) {
-      lastRequestAt = Date.now();
-      const headers = { [SERVER_HEADER]: "1", "cache-control": "no-store" };
-      if (!ALLOWED_HOSTS.has(request.headers.get("host"))) {
+    error: () => new Response("Internal error", { status: 500 }),
+    async fetch(request, server) {
+      const headers = { "cache-control": "no-store" };
+      // The API serves command text, so only requests addressed to this host are answered: a page
+      // that rebinds its own DNS name to 127.0.0.1 still sends that name in Host.
+      const allowedHosts = [`127.0.0.1:${server.port}`, `localhost:${server.port}`];
+      if (!allowedHosts.includes(request.headers.get("host"))) {
         return new Response("Forbidden", { status: 403, headers });
       }
 
@@ -301,6 +304,7 @@ function serve({ idleExit }) {
         });
       }
       if (!hasToken(request, token)) return new Response("Unauthorized", { status: 401, headers });
+      lastRequestAt = Date.now();
       const isPost = request.method === "POST";
 
       if (pathname === "/api/ping") return new Response("ok", { headers });
@@ -327,6 +331,7 @@ function serve({ idleExit }) {
       return new Response("Not found", { status: 404, headers });
     },
   });
+  writeToken(tokenPath, token);
 
   if (idleExit) {
     setInterval(() => {
@@ -336,7 +341,7 @@ function serve({ idleExit }) {
     }, 30_000);
   }
 
-  return server;
+  return { server, token };
 }
 
 async function startInBackground() {
@@ -376,10 +381,9 @@ if (import.meta.main) {
   } else if (args.includes("--background")) {
     await startInBackground();
   } else if (args.includes("--serve-detached")) {
-    serve({ idleExit: true });
+    serve({ port, idleExit: true });
   } else {
-    serve({ idleExit: false });
-    const token = readToken();
+    const { token } = serve({ port });
     console.log(`Permission dashboard: ${pageUrl(token)}`);
     console.log(`Reading: ${stateDir}`);
     if (!args.includes("--no-open")) openBrowser(token);

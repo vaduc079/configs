@@ -161,7 +161,7 @@ herdr plugin action invoke dashboard-stop --plugin local.permission-evaluator
 It reads `queue.db` live (every 3 s) and shows:
 
 - **Health**: launchd sweep, open rows (flags pending > 2 min and claims whose runner died),
-  active runners (pane locks), errors in `runner.log` / `enqueue.err.log` over 24 h, policy hash,
+  active runners (pane locks), errors in the tails of `runner.log` / `enqueue.err.log`, policy hash,
   Herdr reachability.
 - **Needs you**: escalations from the last 15 minutes, marked "still waiting" while the pane is
   blocked, with a button that focuses the pane in Herdr; plus blocked panes the queue has no current

@@ -192,8 +192,8 @@ const SERVER_HEADER = "x-herdr-permission-dashboard";
 const $ = (id) => document.getElementById(id);
 
 const OUTCOMES = {
-  handled: ["approved", "ok"], need_human: ["needs you", "warn"], stale: ["stale", "idle"],
-  pending: ["pending", "info"], in_progress: ["evaluating", "info"],
+  handled: ["approved", "ok"], dry_run: ["dry run · would approve", "info"], need_human: ["needs you", "warn"],
+  stale: ["stale", "idle"], pending: ["pending", "info"], in_progress: ["evaluating", "info"],
 };
 const PANE_STATUS = {
   blocked: ["still waiting", "warn"], working: ["answered", "ok"], idle: ["answered", "ok"],
@@ -239,9 +239,13 @@ function pill(text, tone) {
   return h("span", { class: `pill ${tone}` }, text);
 }
 
+// A dry-run approval sent no keys, so it is shown apart from real approvals.
+function outcome(ask) {
+  return ask.status === "handled" && ask.dry_run ? "dry_run" : ask.status;
+}
+
 function outcomePill(ask) {
-  if (ask.status === "handled" && ask.dry_run) return pill("dry run · would approve", "info");
-  const [label, tone] = OUTCOMES[ask.status] ?? [ask.status, "idle"];
+  const [label, tone] = OUTCOMES[outcome(ask)] ?? [ask.status, "idle"];
   return pill(label, tone);
 }
 
@@ -283,17 +287,15 @@ function healthCard(label, value, detail, tone) {
     h("div", { class: "k" }, label), h("div", { class: "v" }, value), h("div", { class: "d" }, detail));
 }
 
-function countSince(lines, pattern, sinceMs) {
-  return lines.filter((line) => pattern.test(line) && Date.parse(line.slice(0, 24)) >= sinceMs).length;
-}
 
 function renderHealth() {
   const { launchd, policy, queueHealth, locks, logs, open, agents } = state;
-  const dayAgo = Date.now() - 86_400_000;
 
+  // A job that has not exited yet reports "(never exited)".
+  const sweepFailed = launchd.lastExit != null && launchd.lastExit !== "0" && !launchd.lastExit.includes("never");
   const sweep = launchd.loaded
-    ? healthCard("Sweep (launchd)", launchd.lastExit === "0" || launchd.lastExit == null ? "Loaded" : `Last exit ${launchd.lastExit}`,
-      `${launchd.runs} runs · ${launchd.state ?? ""}`, launchd.lastExit === "0" || launchd.lastExit == null ? "ok" : "warn")
+    ? healthCard("Sweep (launchd)", sweepFailed ? `Last exit ${launchd.lastExit}` : "Loaded",
+      `${launchd.runs} runs · ${launchd.state ?? ""}`, sweepFailed ? "warn" : "ok")
     : healthCard("Sweep (launchd)", "Not loaded", "launchctl bootstrap the plist", "bad");
 
   const problems = [];
@@ -310,10 +312,11 @@ function renderHealth() {
     ? healthCard("Policy", policy.hash, "policy.md loaded", "ok")
     : healthCard("Policy", "Missing", "policy.md missing or empty; asks expire to stale", "bad");
 
-  const runnerErrors = countSince(logs.runner.lines, /failed/, dayAgo);
-  const hookErrors = countSince(logs.enqueue.lines, /./, dayAgo);
-  const errors = healthCard("Errors (24 h)", `${runnerErrors + hookErrors}`,
-    `${runnerErrors} runner · ${hookErrors} hook`, runnerErrors + hookErrors ? "warn" : "ok");
+  // Counted over the log tails below, not a fixed time window.
+  const runnerErrors = logs.runner.lines.filter((line) => line.includes("failed")).length;
+  const hookErrors = logs.enqueue.lines.length;
+  const errors = healthCard("Recent errors", `${runnerErrors + hookErrors}`,
+    `${runnerErrors} runner · ${hookErrors} hook, in the log tails`, runnerErrors + hookErrors ? "warn" : "ok");
 
   const blocked = (agents ?? []).filter((agent) => agent.agent_status === "blocked").length;
   const herdr = agents
@@ -326,11 +329,10 @@ function renderHealth() {
 function renderNeedsYou() {
   const items = state.needsYou.map((ask) => {
     const [label, tone] = PANE_STATUS[ask.pane_status] ?? [ask.pane_status, "idle"];
-    let button = null;
-    if (ask.pane_status !== "gone") {
-      button = h("button", { class: ask.pane_status === "blocked" ? "primary" : "" }, "Focus pane");
-      button.addEventListener("click", () => focusPane(ask.id, button));
-    }
+    const button = ask.pane_status !== "gone" && h("button", {
+      class: ask.pane_status === "blocked" ? "primary" : "",
+      onclick: (event) => focusPane(ask.id, event.currentTarget),
+    }, "Focus pane");
     return h("div", { class: "panel ask" },
       h("div", { class: "summary" }, ask.summary),
       button && h("div", { class: "actions" }, button),
@@ -373,21 +375,17 @@ function renderStats() {
     stat("Auto-approval", rate), stat("Approval p50", duration(approvalP50Ms)), stat("Approval p90", duration(approvalP90Ms)));
 
   const max = Math.max(1, ...hourly.map((hour) => hour.handled + hour.need_human + hour.stale + hour.open));
-  fill($("bars"), hourly.map((hour, index) => {
-    const total = hour.handled + hour.need_human + hour.stale + hour.open;
-    return h("div", { class: "col", title: `${23 - index} h ago: ${hour.handled} approved, ${hour.need_human} needs you, ${hour.stale} stale, ${hour.open} open` },
+  fill($("bars"), hourly.map((hour, index) =>
+    h("div", { class: "col", title: `${23 - index} h ago: ${hour.handled} approved, ${hour.need_human} needs you, ${hour.stale} stale, ${hour.open} open` },
       ["handled", "need_human", "stale", "open"].filter((key) => hour[key]).map((key) =>
-        h("div", { class: `seg ${key}`, style: `height:${(100 * hour[key]) / max}%` })),
-      total ? null : h("div", { class: "seg", style: "height:0" }));
-  }));
+        h("div", { class: `seg ${key}`, style: `height:${(100 * hour[key]) / max}%` })))));
 }
 
 function matchesFilters(ask) {
   const status = $("f-status").value;
   const pane = $("f-pane").value;
   const text = $("f-text").value.trim().toLowerCase();
-  if (status === "dry_run" && !(ask.status === "handled" && ask.dry_run)) return false;
-  if (status && status !== "dry_run" && (ask.status !== status || (status === "handled" && ask.dry_run))) return false;
+  if (status && outcome(ask) !== status) return false;
   if (pane && ask.pane_id !== pane) return false;
   if (text && !`${ask.summary} ${ask.reason ?? ""} ${ask.tool ?? ""}`.toLowerCase().includes(text)) return false;
   return true;
@@ -413,7 +411,7 @@ function detailRow(ask) {
   return h("tr", { class: "detail" }, h("td", { colspan: 7 }, body));
 }
 
-async function toggle(id) {
+function toggle(id) {
   if (expanded.has(id)) expanded.delete(id);
   else {
     expanded.add(id);
