@@ -43,7 +43,7 @@ export const CONFIG = {
   notifyEnabled: true,
   // Brought to the front when a notification is clicked; the click also focuses the pane.
   terminalBundleId: "com.mitchellh.ghostty",
-  model: "claude-haiku-5-5",
+  model: "haiku",
   maxRowsPerTarget: 10,
   baseTimeoutMs: 45_000,
   perRowTimeoutMs: 15_000,
