@@ -37,8 +37,12 @@ export const herdr = {
 
   approveCommand: (target) => `herdr agent send-keys ${target.pane_id} enter`,
 
-  // Brings the pane forward for the human (dashboard); argv, not part of any allowlist.
+  // Brings the pane forward for the human (dashboard, notification click); argv, not part of any
+  // allowlist.
   focusCommand: (target) => ["herdr", "agent", "focus", target.pane_id],
+
+  // What a process started outside any pane needs to reach the target's server.
+  serverEnvironment: (target) => (target.socket_path ? { HERDR_SOCKET_PATH: target.socket_path } : {}),
 
   // Drops the runner's own HERDR_* variables: a runner started inside a pane would otherwise make
   // the evaluator report itself as that pane's agent. The socket points the CLI at the target's
@@ -47,7 +51,6 @@ export const herdr = {
     const environment = Object.fromEntries(
       Object.entries(process.env).filter(([name]) => !name.startsWith("HERDR_")),
     );
-    if (target.socket_path) environment.HERDR_SOCKET_PATH = target.socket_path;
-    return environment;
+    return { ...environment, ...herdr.serverEnvironment(target) };
   },
 };

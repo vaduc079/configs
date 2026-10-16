@@ -41,6 +41,8 @@ export const CONFIG = {
   dryRun: false,
   auditEnabled: true,
   notifyEnabled: true,
+  // Brought to the front when a notification is clicked; the click also focuses the pane.
+  terminalBundleId: "com.mitchellh.ghostty",
   model: "claude-haiku-5-5",
   maxRowsPerTarget: 10,
   baseTimeoutMs: 45_000,
@@ -72,10 +74,44 @@ function appendAudit(entries) {
   appendFileSync(join(stateDirectory(), "audit.jsonl"), lines.join(""));
 }
 
-// Uses `on run argv` so the notification text is passed as data, never parsed as AppleScript.
-function notifyHuman({ title, message }) {
+function shellQuote(value) {
+  return `'${String(value).replace(/'/g, "'\\''")}'`;
+}
+
+// macOS runs the click action later in a bare environment, so the command carries an absolute
+// executable and the variables that reach the target's server.
+export function focusShellCommand({ argv, environment }) {
+  const [executable, ...args] = argv;
+  const variables = Object.entries(environment).map(([name, value]) => `${name}=${shellQuote(value)}`);
+  const command = [Bun.which(executable) ?? executable, ...args].map(shellQuote);
+  // `env` first keeps the value from starting with a quote, which terminal-notifier rejects.
+  return ["/usr/bin/env", ...variables, ...command].join(" ");
+}
+
+// terminal-notifier rejects a value starting with one of these unless it is escaped.
+export function notifierValue(text) {
+  return /^[-[({<"']/.test(text) ? `\\${text}` : text;
+}
+
+// terminal-notifier, when installed, focuses the pane on click; a notice for the same target
+// replaces the previous one. Otherwise falls back to osascript, which has no click action.
+function notifyHuman({ title, message, group, focus }) {
   if (!CONFIG.notifyEnabled) return;
 
+  const notifier = Bun.which("terminal-notifier");
+  if (notifier) {
+    const args = [
+      "-title", title,
+      "-message", notifierValue(message),
+      "-group", group,
+      "-activate", CONFIG.terminalBundleId,
+    ];
+    if (focus) args.push("-execute", focusShellCommand(focus));
+    spawnSync(notifier, args, { stdio: "ignore", timeout: 5_000 });
+    return;
+  }
+
+  // Uses `on run argv` so the notification text is passed as data, never parsed as AppleScript.
   spawnSync(
     "osascript",
     [
@@ -108,10 +144,18 @@ function auditEntry({ ask, result, target, outcome, durationMs, config, policyDi
   return { ...entry, decision: AUDIT_DECISIONS[result.status](config.dryRun), reason: result.reason };
 }
 
-function escalationNotice(targetKey, ask) {
+// Shows only the reason: the command summary is usually long enough to push it out of the banner.
+function escalationNotice(ask) {
+  const driver = TARGETS[ask.target.type];
+  const canFocus = driver?.isValid(ask.target);
   return {
-    title: `Permission needs you (${targetKey})`,
-    message: oneLine(`${ask.context.summary} — ${ask.reason}`).slice(0, 200),
+    title: `Permission needs you (${ask.target_key})`,
+    // The evaluator may return an empty reason, and terminal-notifier drops an empty message.
+    message: oneLine(ask.reason) || "needs review",
+    group: ask.target_key,
+    focus: canFocus
+      ? { argv: driver.focusCommand(ask.target), environment: driver.serverEnvironment(ask.target) }
+      : null,
   };
 }
 
@@ -162,7 +206,7 @@ async function processTarget(targetKey, { db, runId, config, evaluate, notify, a
 
   // Notify before auditing so a failed audit write cannot swallow an escalation.
   for (const ask of recordedAsks.filter((row) => row.status === "need_human")) {
-    notify(escalationNotice(targetKey, ask));
+    notify(escalationNotice(ask));
   }
 
   const resultById = new Map(outcome.results?.map((result) => [result.id, result]));
@@ -206,7 +250,7 @@ export async function drainTarget(db, {
       expireAfterMs: config.expireAfterMs,
       maxAttempts: config.maxAttempts,
     });
-    for (const ask of getAsks(db, escalatedIds)) notify(escalationNotice(targetKey, ask));
+    for (const ask of getAsks(db, escalatedIds)) notify(escalationNotice(ask));
 
     const pending = pendingAsks(db, targetKey);
     const lastSeenId = pending.at(-1)?.id ?? 0;

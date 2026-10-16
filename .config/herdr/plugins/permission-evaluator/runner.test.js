@@ -5,7 +5,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { acquireLock, getAsks, insertAsk, openQueue } from "./db.js";
-import { drainTarget, runTarget, sweep } from "./runner.js";
+import { drainTarget, focusShellCommand, notifierValue, runTarget, sweep } from "./runner.js";
 
 const CONFIG = {
   dryRun: false,
@@ -96,7 +96,12 @@ describe("drainTarget", () => {
 
     expect(getAsks(db, [first, second]).map((ask) => ask.status)).toEqual(["need_human", "pending"]);
     expect(calls.notify).toHaveLength(1);
-    expect(calls.notify[0].message).toContain("pushes to remote");
+    expect(calls.notify[0]).toMatchObject({
+      title: `Permission needs you (${TARGET_KEY})`,
+      message: "pushes to remote",
+      group: TARGET_KEY,
+      focus: { argv: ["herdr", "agent", "focus", PANE.pane_id] },
+    });
     expect(calls.audit.map((entry) => entry.askId)).toEqual([first]);
   });
 
@@ -252,6 +257,35 @@ describe("runTarget", () => {
     });
 
     expect(rounds).toBe(2);
+  });
+});
+
+describe("notification", () => {
+  test("click command reaches the target's server from a bare environment", () => {
+    const socket = "/tmp/a'; touch /tmp/pwn; echo '";
+    const command = focusShellCommand({
+      argv: ["printenv", "HERDR_SOCKET_PATH"],
+      environment: { HERDR_SOCKET_PATH: socket },
+    });
+
+    const output = Bun.spawnSync(["/bin/sh", "-c", command], { env: {} }).stdout.toString();
+
+    expect(output).toBe(`${socket}\n`);
+  });
+
+  test("escapes messages terminal-notifier would reject", () => {
+    expect(notifierValue("(unclear) rm")).toBe("\\(unclear) rm");
+    expect(notifierValue("-rf on home")).toBe("\\-rf on home");
+    expect(notifierValue("pushes to remote")).toBe("pushes to remote");
+  });
+
+  test("falls back to a fixed message when the reason is empty", async () => {
+    const db = openQueue(":memory:");
+    const id = addAsk(db);
+
+    const calls = await drain(db, () => ({ results: [{ id, status: "need_human", reason: "" }], exitStatus: 0 }));
+
+    expect(calls.notify[0].message).toBe("needs review");
   });
 });
 

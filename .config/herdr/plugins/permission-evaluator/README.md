@@ -70,7 +70,7 @@ payload on stdin.
 ### Adding a multiplexer
 
 Write `targets/<type>.js` exporting `{ type, fromEnvironment, isValid, key, label, readCommand,
-inspectCommands, approveCommand, focusCommand, environment }` (see `herdr.js`) and register it in
+inspectCommands, approveCommand, focusCommand, serverEnvironment, environment }` (see `herdr.js`) and register it in
 `targets/index.js`. Anything interpolated into commands must be validated in `isValid`, because it
 ends up in the evaluator's Bash allowlist.
 
@@ -113,7 +113,8 @@ ends up in the evaluator's Bash allowlist.
 |---|---|---|
 | `dryRun` | `false` | Record would-approve decisions without sending keys |
 | `auditEnabled` | `true` | Append `audit.jsonl` for the viewer |
-| `notifyEnabled` | `true` | macOS notification for each `need_human` |
+| `notifyEnabled` | `true` | macOS notification for each `need_human`, showing the evaluator's reason. With `terminal-notifier` installed, clicking it focuses the pane; otherwise it falls back to `osascript` (no click action) |
+| `terminalBundleId` | `com.mitchellh.ghostty` | App brought to the front when a notification is clicked |
 | `model` | `claude-haiku-5-5` | Evaluator model |
 | `maxRowsPerTarget` | `10` | Rows per evaluator run |
 | `baseTimeoutMs`, `perRowTimeoutMs` | `45 s`, `15 s` | Evaluator timeout = base + per row |
