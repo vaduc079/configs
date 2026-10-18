@@ -12,6 +12,28 @@ keybind = cmd+w=text:\x01X
 keybind = cmd+enter=text:\x1b[13;5u
 keybind = ctrl+enter=text:\x1b[13;5u
 
+# Focus Herdr agents via its Ctrl+A, Ctrl+1..9 shortcuts.
+keybind = cmd+1=text:\x01\x1b[49;5u
+keybind = cmd+2=text:\x01\x1b[50;5u
+keybind = cmd+3=text:\x01\x1b[51;5u
+keybind = cmd+4=text:\x01\x1b[52;5u
+keybind = cmd+5=text:\x01\x1b[53;5u
+keybind = cmd+6=text:\x01\x1b[54;5u
+keybind = cmd+7=text:\x01\x1b[55;5u
+keybind = cmd+8=text:\x01\x1b[56;5u
+keybind = cmd+9=text:\x01\x1b[57;5u
+
+# Override Ghostty's physical number-key tab shortcuts as well.
+keybind = cmd+digit_1=text:\x01\x1b[49;5u
+keybind = cmd+digit_2=text:\x01\x1b[50;5u
+keybind = cmd+digit_3=text:\x01\x1b[51;5u
+keybind = cmd+digit_4=text:\x01\x1b[52;5u
+keybind = cmd+digit_5=text:\x01\x1b[53;5u
+keybind = cmd+digit_6=text:\x01\x1b[54;5u
+keybind = cmd+digit_7=text:\x01\x1b[55;5u
+keybind = cmd+digit_8=text:\x01\x1b[56;5u
+keybind = cmd+digit_9=text:\x01\x1b[57;5u
+
 # Unbind these as they're being used in herdr
 keybind = ctrl+h=unbind
 keybind = ctrl+j=unbind
