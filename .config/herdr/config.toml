@@ -168,7 +168,8 @@ rows = [
     "tab",
   ],
   [
-    { token = "terminal_title_stripped", fg = "#ebdbb2", dim = false },
+    { token = "$sidebar_attention_title", fg = "#ebdbb2", dim = false },
+    { token = "$sidebar_background_title", fg = "#ebdbb2", dim = true },
   ],
 ]
 
@@ -181,7 +182,8 @@ claude = [
     "tab",
   ],
   [
-    { token = "terminal_title_stripped", fg = "#ebdbb2", dim = false },
+    { token = "$sidebar_attention_title", fg = "#ebdbb2", dim = false },
+    { token = "$sidebar_background_title", fg = "#ebdbb2", dim = true },
   ],
 ]
 codex = [
@@ -192,7 +194,8 @@ codex = [
     "tab",
   ],
   [
-    { token = "terminal_title_stripped", fg = "#ebdbb2", dim = false },
+    { token = "$sidebar_attention_title", fg = "#ebdbb2", dim = false },
+    { token = "$sidebar_background_title", fg = "#ebdbb2", dim = true },
   ],
 ]
 opencode = [
@@ -203,7 +206,8 @@ opencode = [
     "tab",
   ],
   [
-    { token = "terminal_title_stripped", fg = "#ebdbb2", dim = false },
+    { token = "$sidebar_attention_title", fg = "#ebdbb2", dim = false },
+    { token = "$sidebar_background_title", fg = "#ebdbb2", dim = true },
   ],
 ]
 

@@ -1,0 +1,55 @@
+id = "local.agent-sidebar"
+name = "Agent Sidebar"
+version = "0.2.0"
+min_herdr_version = "0.9.5"
+description = "Prioritize, style, and temporarily snooze agents in the Herdr sidebar."
+platforms = ["macos"]
+
+[[startup]]
+command = ["bun", "sidebar.js", "sync", "--startup"]
+
+[[actions]]
+id = "snooze"
+title = "Snooze agent..."
+contexts = ["pane"]
+command = ["bun", "sidebar.js", "open-snooze"]
+
+[[actions]]
+id = "unsnooze"
+title = "Unsnooze agent"
+contexts = ["pane"]
+command = ["bun", "sidebar.js", "unsnooze"]
+
+[[actions]]
+id = "refresh"
+title = "Refresh agent sidebar"
+contexts = ["workspace", "tab", "pane"]
+command = ["bun", "sidebar.js", "sync"]
+
+[[events]]
+on = "pane.agent_detected"
+command = ["bun", "sidebar.js", "sync"]
+
+[[events]]
+on = "pane.agent_status_changed"
+command = ["bun", "sidebar.js", "sync"]
+
+[[events]]
+on = "pane.moved"
+command = ["bun", "sidebar.js", "sync"]
+
+[[events]]
+on = "pane.focused"
+command = ["bun", "sidebar.js", "sync"]
+
+[[events]]
+on = "pane.closed"
+command = ["bun", "sidebar.js", "sync"]
+
+[[panes]]
+id = "snooze"
+title = "Snooze agent"
+placement = "popup"
+width = 52
+height = 14
+command = ["bun", "snooze-picker.js"]
