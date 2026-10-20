@@ -12,6 +12,7 @@ import {
   resultsFromOutput,
 } from "./evaluator.js";
 import { herdr } from "./targets/herdr.js";
+import { rex } from "./targets/rex.js";
 
 const target = { type: "herdr", pane_id: "w1:p2", socket_path: "/tmp/herdr.sock" };
 const rows = [
@@ -47,6 +48,27 @@ describe("buildClaudeArgs", () => {
 
   test("active mode adds enter on the target pane", () => {
     expect(allowlist(argsFor(false)).at(-1)).toBe("Bash(herdr agent send-keys w1:p2 enter)");
+  });
+
+  test("allows a Rex block's capture and enter through its server, without REX_* variables", () => {
+    const server = "unix:///Users/me/Library/Application%20Support/rex/server.sock";
+    const rexTarget = { type: "rex", pane_id: "block:01a1", server, bin_dir: "/Applications/Rex/MacOS" };
+    const args = buildClaudeArgs({
+      driver: rex,
+      target: rexTarget,
+      rows,
+      awaitingHuman: null,
+      policy: "Test policy.",
+      config: { dryRun: false, model: "sonnet" },
+    });
+
+    expect(allowlist(args)).toEqual([
+      `Bash(rex -S ${server} capture -b block:01a1 --trim)`,
+      `Bash(rex -S ${server} send-key -b block:01a1 enter)`,
+    ]);
+    const environment = rex.environment(rexTarget);
+    expect(environment.PATH.startsWith("/Applications/Rex/MacOS:")).toBe(true);
+    expect(Object.keys(environment).filter((name) => name.startsWith("REX_"))).toEqual([]);
   });
 
   test("passes rows as the user message", () => {

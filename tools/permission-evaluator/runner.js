@@ -41,8 +41,6 @@ export const CONFIG = {
   dryRun: false,
   auditEnabled: true,
   notifyEnabled: true,
-  // Brought to the front when a notification is clicked; the click also focuses the pane.
-  terminalBundleId: "com.mitchellh.ghostty",
   model: "haiku",
   maxRowsPerTarget: 10,
   baseTimeoutMs: 45_000,
@@ -93,9 +91,10 @@ export function notifierValue(text) {
   return /^[-[({<"']/.test(text) ? `\\${text}` : text;
 }
 
-// terminal-notifier, when installed, focuses the pane on click; a notice for the same target
-// replaces the previous one. Otherwise falls back to osascript, which has no click action.
-function notifyHuman({ title, message, group, focus }) {
+// terminal-notifier, when installed, brings the target's app forward and focuses the pane on click;
+// a notice for the same target replaces the previous one. Otherwise falls back to osascript, which
+// has no click action.
+function notifyHuman({ title, message, group, app, focus }) {
   if (!CONFIG.notifyEnabled) return;
 
   const notifier = Bun.which("terminal-notifier");
@@ -104,8 +103,8 @@ function notifyHuman({ title, message, group, focus }) {
       "-title", title,
       "-message", notifierValue(message),
       "-group", group,
-      "-activate", CONFIG.terminalBundleId,
     ];
+    if (app) args.push("-activate", app);
     if (focus) args.push("-execute", focusShellCommand(focus));
     spawnSync(notifier, args, { stdio: "ignore", timeout: 5_000 });
     return;
@@ -153,6 +152,7 @@ function escalationNotice(ask) {
     // The evaluator may return an empty reason, and terminal-notifier drops an empty message.
     message: oneLine(ask.reason) || "needs review",
     group: ask.target_key,
+    app: driver?.appBundleId ?? null,
     focus: canFocus
       ? { argv: driver.focusCommand(ask.target), environment: driver.serverEnvironment(ask.target) }
       : null,

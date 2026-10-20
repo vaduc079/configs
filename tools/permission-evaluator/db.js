@@ -7,8 +7,8 @@ import { dirname, join } from "node:path";
 
 export function stateDirectory() {
   return (
-    process.env.HERDR_PLUGIN_STATE_DIR ||
-    join(homedir(), ".local/state/herdr/plugins/local.permission-evaluator")
+    process.env.PERMISSION_EVALUATOR_STATE_DIR ||
+    join(homedir(), ".local/state/permission-evaluator")
   );
 }
 

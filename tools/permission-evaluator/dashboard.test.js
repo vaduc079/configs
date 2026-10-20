@@ -66,6 +66,24 @@ describe("snapshot", () => {
     expect(snapshot(db, { now: NOW, config: CONFIG }).needsYou[0].pane_status).toBe("unknown");
   });
 
+  test("reports a Rex escalation's pane as unknown, since only Herdr lists agents", () => {
+    const db = openQueue(":memory:");
+    insertAsk(db, {
+      harness: "claude",
+      sessionId: "s1",
+      target: { type: "rex", pane_id: "block:01a1", server: "unix:///tmp/rex.sock" },
+      targetKey: "rex:block:01a1",
+      context: { tool: "Bash", summary: "Bash: ls", input: { command: "ls" }, cwd: "/repo" },
+      now: NOW - 60_000,
+    });
+    const [row] = claimTarget(db, { targetKey: "rex:block:01a1", runId: "r", limit: 1, claimableBefore: NOW });
+    recordResults(db, { runId: "r", results: [{ id: row.id, status: "need_human", reason: "x" }], policyHash: "p", now: NOW });
+
+    const [ask] = snapshot(db, { now: NOW, config: CONFIG, agents: [] }).needsYou;
+
+    expect(ask).toMatchObject({ target_type: "rex", pane_id: "block:01a1", pane_status: "unknown" });
+  });
+
   test("leaves escalations older than the expiry window out of needsYou", () => {
     const db = openQueue(":memory:");
     addAsk(db, { minutesAgo: 30 });
@@ -141,7 +159,7 @@ describe("server", () => {
     const { server, token } = serve({ port: 0, db, tokenPath });
     servers.push(server);
     const get = (path, headers = {}) => fetch(`http://127.0.0.1:${server.port}${path}`, { headers });
-    return { server, token, tokenPath, get, auth: { "x-herdr-permission-dashboard": token } };
+    return { server, token, tokenPath, get, auth: { "x-permission-dashboard": token } };
   }
 
   test("serves the page without a token but the API only with it", async () => {
@@ -151,7 +169,7 @@ describe("server", () => {
 
     expect((await get("/")).status).toBe(200);
     expect((await get(`/api/asks/${id}`)).status).toBe(401);
-    expect((await get(`/api/asks/${id}`, { "x-herdr-permission-dashboard": "wrong" })).status).toBe(401);
+    expect((await get(`/api/asks/${id}`, { "x-permission-dashboard": "wrong" })).status).toBe(401);
     expect(await (await get(`/api/asks/${id}`, auth)).json()).toMatchObject({ id });
   });
 

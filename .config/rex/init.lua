@@ -2,6 +2,7 @@
 
 require("vim_navigation")
 require("popups")
+require("permission_dashboard")
 
 local prefix = "ctrl+a>"
 local directions = { h = "left", j = "down", k = "up", l = "right" }

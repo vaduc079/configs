@@ -100,6 +100,7 @@ describe("drainTarget", () => {
       title: `Permission needs you (${TARGET_KEY})`,
       message: "pushes to remote",
       group: TARGET_KEY,
+      app: "com.mitchellh.ghostty",
       focus: { argv: ["herdr", "agent", "focus", PANE.pane_id] },
     });
     expect(calls.audit.map((entry) => entry.askId)).toEqual([first]);

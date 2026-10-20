@@ -2,8 +2,11 @@
 // and registering it here; `fromEnvironment` decides whether a hook is running inside it.
 
 import { herdr } from "./herdr.js";
+import { rex } from "./rex.js";
 
-export const TARGETS = { [herdr.type]: herdr };
+// Detection follows this order. Herdr comes first: a Herdr pane inside a Rex block sees both
+// environments, and the agent runs in the pane.
+export const TARGETS = { [herdr.type]: herdr, [rex.type]: rex };
 
 export function detectTarget(env) {
   for (const driver of Object.values(TARGETS)) {

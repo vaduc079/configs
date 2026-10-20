@@ -73,11 +73,11 @@ function logEnqueueError(error) {
   }
 }
 
-const RUNNER_ENV_NAMES = ["HOME", "USER", "LOGNAME", "SHELL", "HERDR_PLUGIN_STATE_DIR"];
+const RUNNER_ENV_NAMES = ["HOME", "USER", "LOGNAME", "SHELL", "PERMISSION_EVALUATOR_STATE_DIR"];
 
 // The hook runs inside the agent's session. Give the runner what launchd gives it, so the
 // evaluator's `claude -p` inherits none of that session's variables. Keep PATH in sync with
-// Library/LaunchAgents/com.duc.herdr-permission-runner.plist.
+// Library/LaunchAgents/com.duc.permission-evaluator-runner.plist.
 export function runnerEnvironment(env) {
   const home = env.HOME || homedir();
   const environment = {

@@ -18,6 +18,12 @@ import {
 import { enqueue, runnerEnvironment, truncateStrings } from "./queue.js";
 
 const HERDR_ENV = { HERDR_ENV: "1", HERDR_PANE_ID: "w1:p2", HERDR_SOCKET_PATH: "/tmp/herdr.sock" };
+const REX_ENV = {
+  REX_BLOCK: "block:01a15a0d-8bef",
+  REX_SESSION: "session:01a159d8",
+  REX_SERVER: "unix:///Users/me/Library/Application%20Support/rex/server.sock",
+  REX_BIN_DIR: "/Users/me/Library/Application Support/rex/Rex Server.app/Contents/MacOS",
+};
 
 function permissionRequest(command = "git push") {
   return {
@@ -80,6 +86,44 @@ describe("enqueue", () => {
 
     expect([outsideHerdr, otherEvent, unsafePane]).toEqual([null, null, null]);
     expect(pendingAsks(db)).toEqual([]);
+  });
+
+  test("stores a permission request for a Rex block", () => {
+    const db = openQueue(":memory:");
+    const { id, targetKey } = enqueue(db, { harnessName: "claude", hookInput: permissionRequest(), env: REX_ENV });
+
+    expect(targetKey).toBe("rex:block:01a15a0d-8bef");
+    expect(getAsks(db, [id])[0].target).toEqual({
+      type: "rex",
+      pane_id: "block:01a15a0d-8bef",
+      server: REX_ENV.REX_SERVER,
+      bin_dir: REX_ENV.REX_BIN_DIR,
+    });
+  });
+
+  test("prefers the Herdr pane when Herdr runs inside a Rex block", () => {
+    const db = openQueue(":memory:");
+    const { targetKey } = enqueue(db, {
+      harnessName: "claude",
+      hookInput: permissionRequest(),
+      env: { ...REX_ENV, ...HERDR_ENV },
+    });
+
+    expect(targetKey).toBe("herdr:w1:p2");
+  });
+
+  test("skips Rex asks whose block, server or bin dir is unsafe", () => {
+    const db = openQueue(":memory:");
+    const unsafeEnvironments = [
+      { ...REX_ENV, REX_BLOCK: "block:x; rm -rf /" },
+      { ...REX_ENV, REX_SERVER: "unix:///tmp/rex.sock; rm -rf /" },
+      { ...REX_ENV, REX_SERVER: undefined },
+      { ...REX_ENV, REX_BIN_DIR: "/opt/rex:/tmp/evil" },
+    ];
+
+    for (const env of unsafeEnvironments) {
+      expect(enqueue(db, { harnessName: "claude", hookInput: permissionRequest(), env })).toBeNull();
+    }
   });
 
   test("rejects unknown harnesses", () => {

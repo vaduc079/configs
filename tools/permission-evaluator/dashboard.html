@@ -188,7 +188,7 @@
 
 <script>
 const POLL_MS = 3000;
-const SERVER_HEADER = "x-herdr-permission-dashboard";
+const SERVER_HEADER = "x-permission-dashboard";
 const $ = (id) => document.getElementById(id);
 
 const OUTCOMES = {
@@ -305,7 +305,7 @@ function renderHealth() {
 
   const live = locks.filter((lock) => lock.alive);
   const runners = healthCard("Runners", `${live.length} active`,
-    live.map((lock) => lock.name.replace(/^herdr:/, "")).join(", ") || "idle", "ok");
+    live.map((lock) => lock.name).join(", ") || "idle", "ok");
 
   const policyCard = policy.present
     ? healthCard("Policy", policy.hash, "policy.md loaded", "ok")
@@ -320,7 +320,8 @@ function renderHealth() {
   const blocked = (agents ?? []).filter((agent) => agent.agent_status === "blocked").length;
   const herdr = agents
     ? healthCard("Herdr", `${agents.length} agents`, `${blocked} blocked`, "ok")
-    : healthCard("Herdr", "Unreachable", "herdr agent list failed", "warn");
+    // Herdr is one of several targets, so not running is not a problem.
+    : healthCard("Herdr", "Not running", "herdr agent list failed", "");
 
   fill($("health"), sweep, queue, runners, errors, policyCard, herdr);
 }

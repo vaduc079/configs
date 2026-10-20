@@ -26,6 +26,9 @@ export const herdr = {
 
   label: (target) => `Herdr pane ${target.pane_id}`,
 
+  // Brought to the front when a notification is clicked: the terminal Herdr runs in.
+  appBundleId: "com.mitchellh.ghostty",
+
   // Shows the visible prompt; the evaluator runs it before every row.
   readCommand: (target) => `herdr agent read ${target.pane_id} --source visible`,
 

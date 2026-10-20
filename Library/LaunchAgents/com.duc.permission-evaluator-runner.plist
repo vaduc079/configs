@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.duc.herdr-permission-runner</string>
+  <string>com.duc.permission-evaluator-runner</string>
   <key>ProgramArguments</key>
   <array>
     <string>/Users/duc.vu/.bun/bin/bun</string>
-    <string>/Users/duc.vu/.config/herdr/plugins/permission-evaluator/runner.js</string>
+    <string>/Users/duc.vu/configs/tools/permission-evaluator/runner.js</string>
   </array>
   <key>EnvironmentVariables</key>
   <dict>
@@ -19,8 +19,8 @@
   <key>StartInterval</key>
   <integer>60</integer>
   <key>StandardOutPath</key>
-  <string>/Users/duc.vu/.local/state/herdr/plugins/local.permission-evaluator/runner.log</string>
+  <string>/Users/duc.vu/.local/state/permission-evaluator/runner.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/duc.vu/.local/state/herdr/plugins/local.permission-evaluator/runner.log</string>
+  <string>/Users/duc.vu/.local/state/permission-evaluator/runner.log</string>
 </dict>
 </plist>

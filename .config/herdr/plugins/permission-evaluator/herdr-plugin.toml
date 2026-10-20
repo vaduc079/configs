@@ -1,21 +1,21 @@
 id = "local.permission-evaluator"
 name = "Permission Evaluator"
-version = "0.2.0"
+version = "0.3.0"
 min_herdr_version = "0.9.1"
-description = "Queue agent permission prompts from harness hooks and approve safe ones through Herdr."
+description = "Open the permission evaluator dashboard."
 platforms = ["macos", "linux"]
 
-# Evaluation is driven by harness permission hooks (queue.js), which start runner.js, plus a launchd sweep,
-# not by Herdr events: Herdr reports one status change for several back-to-back prompts.
+# Only the dashboard actions live here. The evaluator runs from the agent harness's permission hook
+# and a launchd sweep, independent of Herdr: see ~/configs/tools/permission-evaluator/README.md.
 
 [[actions]]
 id = "dashboard"
 title = "Open permission dashboard"
 contexts = ["workspace", "tab", "pane"]
-command = ["bun", "dashboard.js", "--background"]
+command = ["bun", "/Users/duc.vu/configs/tools/permission-evaluator/dashboard.js", "--background"]
 
 [[actions]]
 id = "dashboard-stop"
 title = "Stop permission dashboard"
 contexts = ["workspace", "tab", "pane"]
-command = ["bun", "dashboard.js", "--stop"]
+command = ["bun", "/Users/duc.vu/configs/tools/permission-evaluator/dashboard.js", "--stop"]

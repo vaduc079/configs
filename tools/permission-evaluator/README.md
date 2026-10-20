@@ -3,8 +3,13 @@
 Approves safe agent permission prompts without a human. Every prompt is queued by the agent
 harness's permission hook, which also starts a runner for that pane right away (launchd sweeps the
 queue every minute as a backup). The runner evaluates the pane's queue with a short-lived headless
-Claude, which either approves the prompt once through Herdr or leaves it for you and sends a
-notification. Each pane has its own lock, so different panes are evaluated in parallel.
+Claude, which either approves the prompt once through the agent's multiplexer (Herdr or Rex) or
+leaves it for you and sends a notification. Each pane has its own lock, so different panes are
+evaluated in parallel.
+
+The evaluator lives here, outside any multiplexer's config, and is not stowed (`^/tools` in
+`.stow-local-ignore`); the hook and launchd point at this directory. Herdr and Rex only add the
+dashboard actions (see [Dashboard](#dashboard)).
 
 Set `dryRun: true` in `runner.js` to record what it would approve without sending keys.
 
@@ -15,7 +20,7 @@ harness permission hook ──> queue.js enqueue ──> queue.db (pending)
                                    └─> runner.js --target <pane> (detached)
 launchd (60 s) ──> runner.js (sweep) ──> runner.js --target <pane>, one per pane with pending rows
 
-runner.js --target <pane> ──> lock <pane> ──> claude -p ──> herdr send-keys enter
+runner.js --target <pane> ──> lock <pane> ──> claude -p ──> herdr agent send-keys / rex send-key enter
                                          └─> handled / need_human (+ notification) / stale
 ```
 
@@ -58,26 +63,39 @@ Every failure path leaves the prompt on screen for you; nothing is approved on e
 | `evaluator.js` | Evaluator prompt, `claude -p` arguments, result validation |
 | `harnesses/` | One adapter per agent harness: parse the hook payload, describe the prompt UI |
 | `targets/` | One driver per multiplexer: detect from env, allowed commands, environment |
-| `dashboard.js`, `dashboard.html` | Local dashboard over the queue, logs and live agents |
+| `dashboard.js`, `dashboard.html` | Local dashboard over the queue, logs and live Herdr agents |
+| `~/configs/.config/herdr/plugins/permission-evaluator/` | Herdr plugin: dashboard actions only |
+| `~/configs/.config/rex/permission_dashboard.lua` | Rex actions: dashboard open and stop |
+
+### Targets
+
+| Target | Detected by | Inspect | Approve | Notes |
+|---|---|---|---|---|
+| Herdr pane | `HERDR_ENV=1`, `HERDR_PANE_ID` | `herdr agent get/read/explain` | `herdr agent send-keys <pane> enter` | Dashboard shows whether a pane is still blocked |
+| Rex block | `REX_BLOCK`, `REX_SERVER` | `rex -S <server> capture -b <block> --trim` | `rex -S <server> send-key -b <block> enter` | Screen only, so the dashboard shows the pane as unknown. The evaluator gets no `REX_*` variables, so Rex's SessionStart hook ignores it; `REX_BIN_DIR` goes on its `PATH` |
+
+A Herdr pane inside a Rex block resolves to the Herdr pane.
 
 ### Adding a harness
 
 Write `harnesses/<name>.js` exporting `{ name, promptGuide, parseHookInput }` (see `claude.js`),
 register it in `harnesses/index.js`, and make the harness's permission hook run
-`bun ~/.config/herdr/plugins/permission-evaluator/queue.js enqueue --harness <name>` with the
+`bun ~/configs/tools/permission-evaluator/queue.js enqueue --harness <name>` with the
 payload on stdin.
 
 ### Adding a multiplexer
 
-Write `targets/<type>.js` exporting `{ type, fromEnvironment, isValid, key, label, readCommand,
-inspectCommands, approveCommand, focusCommand, serverEnvironment, environment }` (see `herdr.js`) and register it in
-`targets/index.js`. Anything interpolated into commands must be validated in `isValid`, because it
+Write `targets/<type>.js` exporting `{ type, fromEnvironment, isValid, key, label, appBundleId,
+readCommand, inspectCommands, approveCommand, focusCommand, serverEnvironment, environment }` (see
+`herdr.js` and `rex.js`) and register it in `targets/index.js`, whose order is the detection order.
+Store the pane's ID as `pane_id`, which the dashboard and audit log read. Anything interpolated into commands must be validated in `isValid`, because it
 ends up in the evaluator's Bash allowlist.
 
 ## Setup
 
-1. Stow the dotfiles (`./setup.sh`); this links the plugin and
-   `~/Library/LaunchAgents/com.duc.herdr-permission-runner.plist`.
+1. Stow the dotfiles (`./setup.sh`); this links the Herdr plugin, the Rex config and
+   `~/Library/LaunchAgents/com.duc.permission-evaluator-runner.plist`. This directory itself stays in
+   `~/configs`.
 2. Create `policy.md` next to the scripts (see below).
 3. Register the Claude Code hook in `~/.claude/settings.json`. The `cd` keeps Bun from loading the
    agent project's `.env` and `bunfig.toml`, since the hook otherwise runs in the project directory:
@@ -88,7 +106,7 @@ ends up in the evaluator's Bash allowlist.
        "hooks": [
          {
            "type": "command",
-           "command": "cd '/Users/duc.vu/.config/herdr/plugins/permission-evaluator' && bun queue.js enqueue --harness claude",
+           "command": "cd '/Users/duc.vu/configs/tools/permission-evaluator' && bun queue.js enqueue --harness claude",
            "timeout": 10
          }
        ]
@@ -99,11 +117,14 @@ ends up in the evaluator's Bash allowlist.
 4. Load the runner:
 
    ```sh
-   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.duc.herdr-permission-runner.plist
+   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.duc.permission-evaluator-runner.plist
    ```
 
-   Reload after editing the plist with `launchctl bootout gui/$(id -u)/com.duc.herdr-permission-runner`
+   Reload after editing the plist with `launchctl bootout gui/$(id -u)/com.duc.permission-evaluator-runner`
    followed by the bootstrap command. Script and policy changes need no reload.
+
+5. For Rex, allow its socket in the Claude Code sandbox (`sandbox.network.allowUnixSockets`:
+   `~/Library/Application Support/rex/server.sock`); otherwise the evaluator's `rex` commands fail.
 
 ## Configuration
 
@@ -113,8 +134,7 @@ ends up in the evaluator's Bash allowlist.
 |---|---|---|
 | `dryRun` | `false` | Record would-approve decisions without sending keys |
 | `auditEnabled` | `true` | Append `audit.jsonl` for the viewer |
-| `notifyEnabled` | `true` | macOS notification for each `need_human`, showing the evaluator's reason. With `terminal-notifier` installed, clicking it focuses the pane; otherwise it falls back to `osascript` (no click action) |
-| `terminalBundleId` | `com.mitchellh.ghostty` | App brought to the front when a notification is clicked |
+| `notifyEnabled` | `true` | macOS notification for each `need_human`, showing the evaluator's reason. With `terminal-notifier` installed, clicking it brings the target's app forward (the driver's `appBundleId`: Ghostty for Herdr, Rex for Rex) and focuses the pane; otherwise it falls back to `osascript` (no click action) |
 | `model` | `claude-haiku-5-5` | Evaluator model |
 | `maxRowsPerTarget` | `10` | Rows per evaluator run |
 | `baseTimeoutMs`, `perRowTimeoutMs` | `45 s`, `15 s` | Evaluator timeout = base + per row |
@@ -133,7 +153,7 @@ JSON result. A missing or empty `policy.md` stops the run; rows stay pending and
 
 ## State
 
-All under `~/.local/state/herdr/plugins/local.permission-evaluator/` (or `$HERDR_PLUGIN_STATE_DIR`):
+All under `~/.local/state/permission-evaluator/` (or `$PERMISSION_EVALUATOR_STATE_DIR`):
 
 | File | Content |
 |---|---|
@@ -145,28 +165,32 @@ All under `~/.local/state/herdr/plugins/local.permission-evaluator/` (or `$HERDR
 Inspect the queue:
 
 ```sh
-bun ~/.config/herdr/plugins/permission-evaluator/queue.js status
-sqlite3 ~/.local/state/herdr/plugins/local.permission-evaluator/queue.db \
+bun ~/configs/tools/permission-evaluator/queue.js status
+sqlite3 ~/.local/state/permission-evaluator/queue.db \
   "SELECT id, status, json_extract(context, '$.summary'), reason FROM permission_asks ORDER BY id DESC LIMIT 20"
 ```
 
 ### Dashboard
 
-Press `prefix+ctrl+p` in Herdr (or run the plugin action) to open the dashboard in the browser:
+Press `prefix+ctrl+p` in Herdr, or run the Herdr or Rex action, to open the dashboard
+in the browser:
 
 ```sh
 herdr plugin action invoke dashboard --plugin local.permission-evaluator
 herdr plugin action invoke dashboard-stop --plugin local.permission-evaluator
+rex do permission_dashboard
+rex do permission_dashboard_stop
 ```
 
 It reads `queue.db` live (every 3 s) and shows:
 
 - **Health**: launchd sweep, open rows (flags pending > 2 min and claims whose runner died),
   active runners (pane locks), errors in the tails of `runner.log` / `enqueue.err.log`, policy hash,
-  Herdr reachability.
-- **Needs you**: escalations from the last 15 minutes, marked "still waiting" while the pane is
-  blocked, with a button that focuses the pane in Herdr; plus blocked panes the queue has no current
-  ask for (no hook, hook failure). The tab title shows the waiting count.
+  Herdr reachability (not running is fine when you use Rex).
+- **Needs you**: escalations from the last 15 minutes, with a button that focuses the pane. Herdr
+  panes are marked "still waiting" while blocked; Rex reports no agent status, so Rex blocks show
+  "pane unknown". Also lists blocked Herdr panes the queue has no current ask for (no hook, hook
+  failure). The tab title shows the waiting count.
 - **Queue**, **last 24 hours** (counts, auto-approval rate, ask-to-approval p50/p90, hourly bars),
   **history** of the last 300 decisions including stale ones (filter, search, click for the full
   tool input and context), **live Herdr agents**, and **log tails**.
@@ -175,11 +199,11 @@ The background server listens on `127.0.0.1:7788` and exits after 5 minutes with
 It answers only requests addressed to that host, and its API requires a per-launch token kept in
 `dashboard.token` in the state directory (0600), which the browser receives in the URL fragment, so
 other local users and processes cannot read the queue through the port. A tab left open across a
-server restart needs reopening (`prefix+ctrl+p`). To run it in the foreground instead, use
+server restart needs reopening (`prefix+ctrl+p` in Herdr, the `Permission Evaluator Dashboard` action in Rex). To run it in the foreground instead, use
 `bun dashboard.js [--port N] [--no-open]`.
 
 ## Test
 
 ```sh
-cd ~/.config/herdr/plugins/permission-evaluator && bun test
+cd ~/configs/tools/permission-evaluator && bun test
 ```

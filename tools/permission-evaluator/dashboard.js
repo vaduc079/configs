@@ -7,7 +7,7 @@
 //   bun dashboard.js --background [--port 7788]  Reuse or start a detached server, open it, exit.
 //   bun dashboard.js --stop [--port 7788]        Stop a running server.
 //
-// The Herdr action uses --background because plugin actions are short-lived commands.
+// The Herdr and Rex actions use --background because their actions are short-lived commands.
 // A background server exits after IDLE_EXIT_MS without requests; an open dashboard tab
 // polls every few seconds, so it stays alive while you are looking at it.
 
@@ -21,8 +21,8 @@ import { CONFIG } from "./runner.js";
 import { TARGETS } from "./targets/index.js";
 
 const IDLE_EXIT_MS = 5 * 60_000;
-const SERVER_HEADER = "x-herdr-permission-dashboard";
-const LAUNCHD_LABEL = "com.duc.herdr-permission-runner";
+const SERVER_HEADER = "x-permission-dashboard";
+const LAUNCHD_LABEL = "com.duc.permission-evaluator-runner";
 const HOUR_MS = 60 * 60_000;
 const HISTORY_LIMIT = 300;
 const PREVIEW_LIMIT = 300;
@@ -77,9 +77,11 @@ function percentile(sortedValues, fraction) {
 function preview(row) {
   const { context, target, ...rest } = row;
   const { tool, summary, cwd } = JSON.parse(context);
+  const { type, pane_id } = JSON.parse(target);
   return {
     ...rest,
-    pane_id: JSON.parse(target).pane_id ?? null,
+    target_type: type ?? null,
+    pane_id: pane_id ?? null,
     tool: tool ?? null,
     summary: String(summary ?? "").slice(0, PREVIEW_LIMIT),
     cwd: cwd ?? null,
@@ -87,8 +89,9 @@ function preview(row) {
   };
 }
 
-// Everything the dashboard shows that comes from the queue. `agents` is the multiplexer's live
-// agent list, or null when it cannot be read; it tells which escalations still wait.
+// Everything the dashboard shows that comes from the queue. `agents` is Herdr's live agent list, or
+// null when it cannot be read; it tells which Herdr escalations still wait. Other targets report no
+// agent status, so their panes show as unknown.
 export function snapshot(db, { now = Date.now(), config = CONFIG, agents = null } = {}) {
   const open = db
     .query("SELECT * FROM permission_asks WHERE status IN ('pending', 'in_progress') ORDER BY id")
@@ -103,7 +106,10 @@ export function snapshot(db, { now = Date.now(), config = CONFIG, agents = null 
     .map(preview);
 
   const agentByPane = new Map((agents ?? []).map((agent) => [agent.pane_id, agent]));
-  const paneStatus = (paneId) => agentByPane.get(paneId)?.agent_status ?? (agents ? "gone" : "unknown");
+  const paneStatus = (ask) => {
+    if (ask.target_type !== "herdr" || !agents) return "unknown";
+    return agentByPane.get(ask.pane_id)?.agent_status ?? "gone";
+  };
 
   // Escalations recent enough that their prompt may still be on screen.
   const needsYou = db
@@ -111,7 +117,7 @@ export function snapshot(db, { now = Date.now(), config = CONFIG, agents = null 
     .all({ since: iso(now - config.expireAfterMs) })
     .map((row) => {
       const ask = preview(row);
-      return { ...ask, pane_status: paneStatus(ask.pane_id) };
+      return { ...ask, pane_status: paneStatus(ask) };
     });
 
   // Blocked panes the queue has nothing current for: a harness without the hook, a failed hook,
@@ -350,7 +356,7 @@ async function startInBackground() {
       cwd: import.meta.dir,
       detached: true,
       stdio: "ignore",
-      env: { ...process.env, HERDR_PLUGIN_STATE_DIR: stateDir },
+      env: { ...process.env, PERMISSION_EVALUATOR_STATE_DIR: stateDir },
     }).unref();
 
     for (let attempt = 0; attempt < 20 && !(await dashboardIsRunning()); attempt++) {
