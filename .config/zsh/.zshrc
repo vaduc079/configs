@@ -36,6 +36,7 @@ source $ZDOTDIR/.plugins
 autoload -U +X bashcompinit && bashcompinit
 # complete -o nospace -C /usr/bin/terraform terraform
 complete -C '/usr/local/bin/aws_completer' aws
+(( $+commands[rex] )) && source <(rex completion zsh)
 
 ##################
 # custom scripts #
