@@ -32,6 +32,9 @@ source $ZDOTDIR/.keybindings
 # load plugins
 source $ZDOTDIR/.plugins
 
+# The next line enables shell command completion for gcloud.
+if [ -f '/Users/duc.vu/projects/apps/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/duc.vu/projects/apps/google-cloud-sdk/completion.zsh.inc'; fi
+
 # autocomplete
 autoload -U +X bashcompinit && bashcompinit
 # complete -o nospace -C /usr/bin/terraform terraform
