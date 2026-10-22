@@ -26,13 +26,15 @@ typeset -U path PATH
 [ -d "$HOME/.opencode/bin" ] && path=($path $HOME/.opencode/bin)
 export PATH
 
+# static `brew shellenv` output, replace eval "$(brew shellenv)"; re-check after a major brew upgrade
+export HOMEBREW_PREFIX=/opt/homebrew
+export HOMEBREW_CELLAR=/opt/homebrew/Cellar
+export HOMEBREW_REPOSITORY=/opt/homebrew
+path=(/opt/homebrew/bin /opt/homebrew/sbin $path)
+[ -z "${MANPATH-}" ] || export MANPATH=":${MANPATH#:}"
+export INFOPATH="/opt/homebrew/share/info:${INFOPATH:-}"
 # brew shell completion
-if type brew &>/dev/null; then
-  FPATH="$(brew --prefix)/share/zsh/site-functions:${FPATH}"
-fi
-
-
-eval "$(/opt/homebrew/bin/brew shellenv)"
+FPATH=/opt/homebrew/share/zsh/site-functions:$FPATH
 
 # The next line updates PATH for the Google Cloud SDK.
 if [ -f '/Users/duc.vu/projects/apps/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/duc.vu/projects/apps/google-cloud-sdk/path.zsh.inc'; fi

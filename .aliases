@@ -17,3 +17,5 @@ alias vi='nvim'
 
 # set env var
 alias codex-personal='CODEX_HOME=~/.codex-personal codex'
+
+alias zsh-refresh-cache='rm -f ~/.cache/zsh/*.zsh ~/.cache/zsh/completions/_rex && exec zsh -l'
