@@ -5,16 +5,21 @@
 //   bun queue.js enqueue --harness claude   Permission hook entry point; reads the hook payload on stdin.
 //   bun queue.js status                     Row counts by status.
 //
-// `enqueue` never decides or blocks the prompt: it always exits 0 and prints nothing, so the
-// harness shows its normal dialog. It then starts a detached runner for the ask's target so the
-// ask is evaluated within seconds instead of at launchd's next sweep. Failures go to enqueue.err.log in the state directory.
+// `enqueue` first applies the deterministic rules in rules.js. An ask a rule approves is allowed
+// through the hook's output; one a rule escalates is recorded and notified without an evaluator
+// run. Otherwise it prints nothing, so the harness shows its normal dialog, and starts a detached
+// runner for the ask's target so the ask is evaluated within seconds instead of at launchd's next
+// sweep. It always exits 0. Failures go to enqueue.err.log in the state directory.
 
 import { spawn } from "node:child_process";
 import { appendFileSync, closeSync, mkdirSync, openSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { insertAsk, openQueue, stateDirectory, statusCounts } from "./db.js";
+import { CONFIG } from "./config.js";
+import { getAsks, insertAsk, openQueue, stateDirectory, statusCounts } from "./db.js";
 import { HARNESSES } from "./harnesses/index.js";
+import { appendAudit, escalationNotice, notifyHuman } from "./report.js";
+import { loadRules, ruleDecision } from "./rules.js";
 import { detectTarget } from "./targets/index.js";
 
 const STRING_LIMIT = 4_000;
@@ -34,16 +39,19 @@ export function truncateStrings(value) {
   return value;
 }
 
-// Returns the new row's ID and target key, or null when the ask is not one the runner could act on.
-export function enqueue(db, { harnessName, hookInput, env }) {
+// Returns { id, targetKey, decision } for a stored ask, where `decision` is set when a rule decided
+// it and the runner must not. Returns { decision } for a rule-decided ask outside a supported target,
+// and null when the ask is neither decided nor one the runner could act on.
+export function enqueue(db, { harnessName, hookInput, env, rules = { slackChannels: [] }, dryRun = false }) {
   const harness = HARNESSES[harnessName];
   if (!harness) throw new Error(`unknown harness: ${harnessName}`);
 
-  const detected = detectTarget(env);
-  if (!detected) return null;
-
   const ask = harness.parseHookInput(hookInput);
   if (!ask) return null;
+
+  const decision = ruleDecision(ask.context, rules);
+  const detected = detectTarget(env);
+  if (!detected) return decision ? { decision } : null;
 
   const { driver, target } = detected;
   const targetKey = driver.key(target);
@@ -53,8 +61,31 @@ export function enqueue(db, { harnessName, hookInput, env }) {
     target,
     targetKey,
     context: truncateStrings(ask.context),
+    decision: decision && { status: decision.status, reason: `rule ${decision.rule}: ${decision.reason}`, dryRun },
   });
-  return { id, targetKey };
+  return { id, targetKey, decision };
+}
+
+const ALLOW_OUTPUT = JSON.stringify({
+  hookSpecificOutput: { hookEventName: "PermissionRequest", decision: { behavior: "allow" } },
+});
+
+// Reports a rule decision for a stored ask the way the runner reports the evaluator's.
+function reportRuleDecision(db, id, dryRun) {
+  const [ask] = getAsks(db, [id]);
+  if (ask.status === "need_human") notifyHuman(escalationNotice(ask));
+  appendAudit([
+    {
+      paneId: ask.target.pane_id ?? ask.target_key,
+      askId: ask.id,
+      harness: ask.harness,
+      summary: ask.context.summary,
+      dryRun,
+      completed: true,
+      decision: ask.status === "handled" ? (dryRun ? "dry_run_would_approve" : "approved") : "human_review",
+      reason: ask.reason,
+    },
+  ]);
 }
 
 function flagValue(args, flag) {
@@ -110,8 +141,18 @@ export function startRunner(targetKey) {
 async function runEnqueue(args) {
   try {
     const hookInput = JSON.parse(await Bun.stdin.text());
-    const queued = enqueue(openQueue(), { harnessName: flagValue(args, "--harness"), hookInput, env: process.env });
-    if (queued) startRunner(queued.targetKey);
+    const db = openQueue();
+    const { dryRun } = CONFIG;
+    const queued = enqueue(db, {
+      harnessName: flagValue(args, "--harness"),
+      hookInput,
+      env: process.env,
+      rules: loadRules(import.meta.dir),
+      dryRun,
+    });
+    if (queued?.decision?.status === "handled" && !dryRun) process.stdout.write(ALLOW_OUTPUT);
+    if (queued?.decision && queued.id) reportRuleDecision(db, queued.id, dryRun);
+    else if (queued?.id) startRunner(queued.targetKey);
   } catch (error) {
     logEnqueueError(error);
   }

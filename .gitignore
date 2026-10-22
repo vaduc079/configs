@@ -16,6 +16,7 @@ Library/Application Support/lazygit/state.yml
 .agents/skills/*
 .codex-personal/commands/*
 tools/permission-evaluator/policy.md
+tools/permission-evaluator/rules.json
 
 .worktrees/
 /.config/yazi/flavors/

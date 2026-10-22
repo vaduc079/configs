@@ -17,7 +17,7 @@ import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { holderIsAlive, openQueue, stateDirectory } from "./db.js";
 import { loadPolicy, policyHash } from "./evaluator.js";
-import { CONFIG } from "./runner.js";
+import { CONFIG } from "./config.js";
 import { TARGETS } from "./targets/index.js";
 
 const IDLE_EXIT_MS = 5 * 60_000;

@@ -126,6 +126,74 @@ describe("enqueue", () => {
     }
   });
 
+  test("approves a Slack message to an allowlisted channel without a runner", () => {
+    const db = openQueue(":memory:");
+    const hookInput = {
+      ...permissionRequest(),
+      tool_name: "mcp__slack__slack_send_message",
+      tool_input: { channel_id: "C1", message: "hi" },
+    };
+    const queued = enqueue(db, { harnessName: "claude", hookInput, env: HERDR_ENV, rules: { slackChannels: ["C1"] } });
+
+    expect(queued.decision.status).toBe("handled");
+    const [ask] = getAsks(db, [queued.id]);
+    expect(ask.status).toBe("handled");
+    expect(ask.reason).toStartWith("rule slack-allowlisted-channel:");
+    expect(pendingAsks(db, "herdr:w1:p2")).toEqual([]);
+  });
+
+  test("approves an allowlisted Slack message outside a multiplexer without storing it", () => {
+    const db = openQueue(":memory:");
+    const hookInput = {
+      ...permissionRequest(),
+      tool_name: "mcp__slack__slack_send_message",
+      tool_input: { channel_id: "C1", message: "hi" },
+    };
+    const queued = enqueue(db, { harnessName: "claude", hookInput, env: {}, rules: { slackChannels: ["C1"] } });
+
+    expect(queued).toEqual({ decision: expect.objectContaining({ status: "handled" }) });
+  });
+
+  test("queues a Slack message to another channel for the evaluator", () => {
+    const db = openQueue(":memory:");
+    const hookInput = {
+      ...permissionRequest(),
+      tool_name: "mcp__slack__slack_send_message",
+      tool_input: { channel_id: "C2", message: "hi" },
+    };
+    const queued = enqueue(db, { harnessName: "claude", hookInput, env: HERDR_ENV, rules: { slackChannels: ["C1"] } });
+
+    expect(queued.decision).toBeNull();
+    expect(getAsks(db, [queued.id])[0].status).toBe("pending");
+  });
+
+  test("escalates AskUserQuestion without an evaluator run", () => {
+    const db = openQueue(":memory:");
+    const hookInput = { ...permissionRequest(), tool_name: "AskUserQuestion", tool_input: { questions: [] } };
+    const queued = enqueue(db, { harnessName: "claude", hookInput, env: HERDR_ENV });
+
+    expect(queued.decision.status).toBe("need_human");
+    expect(getAsks(db, [queued.id])[0].status).toBe("need_human");
+  });
+
+  test("records a rule approval in dry run as a dry-run row", () => {
+    const db = openQueue(":memory:");
+    const hookInput = {
+      ...permissionRequest(),
+      tool_name: "mcp__slack__slack_send_message",
+      tool_input: { channel_id: "C1", message: "hi" },
+    };
+    const queued = enqueue(db, {
+      harnessName: "claude",
+      hookInput,
+      env: HERDR_ENV,
+      rules: { slackChannels: ["C1"] },
+      dryRun: true,
+    });
+
+    expect(getAsks(db, [queued.id])[0].dry_run).toBe(1);
+  });
+
   test("rejects unknown harnesses", () => {
     const db = openQueue(":memory:");
     expect(() => enqueue(db, { harnessName: "nope", hookInput: {}, env: HERDR_ENV })).toThrow();

@@ -5,7 +5,8 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { acquireLock, getAsks, insertAsk, openQueue } from "./db.js";
-import { drainTarget, focusShellCommand, notifierValue, runTarget, sweep } from "./runner.js";
+import { focusShellCommand, notifierValue } from "./report.js";
+import { drainTarget, runTarget, sweep } from "./runner.js";
 
 const CONFIG = {
   dryRun: false,

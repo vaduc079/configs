@@ -11,12 +11,13 @@ The evaluator lives here, outside any multiplexer's config, and is not stowed (`
 `.stow-local-ignore`); the hook and launchd point at this directory. Herdr and Rex only add the
 dashboard actions (see [Dashboard](#dashboard)).
 
-Set `dryRun: true` in `runner.js` to record what it would approve without sending keys.
+Set `dryRun: true` in `config.js` to record what it would approve without sending keys.
 
 ## Flow
 
 ```text
-harness permission hook ──> queue.js enqueue ──> queue.db (pending)
+harness permission hook ──> queue.js enqueue ──> rules.js ──> allow in hook output / need_human (+ notification)
+                                   ├─> queue.db (pending, when no rule decides)
                                    └─> runner.js --target <pane> (detached)
 launchd (60 s) ──> runner.js (sweep) ──> runner.js --target <pane>, one per pane with pending rows
 
@@ -24,11 +25,18 @@ runner.js --target <pane> ──> lock <pane> ──> claude -p ──> herdr ag
                                          └─> handled / need_human (+ notification) / stale
 ```
 
-1. The harness hook (Claude Code `PermissionRequest`) runs `queue.js enqueue`, which stores the ask
-   with its target (where the agent runs) and context (tool and input), then exits 0 without a
-   decision, so the normal dialog shows. Asks outside a supported target are ignored. For a stored
-   ask it starts a detached `runner.js --target <pane>` from the plugin directory with launchd's
-   environment.
+1. The harness hook (Claude Code `PermissionRequest`) runs `queue.js enqueue`. It first applies
+   the deterministic rules in `rules.js`:
+   - `slack_send_message` to a channel in `rules.json` is approved through the hook's own output
+     (`decision.behavior: "allow"`), with no evaluator run or keys sent;
+   - `AskUserQuestion` is a question, not a permission, so it goes to `need_human` with a
+     notification and no evaluator run.
+
+   A rule-decided ask is stored already decided (reason `rule <name>: …`) and audited. Any other
+   ask is stored pending with its target (where the agent runs) and context (tool and input), then
+   the hook exits 0 without a decision, so the normal dialog shows. Asks outside a supported target
+   are not stored (a rule approval still applies). For a pending ask it starts a detached
+   `runner.js --target <pane>` from the plugin directory with launchd's environment.
 2. The runner takes that pane's lock in the DB (a runner that finds it held exits: the holder
    handles the ask; a lock is held exactly as long as its runner process lives). It puts the pane's
    rows from a dead run back to pending (after `maxAttempts` crashes they go to you, with a
@@ -58,7 +66,10 @@ Every failure path leaves the prompt on screen for you; nothing is approved on e
 | Path | Role |
 |---|---|
 | `queue.js` | Hook entry point (`enqueue --harness <name>`) and `status` |
-| `runner.js` | Per-pane runner (`--target`, started by the hook) and launchd sweep; `CONFIG` lives here |
+| `rules.js` | Deterministic hook rules; reads the local `rules.json` allowlist (ignored by Git) |
+| `runner.js` | Per-pane runner (`--target`, started by the hook) and launchd sweep |
+| `config.js` | `CONFIG` |
+| `report.js` | Audit log and notifications |
 | `db.js` | SQLite schema and queue operations |
 | `evaluator.js` | Evaluator prompt, `claude -p` arguments, result validation |
 | `harnesses/` | One adapter per agent harness: parse the hook payload, describe the prompt UI |
@@ -128,7 +139,7 @@ ends up in the evaluator's Bash allowlist.
 
 ## Configuration
 
-`CONFIG` near the top of `runner.js`:
+`CONFIG` in `config.js`:
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -150,6 +161,14 @@ It is local-only and ignored by Git. It is read on every run. The runner embeds 
 prompt between fixed guardrails that stay in code: untrusted pane text and row context, the exact
 allowed commands, row order and screen matching, never choosing persistent permission, and the
 JSON result. A missing or empty `policy.md` stops the run; rows stay pending and expire.
+
+`rules.json`, also local-only, holds the allowlists for the hook rules, read on every hook call:
+
+```json
+{ "slackChannels": ["C0123456789", "U0123456789"] }
+```
+
+A missing or invalid `rules.json` turns the Slack rule off; those asks go to the evaluator.
 
 ## State
 

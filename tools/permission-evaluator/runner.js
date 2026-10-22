@@ -11,10 +11,7 @@
 //
 // Targets have separate locks, so different panes are evaluated in parallel.
 
-import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { appendFileSync } from "node:fs";
-import { join } from "node:path";
 import {
   acquireLock,
   awaitingHuman,
@@ -28,31 +25,13 @@ import {
   recordFailure,
   recordResults,
   releaseLock,
-  stateDirectory,
 } from "./db.js";
-import { evaluateTarget, loadPolicy, oneLine, policyHash } from "./evaluator.js";
+import { CONFIG } from "./config.js";
+import { evaluateTarget, loadPolicy, policyHash } from "./evaluator.js";
 import { HARNESSES } from "./harnesses/index.js";
 import { startRunner } from "./queue.js";
+import { appendAudit, escalationNotice, notifyHuman } from "./report.js";
 import { TARGETS } from "./targets/index.js";
-
-const MINUTE = 60_000;
-
-export const CONFIG = {
-  dryRun: false,
-  auditEnabled: true,
-  notifyEnabled: true,
-  model: "haiku",
-  maxRowsPerTarget: 10,
-  baseTimeoutMs: 45_000,
-  perRowTimeoutMs: 15_000,
-  maxAttempts: 3,
-  // The hook runs just before the dialog is drawn; younger rows could be misread as stale, so a
-  // run waits until its rows are this old.
-  minAgeMs: 1_000,
-  // A prompt still pending after this long was almost certainly answered by a human.
-  expireAfterMs: 15 * MINUTE,
-  retentionMs: 30 * 24 * 60 * MINUTE,
-};
 
 const AUDIT_DECISIONS = {
   handled: (dryRun) => (dryRun ? "dry_run_would_approve" : "approved"),
@@ -62,69 +41,6 @@ const AUDIT_DECISIONS = {
 
 function log(message) {
   console.log(`${new Date().toISOString()} ${message}`);
-}
-
-function appendAudit(entries) {
-  if (!CONFIG.auditEnabled || entries.length === 0) return;
-
-  const timestamp = new Date().toISOString();
-  const lines = entries.map((entry) => `${JSON.stringify({ timestamp, ...entry })}\n`);
-  appendFileSync(join(stateDirectory(), "audit.jsonl"), lines.join(""));
-}
-
-function shellQuote(value) {
-  return `'${String(value).replace(/'/g, "'\\''")}'`;
-}
-
-// macOS runs the click action later in a bare environment, so the command carries an absolute
-// executable and the variables that reach the target's server.
-export function focusShellCommand({ argv, environment }) {
-  const [executable, ...args] = argv;
-  const variables = Object.entries(environment).map(([name, value]) => `${name}=${shellQuote(value)}`);
-  const command = [Bun.which(executable) ?? executable, ...args].map(shellQuote);
-  // `env` first keeps the value from starting with a quote, which terminal-notifier rejects.
-  return ["/usr/bin/env", ...variables, ...command].join(" ");
-}
-
-// terminal-notifier rejects a value starting with one of these unless it is escaped.
-export function notifierValue(text) {
-  return /^[-[({<"']/.test(text) ? `\\${text}` : text;
-}
-
-// terminal-notifier, when installed, brings the target's app forward and focuses the pane on click;
-// a notice for the same target replaces the previous one. Otherwise falls back to osascript, which
-// has no click action.
-function notifyHuman({ title, message, group, app, focus }) {
-  if (!CONFIG.notifyEnabled) return;
-
-  const notifier = Bun.which("terminal-notifier");
-  if (notifier) {
-    const args = [
-      "-title", title,
-      "-message", notifierValue(message),
-      "-group", group,
-    ];
-    if (app) args.push("-activate", app);
-    if (focus) args.push("-execute", focusShellCommand(focus));
-    spawnSync(notifier, args, { stdio: "ignore", timeout: 5_000 });
-    return;
-  }
-
-  // Uses `on run argv` so the notification text is passed as data, never parsed as AppleScript.
-  spawnSync(
-    "osascript",
-    [
-      "-e",
-      "on run argv",
-      "-e",
-      "display notification (item 2 of argv) with title (item 1 of argv)",
-      "-e",
-      "end run",
-      title,
-      message,
-    ],
-    { stdio: "ignore", timeout: 5_000 },
-  );
 }
 
 function auditEntry({ ask, result, target, outcome, durationMs, config, policyDigest }) {
@@ -141,22 +57,6 @@ function auditEntry({ ask, result, target, outcome, durationMs, config, policyDi
   };
   if (!result) return { ...entry, error: outcome.error };
   return { ...entry, decision: AUDIT_DECISIONS[result.status](config.dryRun), reason: result.reason };
-}
-
-// Shows only the reason: the command summary is usually long enough to push it out of the banner.
-function escalationNotice(ask) {
-  const driver = TARGETS[ask.target.type];
-  const canFocus = driver?.isValid(ask.target);
-  return {
-    title: `Permission needs you (${ask.target_key})`,
-    // The evaluator may return an empty reason, and terminal-notifier drops an empty message.
-    message: oneLine(ask.reason) || "needs review",
-    group: ask.target_key,
-    app: driver?.appBundleId ?? null,
-    focus: canFocus
-      ? { argv: driver.focusCommand(ask.target), environment: driver.serverEnvironment(ask.target) }
-      : null,
-  };
 }
 
 // Claims, evaluates and records the target's oldest claimable rows, adding them to `attempted`.

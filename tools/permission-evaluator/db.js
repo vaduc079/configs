@@ -64,11 +64,14 @@ function rowFromDb(row) {
   return { ...row, target: JSON.parse(row.target), context: JSON.parse(row.context) };
 }
 
-export function insertAsk(db, { harness, sessionId, target, targetKey, context, now = Date.now() }) {
+// `decision` ({ status, reason, dryRun }) stores an ask a rule already decided, so no runner claims it.
+export function insertAsk(db, { harness, sessionId, target, targetKey, context, decision = null, now = Date.now() }) {
   const result = db
     .query(
-      `INSERT INTO permission_asks (created_at, harness, session_id, target_key, target, context)
-       VALUES ($createdAt, $harness, $sessionId, $targetKey, $target, $context)`,
+      `INSERT INTO permission_asks
+         (created_at, harness, session_id, target_key, target, context, status, reason, dry_run, decided_at)
+       VALUES ($createdAt, $harness, $sessionId, $targetKey, $target, $context, $status, $reason, $dryRun,
+               $decidedAt)`,
     )
     .run({
       createdAt: iso(now),
@@ -77,6 +80,10 @@ export function insertAsk(db, { harness, sessionId, target, targetKey, context, 
       targetKey,
       target: JSON.stringify(target),
       context: JSON.stringify(context),
+      status: decision?.status ?? "pending",
+      reason: decision?.reason ?? null,
+      dryRun: decision?.dryRun ? 1 : 0,
+      decidedAt: decision ? iso(now) : null,
     });
   return Number(result.lastInsertRowid);
 }
