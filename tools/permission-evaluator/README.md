@@ -83,7 +83,7 @@ Every failure path leaves the prompt on screen for you; nothing is approved on e
 | Target | Detected by | Inspect | Approve | Notes |
 |---|---|---|---|---|
 | Herdr pane | `HERDR_ENV=1`, `HERDR_PANE_ID` | `herdr agent get/read/explain` | `herdr agent send-keys <pane> enter` | Dashboard shows whether a pane is still blocked |
-| Rex block | `REX_BLOCK`, `REX_SERVER` | `rex -S <server> capture -b <block> --trim` | `rex -S <server> send-key -b <block> enter` | Screen only, so the dashboard shows the pane as unknown. The evaluator gets no `REX_*` variables, so Rex's SessionStart hook ignores it; `REX_BIN_DIR` goes on its `PATH` |
+| Rex block | `REX_BLOCK`, `REX_SERVER` | `rex -S <server> capture -b <block> --trim` | `rex -S <server> send-key -b <block> enter` | Screen only, so the dashboard shows the pane as unknown. The evaluator gets no `REX_*` variables, so Rex's SessionStart hook ignores it; `REX_BIN_DIR` goes on its `PATH`. Focus (notification click, dashboard) switches Rex.app to the block's session (`REX_SESSION`, stored with the ask), then focuses the block; the switch needs Remote Control on in Rex.app (Settings, Rex Server) |
 
 A Herdr pane inside a Rex block resolves to the Herdr pane.
 

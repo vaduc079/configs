@@ -71,6 +71,20 @@ describe("buildClaudeArgs", () => {
     expect(Object.keys(environment).filter((name) => name.startsWith("REX_"))).toEqual([]);
   });
 
+  test("focuses a Rex block by switching the app to its session first", () => {
+    const server = "unix:///Users/me/Library/Application%20Support/rex/server.sock";
+    const rexTarget = { type: "rex", pane_id: "block:01a1", server, bin_dir: "/Applications/Rex/MacOS" };
+
+    const [shell, flag, script, ...args] = rex.focusCommand({ ...rexTarget, session_id: "session:01a0" });
+    expect([shell, flag]).toEqual(["/bin/sh", "-c"]);
+    expect(script).toContain("session.select");
+    expect(args).toEqual(["rex-focus", "/Applications/Rex/MacOS/rex", server, "session:01a0", "block:01a1"]);
+
+    // Asks queued before the session was stored.
+    expect(rex.focusCommand(rexTarget)).toEqual(["/Applications/Rex/MacOS/rex", "-S", server, "focus", "block:01a1"]);
+    expect(rex.isValid({ ...rexTarget, session_id: "session:x; rm -rf /" })).toBe(false);
+  });
+
   test("passes rows as the user message", () => {
     const message = argsFor(true).at(-1);
     expect(message).toContain('"id": 7');

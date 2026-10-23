@@ -98,6 +98,7 @@ describe("enqueue", () => {
       pane_id: "block:01a15a0d-8bef",
       server: REX_ENV.REX_SERVER,
       bin_dir: REX_ENV.REX_BIN_DIR,
+      session_id: REX_ENV.REX_SESSION,
     });
   });
 
