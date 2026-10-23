@@ -29,6 +29,16 @@ end
 
 rex.bind("resize/=", "pane.balance")
 
+-- Move mode: h/j/k/l or arrows move the focused pane.
+rex.mode("move", { exclusive = true })
+rex.bind(prefix .. "m", "client.mode.enter", { name = "move" })
+
+for key, direction in pairs(directions) do
+	for _, move_key in ipairs({ key, direction }) do
+		rex.bind("move/" .. move_key, "pane.move", { direction = direction })
+	end
+end
+
 -- Popups defined in popups.lua.
 rex.bind(prefix .. "ctrl+g", "lazygit")
 rex.bind(prefix .. "ctrl+f", "yazi")

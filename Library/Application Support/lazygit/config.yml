@@ -29,4 +29,4 @@ git:
   overrideGpg: true
   pagers:
     - colorArg: always
-      pager: hunk pager
+      pager: delta --dark --syntax-theme=gruvbox-dark --paging=never --line-numbers --true-color=always --hyperlinks --hyperlinks-file-link-format="lazygit-edit://{path}:{line}"
