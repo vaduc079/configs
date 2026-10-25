@@ -11,7 +11,7 @@ function shouldRedirectToChrome(hostname: string): boolean {
     hostname.includes("slack.com") ||
     hostname.includes("shopback.slack.com") ||
     hostname.includes(".replit.app") ||
-    // hostname.includes("console.jumpcloud.com") ||
+    hostname.includes("console.jumpcloud.com") ||
     hostname.includes(".zscaler.com") ||
     hostname.includes("n8n.svc.shopback.com") ||
     hostname.includes("api.anthropic.com")
@@ -19,8 +19,7 @@ function shouldRedirectToChrome(hostname: string): boolean {
 }
 
 export default {
-  defaultBrowser: "company.thebrowser.Browser",
-  // defaultBrowser: "com.google.Chrome",
+  defaultBrowser: "com.google.Chrome",
   options: {
     hideIcon: true,
   },

@@ -12,7 +12,7 @@ local cli = require("cli")
 -- Configuration
 local config = {
 	-- Enable modules by default
-	enableDirectionalFocus = true,
+	enableDirectionalFocus = false,
 	enableFocusFollowMouse = false,
 	enableClickThrough = false,
 	enableMouseFollowFocus = true,

@@ -1,2 +1,13 @@
 [delta]
+	syntax-theme = kanagawa-wave
 	plus-style = syntax "#2E3D32"
+	minus-style = syntax "#43242B"
+	minus-emph-style = syntax "#6D2F3A"
+	plus-emph-style = syntax "#3F5A41"
+	line-numbers-minus-style = "#C34043"
+	line-numbers-plus-style = "#76946A"
+	line-numbers-zero-style = "#54546D"
+	file-style = bold "#7E9CD8"
+	file-decoration-style = "#54546D" ul
+	hunk-header-style = file line-number syntax
+	hunk-header-decoration-style = "#54546D" box
