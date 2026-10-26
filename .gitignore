@@ -20,3 +20,4 @@ tools/permission-evaluator/rules.json
 
 .worktrees/
 /.config/yazi/flavors/
+.config/finicky/shopback.ts
