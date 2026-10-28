@@ -1,6 +1,5 @@
--- Popups: run a program in a new pane that is zoomed to fill the tab and closes when the
--- program exits. A zoomed pane instead of a floating layer, since Rex doesn't fully
--- support floating layers in the app yet.
+-- Popups: run a program in a floating layer over the current tab. The layer closes when
+-- the program exits.
 
 local terminal = "com.superlogical.terminal"
 
@@ -16,10 +15,9 @@ local function define_popup(name, title, command)
 		name = name,
 		title = title,
 		run = function(ctx)
-			local split, err = rex.session.new_split({
-				anchor_id = ctx.block_id,
-				direction = "vertical",
-				side = "after",
+			local _, err = rex.session.new_layer({
+				session_id = ctx.session_id,
+				bounds = { 0.05, 0.05, 0.9, 0.9 },
 				focus = true,
 				layout = rex.layout.block({
 					flavor = "com.superlogical.terminal.shell",
@@ -33,9 +31,6 @@ local function define_popup(name, title, command)
 			if err then
 				error(err, 0)
 			end
-
-			local popup_block_id = split.block_ids[1]
-			rex.session.zoom_block({ block_id = popup_block_id, zoom = true })
 		end,
 	})
 end

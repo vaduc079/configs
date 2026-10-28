@@ -1,7 +1,7 @@
 -- Rex configuration. Reload with `rex config reload`.
 
 require("vim_navigation")
-require("popups")
+require("floating")
 require("permission_dashboard")
 
 local prefix = "ctrl+a>"
@@ -39,6 +39,6 @@ for key, direction in pairs(directions) do
 	end
 end
 
--- Popups defined in popups.lua.
+-- Popups defined in floating.lua.
 rex.bind(prefix .. "ctrl+g", "lazygit")
 rex.bind(prefix .. "ctrl+f", "yazi")
