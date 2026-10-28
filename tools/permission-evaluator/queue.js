@@ -22,7 +22,7 @@ import { appendAudit, escalationNotice, notifyHuman } from "./report.js";
 import { loadRules, ruleDecision } from "./rules.js";
 import { detectTarget } from "./targets/index.js";
 
-const STRING_LIMIT = 4_000;
+const STRING_LIMIT = 20_000;
 
 // The evaluator prompt sends any row containing this marker to a human.
 export const TRUNCATION_MARKER = "…[truncated]";

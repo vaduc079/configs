@@ -27,6 +27,6 @@ os:
   editPreset: "nvim"
 git:
   overrideGpg: true
-  pagers:
+  diffRenderers:
     - colorArg: always
-      pager: delta --dark --syntax-theme=kanagawa-wave --paging=never --line-numbers --true-color=always --hyperlinks --hyperlinks-file-link-format="lazygit-edit://{path}:{line}"
+      command: delta --dark --syntax-theme=kanagawa-wave --paging=never --line-numbers --true-color=always --hyperlinks --hyperlinks-file-link-format="lazygit-edit://{path}:{line}"

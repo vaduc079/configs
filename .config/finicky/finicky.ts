@@ -70,7 +70,9 @@ export default {
           "*.youtube.com",
           "shopee.vn",
           "*.shopee.vn",
-          "x.com"
+          "x.com",
+          "tailscale.com",
+          "*.tailscale.com"
         ]),
         contains("google.com/maps"),
       ],

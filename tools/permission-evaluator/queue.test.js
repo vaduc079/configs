@@ -215,8 +215,8 @@ describe("enqueue", () => {
   });
 
   test("truncates long strings anywhere in the context", () => {
-    const truncated = truncateStrings({ a: ["x".repeat(5_000)], b: 1 });
-    expect(truncated.a[0].length).toBeLessThan(4_100);
+    const truncated = truncateStrings({ a: ["x".repeat(25_000)], b: 1 });
+    expect(truncated.a[0].length).toBeLessThan(20_100);
     expect(truncated.a[0].endsWith("…[truncated]")).toBe(true);
     expect(truncated.b).toBe(1);
   });
