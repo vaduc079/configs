@@ -1,13 +1,29 @@
 [delta]
-	syntax-theme = kanagawa-wave
-	plus-style = syntax "#2E3D32"
-	minus-style = syntax "#43242B"
-	minus-emph-style = syntax "#6D2F3A"
-	plus-emph-style = syntax "#3F5A41"
-	line-numbers-minus-style = "#C34043"
-	line-numbers-plus-style = "#76946A"
-	line-numbers-zero-style = "#54546D"
-	file-style = bold "#7E9CD8"
-	file-decoration-style = "#54546D" ul
+	# syntax-theme = kanagawa-wave
+	# plus-style = syntax "#2E3D32"
+	# minus-style = syntax "#43242B"
+	# minus-emph-style = syntax "#6D2F3A"
+	# plus-emph-style = syntax "#3F5A41"
+	# line-numbers-minus-style = "#C34043"
+	# line-numbers-plus-style = "#76946A"
+	# line-numbers-zero-style = "#54546D"
+	# file-style = bold "#7E9CD8"
+	# file-decoration-style = "#54546D" ul
+	# hunk-header-style = file line-number syntax
+	# hunk-header-decoration-style = "#54546D" box
+
+	# ANSI and 256-color indexes only, so delta follows the Rex terminal theme.
+	# 28/34 and 52/88 are Rex's generated tints toward green and red, picked as the nearest slots to the
+	# old Kanagawa colors above; 8 is bright black.
+	syntax-theme = ansi
+	plus-style = syntax 28
+	minus-style = syntax 52
+	plus-emph-style = syntax 34
+	minus-emph-style = syntax 88
+	line-numbers-minus-style = red
+	line-numbers-plus-style = green
+	line-numbers-zero-style = 8
+	file-style = bold blue
+	file-decoration-style = 8 ul
 	hunk-header-style = file line-number syntax
-	hunk-header-decoration-style = "#54546D" box
+	hunk-header-decoration-style = 8 box

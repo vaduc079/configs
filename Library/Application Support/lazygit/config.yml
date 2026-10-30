@@ -1,27 +1,43 @@
 gui:
   nerdFontsVersion: "3"
   showNumstatInFilesView: true
+  # theme:
+  #   activeBorderColor:
+  #     - "#ff9e3b"
+  #     - "bold"
+  #   inactiveBorderColor:
+  #     - "#54546d"
+  #   searchingActiveBorderColor:
+  #     - "#ff9e3b"
+  #     - "bold"
+  #   optionsTextColor:
+  #     - "#7e9cd8"
+  #   selectedLineBgColor:
+  #     - "#223249"
+  #   cherryPickedCommitBgColor:
+  #     - "#e6c384"
+  #   cherryPickedCommitFgColor:
+  #     - "#7e9cd8"
+  #   unstagedChangesColor:
+  #     - "#e82424"
+  #   defaultFgColor:
+  #     - "#dcd7ba"
+  # ANSI color names only, so lazygit follows the Rex terminal theme.
   theme:
     activeBorderColor:
-      - "#ff9e3b"
-      - "bold"
-    inactiveBorderColor:
-      - "#54546d"
+      - yellow
+      - bold
     searchingActiveBorderColor:
-      - "#ff9e3b"
-      - "bold"
+      - yellow
+      - bold
     optionsTextColor:
-      - "#7e9cd8"
-    selectedLineBgColor:
-      - "#223249"
+      - blue
     cherryPickedCommitBgColor:
-      - "#e6c384"
+      - yellow
     cherryPickedCommitFgColor:
-      - "#7e9cd8"
+      - blue
     unstagedChangesColor:
-      - "#e82424"
-    defaultFgColor:
-      - "#dcd7ba"
+      - red
 os:
   openLink: open "$(echo {{link}} | sed 's/%2F/\//g')"
   editPreset: "nvim"
@@ -29,4 +45,5 @@ git:
   overrideGpg: true
   diffRenderers:
     - colorArg: always
-      command: delta --dark --syntax-theme=kanagawa-wave --paging=never --line-numbers --true-color=always --hyperlinks --hyperlinks-file-link-format="lazygit-edit://{path}:{line}"
+      # command: delta --dark --syntax-theme=kanagawa-wave --paging=never --line-numbers --true-color=always --hyperlinks --hyperlinks-file-link-format="lazygit-edit://{path}:{line}"
+      command: delta --paging=never --line-numbers --true-color=always --hyperlinks --hyperlinks-file-link-format="lazygit-edit://{path}:{line}"
