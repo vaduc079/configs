@@ -19,3 +19,4 @@ alias vi='nvim'
 alias codex-personal='CODEX_HOME=~/.codex-personal codex'
 
 alias zsh-refresh-cache='rm -f ~/.cache/zsh/*.zsh ~/.cache/zsh/completions/_rex && exec zsh -l'
+alias espresso="caffeinate -ims"
