@@ -7,10 +7,16 @@ export SB_GIT_HOOKS_DIR=$HOME/.sb-git-hooks
 
 export FZF_DEFAULT_OPTS=" \
  -m --highlight-line --pointer=''\
- --color=fg:#dcd7ba,bg:#1f1f28,hl:#c0a36e \
- --color=fg+:#dcd7ba,bg+:#2d4f67,hl+:#e6c384 \
- --color=info:#7e9cd8,prompt:#98bb6c,pointer:#e46876 \
- --color=marker:#98bb6c,spinner:#ffa066,header:#7e9cd8"
+  --color=16 \
+ --color=fg:-1,bg:-1,hl:yellow \
+ --color=fg+:-1,bg+:8,hl+:bright-yellow \
+ --color=info:blue,prompt:green,pointer:red \
+ --color=marker:green,spinner:yellow,header:blue"
+# Kanagawa
+ # --color=fg:#dcd7ba,bg:#1f1f28,hl:#c0a36e \
+ # --color=fg+:#dcd7ba,bg+:#2d4f67,hl+:#e6c384 \
+ # --color=info:#7e9cd8,prompt:#98bb6c,pointer:#e46876 \
+ # --color=marker:#98bb6c,spinner:#ffa066,header:#7e9cd8"
 # Gruvbox
  # --color=bg:#282828,fg:#ebdbb2,hl:#d65d0e\
  # --color=bg+:#504945,fg+:#ebdbb2,hl+:#fabd2f\
