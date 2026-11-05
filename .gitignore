@@ -11,6 +11,9 @@ Library/Application Support/lazygit/state.yml
 *.sb
 *.log
 
+node_modules
+pi_modules
+
 .claude/skills/*
 .claude/commands/*
 .agents/skills/*
