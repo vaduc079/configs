@@ -59,6 +59,7 @@ export default {
         "*.replit.app",
         "*.zscaler.com",
         "api.anthropic.com",
+        "auth.openai.com",
         ...shopbackChromeHostnames,
       ]),
       browser: "com.google.Chrome",

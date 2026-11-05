@@ -12,6 +12,7 @@ rex.bind(prefix .. "ctrl+z", "pane.zoom")
 
 rex.bind("alt+backspace", "pane.send_key", { key = "ctrl+w" })
 rex.bind("ctrl+enter", "pane.split.auto")
+rex.bind("cmd+p", "client.palette.toggle")
 
 for index = 1, 9 do
 	rex.bind("ctrl+" .. index, "client.tab.goto", { index = index })
