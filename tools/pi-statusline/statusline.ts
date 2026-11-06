@@ -46,7 +46,7 @@ function parseLimit(headers: Record<string, string>, window: "5h" | "7d"): Limit
 function renderModel(ctx: ExtensionContext, thinking: string, theme: Theme): string {
   const model = ctx.model;
   if (!model) return theme.fg("dim", "no model");
-  const name = theme.fg("accent", theme.bold(model.name.replace(/^Claude /, "")));
+  const name = theme.fg("accent", model.name.replace(/^Claude /, ""));
   if (!model.reasoning) return name;
   return `${name} ${theme.fg(THINKING_COLOR[thinking] ?? "muted", thinking)}`;
 }
