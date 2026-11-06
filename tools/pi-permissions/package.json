@@ -1,0 +1,14 @@
+{
+  "name": "pi-permissions",
+  "private": true,
+  "type": "module",
+  "description": "Pi permission gate: OpenCode-style allow/ask/deny rules for tool calls",
+  "scripts": {
+    "link-pi": "ln -sfn \"$HOME/.pi/agent/install/releases/$(cat \"$HOME/.pi/agent/install/current-version\")/node_modules\" pi_modules",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test *.test.ts shell/*.test.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}
