@@ -1,14 +1,10 @@
 // ~/.config/finicky/finicky.ts
 // `finicky` is a global declared by finicky.d.ts; the type import below is what makes it available.
 import type { FinickyConfig } from "/Applications/Finicky.app/Contents/Resources/finicky.d.ts";
-import {
-  shopbackChromeHostnames,
-  shopbackHostnames,
-  shopbackUrlParts,
-} from "./shopback";
+import { shopbackChromeHostnames } from "./shopback";
 import { slackHandler, slackRewriter } from "./slack";
 
-const heliumShopBack = { name: "Helium", profile: "ShopBack" };
+const chrome = "com.google.Chrome"
 const heliumDic = { name: "Helium", profile: "Dic" };
 
 // finicky.matchHostnames compares strings exactly, so "*.example.com" never matches.
@@ -26,7 +22,7 @@ const contains =
       parts.some((part) => url.href.includes(part));
 
 export default {
-  defaultBrowser: heliumShopBack,
+  defaultBrowser: chrome,
   options: {
     hideIcon: true,
     logRequests: false,
@@ -60,9 +56,10 @@ export default {
         "*.zscaler.com",
         "api.anthropic.com",
         "auth.openai.com",
+        "auth.atlassian.com",
         ...shopbackChromeHostnames,
       ]),
-      browser: "com.google.Chrome",
+      browser: chrome,
     },
     {
       match: [
@@ -78,13 +75,6 @@ export default {
         contains("google.com/maps"),
       ],
       browser: heliumDic,
-    },
-    {
-      match: [
-        hosts(shopbackHostnames),
-        contains(...shopbackUrlParts),
-      ],
-      browser: heliumShopBack,
     },
   ],
 } satisfies FinickyConfig;
