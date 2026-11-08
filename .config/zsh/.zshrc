@@ -1,6 +1,7 @@
 #!/bin/zsh
 export ZDOTDIR=$HOME/.config/zsh
 export HOMEBREW_NO_AUTO_UPDATE=1
+export PI_CACHE_RETENTION=long
 
 # history
 HISTFILE=~/.config/zsh/.histfile
