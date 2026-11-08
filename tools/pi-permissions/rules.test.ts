@@ -86,6 +86,24 @@ describe("parseRules", () => {
     );
     assert.throws(() => parseRules(json(["x"]), HOME), /\[0\]/);
   });
+  it("input: a string becomes a one-item list; arrays stay", () => {
+    const rules = parseRules(
+      json([{ action: "a", resource: "*", effect: "allow", input: { channel_id: "C1", thread_ts: ["1", "2"] } }]),
+      HOME,
+    );
+    assert.deepEqual(rules[0].input, { channel_id: ["C1"], thread_ts: ["1", "2"] });
+  });
+  it("input: rejected on ask and deny rules and when malformed", () => {
+    const rule = (effect: string, input: unknown) => json([{ action: "a", resource: "*", effect, input }]);
+    assert.throws(() => parseRules(rule("deny", { c: "x" }), HOME), /\[0\].*only allowed on allow rules/);
+    assert.throws(() => parseRules(rule("ask", { c: "x" }), HOME), /only allowed on allow rules/);
+    for (const bad of [null, "x", ["x"], {}]) {
+      assert.throws(() => parseRules(rule("allow", bad), HOME), /"input" must be a non-empty object/, JSON.stringify(bad));
+    }
+    for (const bad of [1, [], [1], null]) {
+      assert.throws(() => parseRules(rule("allow", { c: bad }), HOME), /"input\.c" must be/, JSON.stringify(bad));
+    }
+  });
   it("loadRules throws on a missing file and reads a present one", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "pp-"));
     assert.throws(() => loadRules(path.join(dir, "nope.json"), HOME), /cannot read/);
@@ -108,6 +126,18 @@ describe("evaluate", () => {
   });
   it("no match → ask", () => {
     assert.deepEqual(evaluate("read", "x", []), { action: "read", resource: "*", effect: "ask" });
+  });
+  it("input rule matches only when every field is a string matching one of its patterns", () => {
+    const withInput: Rule[] = [
+      { action: "send", resource: "*", effect: "ask" },
+      { action: "send", resource: "*", effect: "allow", input: { channel_id: ["C1", "D*"], kind: ["msg"] } },
+    ];
+    const effect = (input: Record<string, unknown>) => evaluate("send", "*", withInput, input).effect;
+    assert.equal(effect({ channel_id: "C1", kind: "msg", extra: 1 }), "allow");
+    assert.equal(effect({ channel_id: "D9", kind: "msg" }), "allow");
+    assert.equal(effect({ channel_id: "C1" }), "ask");
+    assert.equal(effect({ channel_id: "C2", kind: "msg" }), "ask");
+    assert.equal(effect({ channel_id: ["C1"], kind: "msg" }), "ask");
   });
 });
 

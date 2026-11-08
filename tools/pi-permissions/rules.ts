@@ -50,7 +50,31 @@ export function parseRules(text: string, home: string): Rule[] {
     const resource = HOME_ACTIONS.has(r.action) ? expandHome(r.resource, home) : r.resource;
     const rule: Rule = { action: r.action, resource, effect: r.effect as Effect };
     if (r.reason !== undefined) rule.reason = r.reason;
+    if (r.input !== undefined) rule.input = parseInput(r.input, r.effect, i);
     return rule;
+  });
+}
+
+/** `{field: pattern | [patterns]}` → `{field: [patterns]}`. Allow rules only: on a deny rule, an input the patterns miss would skip the deny. */
+function parseInput(raw: unknown, effect: string, i: number): Record<string, string[]> {
+  if (effect !== "allow") throw new Error(`permissions[${i}]: "input" is only allowed on allow rules`);
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw) || Object.keys(raw).length === 0) {
+    throw new Error(`permissions[${i}]: "input" must be a non-empty object`);
+  }
+  return Object.fromEntries(
+    Object.entries(raw).map(([key, value]) => {
+      const patterns = typeof value === "string" ? [value] : value;
+      const valid = Array.isArray(patterns) && patterns.length > 0 && patterns.every((p) => typeof p === "string");
+      if (!valid) throw new Error(`permissions[${i}]: "input.${key}" must be a string or a non-empty array of strings`);
+      return [key, patterns as string[]];
+    }),
+  );
+}
+
+function inputMatches(patterns: Record<string, string[]>, input: Record<string, unknown>): boolean {
+  return Object.entries(patterns).every(([key, list]) => {
+    const value = input[key];
+    return typeof value === "string" && list.some((p) => match(value, p));
   });
 }
 
@@ -64,20 +88,20 @@ export function loadRules(file: string, home: string): Rule[] {
   return parseRules(text, home);
 }
 
-/** Last rule where action and resource both match; none → ask. */
-export function evaluate(action: string, resource: string, rules: Rule[]): Rule {
+/** Last rule where action, resource and (if set) input all match; none → ask. */
+export function evaluate(action: string, resource: string, rules: Rule[], input: Record<string, unknown> = {}): Rule {
   for (let i = rules.length - 1; i >= 0; i--) {
     const r = rules[i];
-    if (match(action, r.action) && match(resource, r.resource)) return r;
+    if (match(action, r.action) && match(resource, r.resource) && (r.input === undefined || inputMatches(r.input, input))) return r;
   }
   return { action, resource: "*", effect: "ask" };
 }
 
-export function decide(checks: Check[], rules: Rule[]): Decision {
+export function decide(checks: Check[], rules: Rule[], input: Record<string, unknown> = {}): Decision {
   let ask: Decision | undefined;
   for (const check of checks) {
     for (const resource of check.resources) {
-      const rule = evaluate(check.action, resource, rules);
+      const rule = evaluate(check.action, resource, rules, input);
       if (rule.effect === "deny") return { effect: "deny", rule, check, resource };
       if (rule.effect === "ask" && !check.denyOnly && !ask) ask = { effect: "ask", rule, check, resource };
     }

@@ -74,7 +74,7 @@ export default function (pi: ExtensionAPI) {
       return { block: true, reason: loadError };
     }
     const loc: Location = { cwd: ctx.cwd, root: gitRoot(ctx.cwd), home };
-    const decision = decide(classify(event.toolName, event.input, loc, parseShell), rules);
+    const decision = decide(classify(event.toolName, event.input, loc, parseShell), rules, event.input);
     if (decision.effect === "allow") return undefined;
 
     const action = decision.check?.action ?? event.toolName;

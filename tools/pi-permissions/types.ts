@@ -2,12 +2,16 @@
 
 export type Effect = "allow" | "ask" | "deny";
 
-/** One rule from permissions.json. OpenCode format; `reason` is shown to the model on deny. */
+/**
+ * One rule from permissions.json. OpenCode format; `reason` is shown to the model on deny.
+ * `input` (allow rules only): the rule matches only when every named tool-input field is a string matching one of its patterns.
+ */
 export interface Rule {
   action: string;
   resource: string;
   effect: Effect;
   reason?: string;
+  input?: Record<string, string[]>;
 }
 
 /**

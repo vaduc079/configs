@@ -188,6 +188,32 @@ describe("gate", () => {
   });
 });
 
+describe("input exceptions to an ask rule", () => {
+  const rules = [
+    { action: "*", resource: "*", effect: "allow" },
+    { action: "mcp__x__send", resource: "*", effect: "ask" },
+    { action: "mcp__x__send", resource: "*", input: { channel_id: ["C1", "U2"] }, effect: "allow" },
+  ];
+
+  it("listed channel passes with no dialog, also in a subagent child; others still ask", async () => {
+    const { call } = load(rulesFile(rules));
+    let asked = 0;
+    const { ctx } = makeCtx({ choose: async () => (asked++, "Deny") });
+    assert.equal(await call("mcp__x__send", { channel_id: "C1", message: "hi" }, ctx), undefined);
+    assert.equal(await call("mcp__x__send", { channel_id: "U2", thread_ts: "1.2" }, ctx), undefined);
+    assert.equal(asked, 0);
+    assert.equal((await call("mcp__x__send", { channel_id: "C9" }, ctx))?.block, true);
+    assert.equal(asked, 1);
+    process.env.PI_SUBAGENT_CHILD = "1";
+    try {
+      assert.equal(await call("mcp__x__send", { channel_id: "C1" }, ctx), undefined);
+      assert.match((await call("mcp__x__send", { channel_id: "C9" }, ctx))?.reason ?? "", /subagent cannot ask/);
+    } finally {
+      delete process.env.PI_SUBAGENT_CHILD;
+    }
+  });
+});
+
 describe("invalid rules file", () => {
   it("blocks every call and notifies once per session", async () => {
     const bad = path.join(dir, "bad.json");
