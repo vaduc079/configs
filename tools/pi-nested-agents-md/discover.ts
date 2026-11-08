@@ -33,9 +33,19 @@ export function isBelow(target: string, root: string): boolean {
   return rel !== "" && rel !== ".." && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel);
 }
 
-/** The realpath of the first context file in `dir`, or undefined. */
+/**
+ * The realpath of the first context file in `dir`, or undefined.
+ * Names must match exactly: on a case-insensitive filesystem (macOS) `stat("AGENTS.md")` also finds `agents.md`.
+ */
 function contextFileIn(dir: string): string | undefined {
+  let entries: Set<string>;
+  try {
+    entries = new Set(fs.readdirSync(dir));
+  } catch {
+    return undefined;
+  }
   for (const name of NAMES) {
+    if (!entries.has(name)) continue;
     const candidate = path.join(dir, name);
     try {
       if (fs.statSync(candidate).isFile()) return fs.realpathSync.native(candidate);

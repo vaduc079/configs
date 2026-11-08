@@ -40,6 +40,10 @@ describe("findContextFiles: first name match per folder", () => {
     const root = project({ "sub/AGENTS.md/inner.txt": "i", "sub/CLAUDE.md": "c", "sub/x.txt": "x" });
     assert.deepEqual(rel(root, findContextFiles(path.join(root, "sub/x.txt"), root)), ["sub/CLAUDE.md"]);
   });
+  test("names match case-sensitively, even on a case-insensitive filesystem", () => {
+    const root = project({ "sub/agents.md": "a", "sub/Claude.md": "c", "sub/x.txt": "x" });
+    assert.deepEqual(findContextFiles(path.join(root, "sub/x.txt"), root), []);
+  });
   test("a folder without a context file contributes nothing", () => {
     const root = project({ "sub/x.txt": "x" });
     assert.deepEqual(findContextFiles(path.join(root, "sub/x.txt"), root), []);
