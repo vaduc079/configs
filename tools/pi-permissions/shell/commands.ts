@@ -14,32 +14,90 @@ export function parseShell(command: string): ShellParse {
     const commands: string[] = []
     const directories: string[] = []
     const pathWords: string[] = []
-    for (const item of scanned.commands) {
-      // The scanner leaves redirect targets out of words, so read them from the command text.
-      pathWords.push(...redirectTargets(item.resource))
+    const readPathWords: string[] = []
+    // The scanner leaves redirect targets out of words, so read them from the command text.
+    const targets = scanned.commands.map((item) => redirectTargets(item.resource))
+    // Per line, not per command: `ls P | xargs rm`, `rm $(realpath P)` and `cat x > "$(realpath P)"` let a
+    // read-only command's output pick the file a writer changes. An assignment (`PATH=...; cat P`,
+    // `for PATH in ...`) has no scanned item, so it is found in the text. `cd` changes no file; a substitution in
+    // its operand is its own item.
+    const readOnly =
+      !ASSIGNMENT.test(command) &&
+      !targets.flat().some((target) => /[$`]/.test(target.text)) &&
+      scanned.commands.every((item) => cdOperands(item.rawWords, item.words) !== undefined || isReadOnly(item))
+    for (const [index, item] of scanned.commands.entries()) {
+      for (const target of targets[index]) {
+        if (!/\s/.test(target.text)) (target.write || !readOnly ? pathWords : readPathWords).push(target.text)
+      }
       // Declarations are skipped as commands, as in OpenCode; nested substitutions arrive as their own items.
       if (item.declaration) continue
 
       const cd = cdOperands(item.rawWords, item.words)
       // `cd <dir>` reads and edits nothing; its target is already in `directories`.
       if (!cd) {
+        const into = readOnly ? readPathWords : pathWords
         for (const word of item.words.slice(1)) {
           const value = pathWord(word)
-          if (value) pathWords.push(value)
+          if (value) into.push(value)
         }
       }
       if (cd) directories.push(...cd.directories)
       // Unquoted words joined by single spaces: assignment prefixes and extra blanks cannot hide a command.
       if (!cd?.complete) commands.push(item.words.join(" "))
     }
-    return { commands, directories, pathWords: [...new Set(pathWords)] }
+    return { commands, directories, pathWords: [...new Set(pathWords)], readPathWords: [...new Set(readPathWords)] }
   } catch {
     return opaque(command)
   }
 }
 
 function opaque(command: string): ShellParse {
-  return { commands: [command.trim()], directories: [], pathWords: [] }
+  return { commands: [command.trim()], directories: [], pathWords: [], readPathWords: [] }
+}
+
+/**
+ * Commands that never change a file named in their arguments, each with a test for the options that
+ * would let them write or run another program. Wrappers (`env`, `xargs`, `command`, `sudo`) are not listed,
+ * so a wrapped command keeps the edit check. `rg` also reads options from RIPGREP_CONFIG_PATH, which only
+ * an assignment or declaration in the same line can set, since pi starts a new shell per call.
+ */
+const READ_ONLY: Record<string, (option: string) => boolean> = {
+  cat: () => false,
+  head: () => false,
+  tail: () => false,
+  wc: () => false,
+  ls: () => false,
+  stat: () => false,
+  du: () => false,
+  readlink: () => false,
+  realpath: () => false,
+  diff: () => false,
+  jq: () => false,
+  grep: () => false,
+  rg: (o) => /^--(pre|hostname-bin)(=|$)/.test(o),
+  fd: (o) => /^-[^-]*[xX]/.test(o) || /^--exec(-batch)?(=|$)/.test(o),
+  find: (o) => /^-(delete|exec|execdir|ok|okdir|fprint|fprint0|fprintf|fls)$/.test(o),
+}
+
+/**
+ * `NAME=`, `NAME+=`, `NAME[i]=`, or a `for`/`select` loop variable, at the start of a word. Also matches
+ * arguments like `x=y` or `rg for`, which only over-denies.
+ */
+const ASSIGNMENT = /(^|[\s;&|()`])([A-Za-z_]\w*(\[[^\]]*\])?\+?=|(for|select)\s)/
+
+/**
+ * A listed command with no argument that bash expands (`$`, backtick, brace, glob), since an expansion can
+ * produce an unsafe option such as `-{delete,x}`. A function or `hash -p` that redefines a listed name needs
+ * another command in the line, which fails this test.
+ */
+function isReadOnly(item: { words: string[]; rawWords: string[] }): boolean {
+  const [name = "", ...args] = item.rawWords
+  const unsafe = READ_ONLY[name]
+  return (
+    unsafe !== undefined &&
+    !args.some((raw) => /[$`{*?[]/.test(raw.replace(/'[^']*'/g, ""))) &&
+    !item.words.slice(1).some(unsafe)
+  )
 }
 
 /** The word if it may name a file: non-empty, no whitespace, not an option; the value of `--opt=value`. */
@@ -105,8 +163,8 @@ const REDIRECTS = ["&>>", "&>", "<<<", "<<-", "<<", "<>", "<&", ">&", ">|", ">>"
  * Best-effort file targets of `>`, `>>`, `<`, `&>`, `>|`, `<>` in one scanned command's text.
  * Stops at the first newline after a heredoc operator, so a heredoc body is never read.
  */
-function redirectTargets(text: string): string[] {
-  const targets: string[] = []
+function redirectTargets(text: string): { text: string; write: boolean }[] {
+  const targets: { text: string; write: boolean }[] = []
   let heredoc = false
   let i = 0
   while (i < text.length) {
@@ -128,7 +186,7 @@ function redirectTargets(text: string): string[] {
       if (operator === "<<" || operator === "<<-") heredoc = true
       if (operator === "<<" || operator === "<<-" || operator === "<<<") continue
       if (operator.endsWith("&") && /^(\d+-?|-)$/.test(word.text)) continue
-      if (word.text && !/\s/.test(word.text)) targets.push(word.text)
+      if (word.text) targets.push({ text: word.text, write: operator !== "<" })
       continue
     }
     // Any other word, including the command name and digits of `2>file`.

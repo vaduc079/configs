@@ -37,6 +37,52 @@ test("path words from arguments", () => {
   assert.ok(parseShell("cp ~/.ssh/id_rsa .").pathWords.includes("~/.ssh/id_rsa"))
 })
 
+test("read-only commands give read-only path words", () => {
+  for (const cmd of [
+    "ls -la a", "cat a", "head -n 5 a", "rg -n x a", "fd -t f x a", "find a -name x", "wc -l a", "jq . a",
+    "rg -n x a | head -5", "cat a | wc -l", "head -n 5 < a", "rg -g '*.ts' x a", "cd /tmp && ls a", "2>/dev/null ls a",
+  ]) {
+    const parsed = parseShell(cmd)
+    assert.ok(parsed.readPathWords.includes("a"), cmd)
+    assert.ok(!parsed.pathWords.includes("a"), cmd)
+  }
+})
+
+test("write or exec options, wrappers and other commands keep the edit check", () => {
+  for (const cmd of [
+    "rm a", "sed -i '' s/x/y/ a", "tee a", "sort -o a b",
+    "find a -delete", "find a -exec rm {} ;", "fd x a -x rm", "fd -HX rm x a", "fd --exec rm x a", "rg --pre ./run x a",
+    "env cat a", "xargs cat a", "command ls a", "rg --hostname-bin=./run x a",
+  ]) assert.ok(parseShell(cmd).pathWords.includes("a"), cmd)
+})
+
+test("output of a read-only command reaching a writer keeps the edit check", () => {
+  for (const cmd of [
+    'rm "$(realpath a)"', "ls -d a | xargs rm", "rg -l x a | xargs sed -i '' s/x/y/",
+    "for f in $(ls a); do rm $f; done", 'while read f; do rm "$f"; done < <(ls a)', "rm b < a",
+  ]) assert.ok(parseShell(cmd).pathWords.includes("a"), cmd)
+})
+
+test("expanded arguments, assignments and redefined names keep the edit check", () => {
+  for (const cmd of [
+    "find a -{delete,true}", "find a $(echo -delete)", "find a $X", "find a -de*", "fd . a -{x,X} rm",
+    "rg $(printf -- --pre)=/bin/rm x a", "PATH=/tmp/e:$PATH cat a", "RIPGREP_CONFIG_PATH=cfg rg x a",
+    "export RIPGREP_CONFIG_PATH=cfg; rg x a", 'cat(){ rm "$@"; }; cat a', "hash -p /bin/rm cat; cat a",
+    "cd $(rm a) && ls a", 'cd "$(ls a | xargs rm)"', "PATH=/tmp/e:$PATH; cat a", "fd -0x rm . a", "fd -0X rm . a",
+    'F=$(realpath a); cat /tmp/x > "$F"', 'cat /tmp/x > "$(realpath a)"', "cat /tmp/x > `realpath a`",
+    'cat /tmp/x >> "$(readlink -f a)"', 'cat /tmp/x 1<>"$(realpath a)"', "exec cat a",
+    "for PATH in /tmp/e:/bin; do cat a; done", "select PATH in /tmp/e; do cat a; done", "PATH[0]=/tmp/e; cat a",
+    "PATH+=:/tmp/e; cat a", "cat a < ${X:=v}", "case x in x)PATH=/tmp/e;; esac; cat a",
+  ]) assert.ok(parseShell(cmd).pathWords.includes("a"), cmd)
+})
+
+test("a write redirect on a read-only command is still an edit", () => {
+  const parsed = parseShell("cat src > a")
+  assert.ok(parsed.pathWords.includes("a"))
+  assert.ok(parsed.readPathWords.includes("src"))
+})
+
+
 test("--opt=value gives the value; flags are skipped", () => {
   const { pathWords } = parseShell("tool --file=secrets/.env --verbose -x --empty=")
   assert.ok(pathWords.includes("secrets/.env"))
@@ -80,7 +126,7 @@ test("heredoc body never yields path words", () => {
 
 test("unreadable command returns the raw command, nothing else", () => {
   const parsed = parseShell("  cat 'unterminated .env  ")
-  assert.deepEqual(parsed, { commands: ["cat 'unterminated .env"], directories: [], pathWords: [] })
+  assert.deepEqual(parsed, { commands: ["cat 'unterminated .env"], directories: [], pathWords: [], readPathWords: [] })
 })
 
 test("never throws", () => {
@@ -98,5 +144,5 @@ test("commands are the unquoted words joined by single spaces", () => {
 
 test("cd operands are directories, not path words", () => {
   assert.deepEqual(parseShell("cd ~/x && ls").pathWords, [])
-  assert.deepEqual(parseShell("cd ~/x && cat a").pathWords, ["a"])
+  assert.deepEqual(parseShell("cd ~/x && cat a").readPathWords, ["a"])
 })

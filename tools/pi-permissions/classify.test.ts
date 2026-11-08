@@ -8,7 +8,7 @@ import { decide, parseRules } from "./rules.ts";
 import { parseShell } from "./shell/commands.ts";
 import type { Location, Rule, ShellParse } from "./types.ts";
 
-const noShell = (): ShellParse => ({ commands: [], directories: [], pathWords: [] });
+const noShell = (): ShellParse => ({ commands: [], directories: [], pathWords: [], readPathWords: [] });
 const loc: Location = { cwd: "/home/x/proj", root: "/home/x/proj", home: "/home/x" };
 const locRoot: Location = { cwd: "/home/x/proj/sub", root: "/home/x/proj", home: "/home/x" };
 
@@ -80,14 +80,14 @@ describe("path tools", () => {
 
 describe("bash", () => {
   it("shell check with commands; empty lists skipped", () => {
-    const parse = (): ShellParse => ({ commands: ["git status", "ls"], directories: [], pathWords: [] });
+    const parse = (): ShellParse => ({ commands: ["git status", "ls"], directories: [], pathWords: [], readPathWords: [] });
     assert.deepEqual(classify("bash", { command: "git status && ls" }, loc, parse), [
       { action: "shell", resources: ["git status", "ls"] },
     ]);
     assert.deepEqual(classify("bash", { command: "" }, loc, noShell), []);
   });
   it("cd outside adds external_directory; cd inside does not", () => {
-    const parse = (): ShellParse => ({ commands: ["cd /tmp/zzz"], directories: ["/tmp/zzz", "sub", "~/other"], pathWords: [] });
+    const parse = (): ShellParse => ({ commands: ["cd /tmp/zzz"], directories: ["/tmp/zzz", "sub", "~/other"], pathWords: [], readPathWords: [] });
     assert.deepEqual(classify("bash", { command: "x" }, loc, parse), [
       { action: "external_directory", resources: ["/tmp/*"] },
       { action: "external_directory", resources: ["/home/x/*"] },
@@ -95,11 +95,19 @@ describe("bash", () => {
     ]);
   });
   it("path words → denyOnly read and edit with both forms", () => {
-    const parse = (): ShellParse => ({ commands: ["cat .env"], directories: [], pathWords: [".env", "~/.ssh/id_rsa", ".env"] });
-    assert.deepEqual(classify("bash", { command: "cat .env" }, loc, parse), [
-      { action: "shell", resources: ["cat .env"] },
+    const parse = (): ShellParse => ({ commands: ["cp .env"], directories: [], pathWords: [".env", "~/.ssh/id_rsa", ".env"], readPathWords: [] });
+    assert.deepEqual(classify("bash", { command: "cp .env" }, loc, parse), [
+      { action: "shell", resources: ["cp .env"] },
       { action: "read", resources: [".env", "/home/x/proj/.env", "../.ssh/id_rsa", "/home/x/.ssh/id_rsa"], denyOnly: true },
       { action: "edit", resources: [".env", "/home/x/proj/.env", "../.ssh/id_rsa", "/home/x/.ssh/id_rsa"], denyOnly: true },
+    ]);
+  });
+  it("read-only path words → denyOnly read, no edit", () => {
+    const parse = (): ShellParse => ({ commands: ["cat .env > out"], directories: [], pathWords: ["out"], readPathWords: [".env"] });
+    assert.deepEqual(classify("bash", { command: "cat .env > out" }, loc, parse), [
+      { action: "shell", resources: ["cat .env > out"] },
+      { action: "read", resources: ["out", "/home/x/proj/out", ".env", "/home/x/proj/.env"], denyOnly: true },
+      { action: "edit", resources: ["out", "/home/x/proj/out"], denyOnly: true },
     ]);
   });
   it("path words that only ask never prompt, but deny blocks", () => {
@@ -113,7 +121,7 @@ describe("bash", () => {
       }),
       "/home/x",
     );
-    const parse = (words: string[]) => (): ShellParse => ({ commands: ["c"], directories: [], pathWords: words });
+    const parse = (words: string[]) => (): ShellParse => ({ commands: ["c"], directories: [], pathWords: words, readPathWords: [] });
     assert.equal(decide(classify("bash", { command: "c" }, loc, parse(["notes.txt"])), rules).effect, "allow");
     assert.equal(decide(classify("bash", { command: "c" }, loc, parse(["a.env"])), rules).effect, "deny");
   });
@@ -180,7 +188,7 @@ describe("$HOME expansion", () => {
       action: "external_directory",
       resources: ["/home/x/*"],
     });
-    const shell = (): ShellParse => ({ commands: [], directories: ["$HOME/zz"], pathWords: [] });
+    const shell = (): ShellParse => ({ commands: [], directories: ["$HOME/zz"], pathWords: [], readPathWords: [] });
     assert.deepEqual(classify("bash", { command: "cd $HOME/zz" }, loc, shell), [
       { action: "external_directory", resources: ["/home/x/*"] },
     ]);

@@ -48,7 +48,12 @@ export interface ShellParse {
   /**
    * Words that may name files: from scanned commands only (never heredoc bodies or an unreadable command),
    * no whitespace inside, not starting with "-"; for "--opt=value" the value. Includes redirect targets.
-   * As written (may start with ~ or be relative).
+   * As written (may start with ~ or be relative). Checked against read and edit rules.
    */
   pathWords: string[];
+  /**
+   * Same kind of words, but only read: arguments and `<` targets in a line where every command is a known
+   * read-only command (`ls`, `cat`, `rg`, ...) run as written. Checked against read rules only.
+   */
+  readPathWords: string[];
 }

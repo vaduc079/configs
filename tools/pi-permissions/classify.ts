@@ -106,11 +106,11 @@ export function classify(
         if (isOutside(abs, loc)) checks.push(externalCheck(abs));
       }
       if (parsed.commands.length > 0) checks.push({ action: "shell", resources: parsed.commands });
-      const words = [...new Set(parsed.pathWords.flatMap((w) => expandWord(w, loc).flatMap((x) => forms(absolute(x, loc), loc))))];
-      if (words.length > 0) {
-        checks.push({ action: "read", resources: words, denyOnly: true });
-        checks.push({ action: "edit", resources: words, denyOnly: true });
-      }
+      const resolve = (list: string[]) => [...new Set(list.flatMap((w) => expandWord(w, loc).flatMap((x) => forms(absolute(x, loc), loc))))];
+      const edited = resolve(parsed.pathWords);
+      const read = [...new Set([...edited, ...resolve(parsed.readPathWords)])];
+      if (read.length > 0) checks.push({ action: "read", resources: read, denyOnly: true });
+      if (edited.length > 0) checks.push({ action: "edit", resources: edited, denyOnly: true });
       return checks;
     }
     case "codemode":
