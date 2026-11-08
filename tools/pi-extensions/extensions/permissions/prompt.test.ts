@@ -86,7 +86,7 @@ describe("preview", () => {
   });
   it("other keys keep their original order; all target keys are lifted", async () => {
     const title = await titleFor("mcp__atlassian__x", { b: 1, cloudId: "c", a: 2, issueIdOrKey: "K-1", page_id: "p", pageId: "q", channel: "n" });
-    const keys = [...title.matchAll(/^    "(\w+)"/gm)].map((m) => m[1]);
+    const keys = [...title.matchAll(/^ {4}"(\w+)"/gm)].map((m) => m[1]);
     assert.deepEqual(keys, ["channel", "page_id", "pageId", "issueIdOrKey", "cloudId", "b", "a"]);
   });
   it("bash shows the command first and the matched rule last; non-objects are untouched", async () => {

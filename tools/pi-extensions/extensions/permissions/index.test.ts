@@ -30,10 +30,10 @@ function makeCtx(over: Partial<Ui> = {}, hasUI = true) {
 
 function load(file: string) {
   process.env.PI_PERMISSIONS_FILE = file;
-  const handlers: Record<string, Handler[]> = {};
+  const handlers: Partial<Record<string, Handler[]>> = {};
   setup({ on: (name: string, fn: Handler) => (handlers[name] ??= []).push(fn) } as never);
   const call = async (toolName: string, input: unknown, ctx: unknown): Promise<Result> =>
-    (await handlers.tool_call[0]({ toolName, input, toolCallId: "t" }, ctx)) as Result;
+    (await handlers.tool_call![0]({ toolName, input, toolCallId: "t" }, ctx)) as Result;
   const start = async (ctx: unknown) => {
     for (const fn of handlers.session_start ?? []) await fn({ reason: "startup" }, ctx);
   };
@@ -53,6 +53,7 @@ delete process.env.PI_SUBAGENT_CHILD;
 
 const saved = process.env.PI_PERMISSIONS_FILE;
 afterEach(() => {
+  delete process.env.PI_SUBAGENT_CHILD;
   if (saved === undefined) delete process.env.PI_PERMISSIONS_FILE;
   else process.env.PI_PERMISSIONS_FILE = saved;
 });
@@ -74,7 +75,7 @@ describe("gate", () => {
     const { ctx } = makeCtx();
     const r = await call("read", { path: "a/.env" }, ctx);
     assert.equal(r?.block, true);
-    assert.match(r?.reason ?? "", /^Blocked by permission rule: read .*\.env: secret file$/);
+    assert.match(r.reason ?? "", /^Blocked by permission rule: read .*\.env: secret file$/);
   });
 
   it("ask with no UI blocks with the no-one-present reason", async () => {
@@ -83,7 +84,7 @@ describe("gate", () => {
     const r = await call("bash", { command: "deploy prod" }, ctx);
     assert.equal(r?.block, true);
     assert.equal(
-      r?.reason,
+      r.reason,
       "Permission rule shell deploy prod needs approval and no one is present to give it",
     );
   });
@@ -92,18 +93,14 @@ describe("gate", () => {
     const { call } = load(file);
     const { ctx } = makeCtx({ choose: async () => assert.fail("no dialog in a subagent") });
     process.env.PI_SUBAGENT_CHILD = "1";
-    try {
-      const r = await call("bash", { command: "deploy prod" }, ctx);
-      assert.deepEqual(r, {
-        block: true,
-        reason: "Permission rule shell deploy prod needs user approval, which a subagent cannot ask for",
-      });
-      assert.equal(await call("read", { path: "a.txt" }, ctx), undefined);
-      const denied = await call("read", { path: "a/.env" }, ctx);
-      assert.match(denied?.reason ?? "", /^Blocked by permission rule: read .*\.env: secret file$/);
-    } finally {
-      delete process.env.PI_SUBAGENT_CHILD;
-    }
+    const r = await call("bash", { command: "deploy prod" }, ctx);
+    assert.deepEqual(r, {
+      block: true,
+      reason: "Permission rule shell deploy prod needs user approval, which a subagent cannot ask for",
+    });
+    assert.equal(await call("read", { path: "a.txt" }, ctx), undefined);
+    const denied = await call("read", { path: "a/.env" }, ctx);
+    assert.match(denied?.reason ?? "", /^Blocked by permission rule: read .*\.env: secret file$/);
   });
 
   it("ask with UI: Allow passes", async () => {
@@ -149,7 +146,7 @@ describe("gate", () => {
     const log: string[] = [];
     const releases: Array<() => void> = [];
     const { ctx } = makeCtx({
-      choose: (t) => {
+      choose: () => {
         log.push("start");
         return new Promise((resolve) =>
           releases.push(() => {
@@ -205,12 +202,8 @@ describe("input exceptions to an ask rule", () => {
     assert.equal((await call("mcp__x__send", { channel_id: "C9" }, ctx))?.block, true);
     assert.equal(asked, 1);
     process.env.PI_SUBAGENT_CHILD = "1";
-    try {
-      assert.equal(await call("mcp__x__send", { channel_id: "C1" }, ctx), undefined);
-      assert.match((await call("mcp__x__send", { channel_id: "C9" }, ctx))?.reason ?? "", /subagent cannot ask/);
-    } finally {
-      delete process.env.PI_SUBAGENT_CHILD;
-    }
+    assert.equal(await call("mcp__x__send", { channel_id: "C1" }, ctx), undefined);
+    assert.match((await call("mcp__x__send", { channel_id: "C9" }, ctx))?.reason ?? "", /subagent cannot ask/);
   });
 });
 
@@ -224,7 +217,7 @@ describe("invalid rules file", () => {
     const r2 = await call("bash", { command: "git status" }, ctx);
     for (const r of [r1, r2]) {
       assert.equal(r?.block, true);
-      assert.match(r?.reason ?? "", new RegExp(`^Permission rules failed to load \\(${bad}\\): permissions: invalid JSON`));
+      assert.match(r.reason ?? "", new RegExp(`^Permission rules failed to load \\(${bad}\\): permissions: invalid JSON`));
     }
     assert.equal(notices.length, 1);
     await start(ctx);
@@ -237,7 +230,7 @@ describe("invalid rules file", () => {
     const { ctx } = makeCtx({}, false);
     const r = await call("read", { path: "a.txt" }, ctx);
     assert.equal(r?.block, true);
-    assert.match(r?.reason ?? "", /failed to load/);
+    assert.match(r.reason ?? "", /failed to load/);
   });
 
   it("session_start reloads a fixed file", async () => {

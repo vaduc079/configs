@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
 import os from "node:os";
-import path from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { configFile } from "../../src/config.ts";
+import { isSubagentChild } from "../../src/subagent-child.ts";
 import { classify } from "./classify.ts";
 import { askUser } from "./prompt.ts";
 import { decide, loadRules } from "./rules.ts";
@@ -9,7 +10,7 @@ import { parseShell } from "./shell/commands.ts";
 import type { Location, Rule } from "./types.ts";
 
 function rulesFile(): string {
-  return process.env.PI_PERMISSIONS_FILE || path.join(os.homedir(), ".pi/agent/permissions.json");
+  return process.env.PI_PERMISSIONS_FILE || configFile("permissions");
 }
 
 export default function (pi: ExtensionAPI) {
@@ -22,6 +23,7 @@ export default function (pi: ExtensionAPI) {
 
   function load() {
     const file = rulesFile();
+    // config boundary: a broken rules file is reported, not thrown from the extension
     try {
       rules = loadRules(file, home);
       loadError = undefined;
@@ -34,6 +36,7 @@ export default function (pi: ExtensionAPI) {
   function gitRoot(cwd: string): string | undefined {
     if (roots.has(cwd)) return roots.get(cwd);
     let root: string | undefined;
+    // child process boundary: git fails outside a repo
     try {
       root = execFileSync("git", ["rev-parse", "--show-toplevel"], {
         cwd,
@@ -84,8 +87,7 @@ export default function (pi: ExtensionAPI) {
       const via = decision.check?.denyOnly ? " (path named in a shell command)" : "";
       return { block: true, reason: `Blocked by permission rule: ${action} ${resource}${via}${why ? ": " + why : ""}` };
     }
-    // pi-subagents sets this in its children, which have no user to ask.
-    if (process.env.PI_SUBAGENT_CHILD === "1") {
+    if (isSubagentChild()) {
       return { block: true, reason: `Permission rule ${action} ${resource} needs user approval, which a subagent cannot ask for` };
     }
     if (!ctx.hasUI) {

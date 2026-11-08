@@ -25,12 +25,12 @@ export type SubagentsOptions = {
   sessionDir: string;
   agents: Agent[];
   childEnv: ChildEnv;
-  saveJob(entry: JobEntry): void;
+  saveJob: (entry: JobEntry) => void;
   /** Call `delivered` once the result is posted to the parent; only then is the job saved as finished. */
-  onFinish(subagent: Subagent, result: RunResult, delivered: () => void): void;
-  onChange(): void;
-  onUiRequest(subagent: Subagent, request: UiRequest, signal: AbortSignal): Promise<UiAnswer>;
-  startProcess(options: RpcProcessOptions): RpcConnection;
+  onFinish: (subagent: Subagent, result: RunResult, delivered: () => void) => void;
+  onChange: () => void;
+  onUiRequest: (subagent: Subagent, request: UiRequest, signal: AbortSignal) => Promise<UiAnswer>;
+  startProcess: (options: RpcProcessOptions) => RpcConnection;
 };
 
 const MAX_RUNNING = 4;

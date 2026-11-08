@@ -18,16 +18,15 @@
  * rebuilt from the entries pi draws (`buildContextEntries()`) on start, `/tree` and compaction.
  */
 import * as fs from "node:fs";
-import * as path from "node:path";
 import {
   type ExtensionAPI,
   type ExtensionContext,
   type ExtensionUIContext,
-  getAgentDir,
   type Theme,
   type ToolRenderers,
 } from "@earendil-works/pi-coding-agent";
 import { type Box, type Component, Container, MouseRegion, Spacer, Text } from "@earendil-works/pi-tui";
+import { configFile, readConfig } from "../../src/config.ts";
 import { callFallback, frame, quietLine, resultFallback, type ToolRenderContext } from "./frame.ts";
 import { createRunTracker, type Run } from "./runs.ts";
 
@@ -57,8 +56,8 @@ interface Rows {
 }
 
 export default function (pi: ExtensionAPI) {
-  const configFile = path.join(getAgentDir(), "tools-verbose-low.json");
-  let mode = loadMode(configFile);
+  const file = configFile("tools-verbose-low");
+  let mode = loadMode(file);
   const tracker = createRunTracker();
   // Each row's `invalidate`; the latest row for an ID wins, because pi rebuilds rows.
   const registry = new Map<string, () => void>();
@@ -101,10 +100,8 @@ export default function (pi: ExtensionAPI) {
   pi.on("turn_start", (_event, ctx) => {
     // pi appends a displayed custom message sent mid-run at turn_end without telling extensions; find it in the branch.
     const branch = ctx.sessionManager.getBranch();
-    for (let i = branch.length - 1; i >= 0 && branch[i].type !== "message"; i--) {
-      const entry = branch[i];
-      if (entry.type === "custom_message" && entry.display) return rows.invalidate(tracker.closeOpen());
-    }
+    const sinceLastMessage = branch.slice(branch.findLastIndex((entry) => entry.type === "message") + 1);
+    if (sinceLastMessage.some((entry) => entry.type === "custom_message" && entry.display)) return rows.invalidate(tracker.closeOpen());
   });
   pi.on("message_start", (event) => tracker.messageStart(event.message));
   pi.on("message_update", (event) => rows.invalidate(tracker.messageUpdate(event.message)));
@@ -125,7 +122,7 @@ export default function (pi: ExtensionAPI) {
       const arg = args.trim();
       if (!arg) return ctx.ui.notify(`Tool rows: ${mode}`, "info");
       if (!isMode(arg)) return ctx.ui.notify("Usage: /tool-verbose <low|normal>", "error");
-      fs.writeFileSync(configFile, `${JSON.stringify({ mode: arg }, null, 2)}\n`);
+      fs.writeFileSync(file, `${JSON.stringify({ mode: arg }, null, 2)}\n`);
       mode = arg;
       applyThinkingLabel(ctx);
       invalidateAll();
@@ -204,16 +201,11 @@ function header(run: Run, context: ToolRenderContext, theme: Theme, rows: Rows):
 }
 
 function loadMode(file: string): Mode {
-  if (!fs.existsSync(file)) return "normal";
-  // A load error stops pi from starting, so the message must name the file.
-  let config;
-  try {
-    config = JSON.parse(fs.readFileSync(file, "utf8"));
-  } catch (error) {
-    throw new Error(`${file}: invalid JSON: ${error instanceof Error ? error.message : String(error)}`);
-  }
-  if (!isMode(config?.mode)) throw new Error(`${file}: "mode" must be one of ${MODES.join(", ")}.`);
-  return config.mode;
+  const config = readConfig(file) as { mode?: unknown } | null | undefined;
+  if (config === undefined) return "normal";
+  const mode = config?.mode;
+  if (!isMode(mode)) throw new Error(`${file}: "mode" must be one of ${MODES.join(", ")}.`);
+  return mode;
 }
 
 function isMode(value: unknown): value is Mode {

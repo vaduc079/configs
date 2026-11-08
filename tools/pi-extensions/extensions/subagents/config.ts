@@ -14,48 +14,39 @@
  * - `cacheRetention`: "short" or "long", sent as `PI_CACHE_RETENTION`. Unset inherits the parent's environment.
  *   pi 1.5.0 ignores it for `openai-codex`.
  */
-import * as fs from "node:fs";
-import * as path from "node:path";
-import { getAgentDir } from "@earendil-works/pi-coding-agent";
+import { configFile, readConfig } from "../../src/config.ts";
+import { findModelRule, modelRef } from "../../src/model-rule.ts";
 import type { ModelChoice } from "./subagent.ts";
 
 const CACHE_RETENTIONS = ["short", "long"] as const;
+type CacheRetention = (typeof CACHE_RETENTIONS)[number];
 
-type ModelRule = { model: string; cacheRetention?: (typeof CACHE_RETENTIONS)[number] };
+type ModelRule = { model: string; cacheRetention?: CacheRetention };
 
 export type ChildEnv = (model: ModelChoice) => Record<string, string>;
 
-export function loadChildEnv(file = path.join(getAgentDir(), "subagents.json")): ChildEnv {
-  const rules = fs.existsSync(file) ? parseRules(fs.readFileSync(file, "utf8"), file) : [];
+export function loadChildEnv(file = configFile("subagents")): ChildEnv {
+  const rules = parseRules(readConfig(file), file);
   return (model): Record<string, string> => {
-    const name = `${model.provider}/${model.id}`;
-    const rule = rules.find((candidate) => globToRegExp(candidate.model).test(name));
+    const rule = findModelRule(rules, modelRef(model));
     return rule?.cacheRetention ? { PI_CACHE_RETENTION: rule.cacheRetention } : {};
   };
 }
 
-function parseRules(text: string, file: string): ModelRule[] {
-  // A load error stops pi from starting, so the message must name the file.
-  let config;
-  try {
-    config = JSON.parse(text);
-  } catch (error) {
-    throw new Error(`${file}: invalid JSON: ${error instanceof Error ? error.message : String(error)}`);
-  }
-  const models: unknown = config?.models ?? [];
+function parseRules(config: unknown, file: string): ModelRule[] {
+  const models = (config as { models?: unknown } | null | undefined)?.models ?? [];
   if (!Array.isArray(models)) throw new Error(`${file}: "models" must be a list.`);
-  return models.map((rule, index) => {
+  return models.map((rule: unknown, index) => {
     const where = `${file}: models[${index}]`;
-    if (typeof rule?.model !== "string") throw new Error(`${where}.model must be a string.`);
-    const retention = rule.cacheRetention;
-    if (retention !== undefined && !CACHE_RETENTIONS.includes(retention)) {
+    const { model, cacheRetention } = (rule ?? {}) as { model?: unknown; cacheRetention?: unknown };
+    if (typeof model !== "string") throw new Error(`${where}.model must be a string.`);
+    if (cacheRetention !== undefined && !isCacheRetention(cacheRetention)) {
       throw new Error(`${where}.cacheRetention must be one of ${CACHE_RETENTIONS.join(", ")}.`);
     }
-    return { model: rule.model, cacheRetention: retention };
+    return { model, cacheRetention };
   });
 }
 
-function globToRegExp(glob: string): RegExp {
-  const pattern = glob.split("*").map((part) => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*");
-  return new RegExp(`^${pattern}$`);
+function isCacheRetention(value: unknown): value is CacheRetention {
+  return CACHE_RETENTIONS.includes(value as CacheRetention);
 }

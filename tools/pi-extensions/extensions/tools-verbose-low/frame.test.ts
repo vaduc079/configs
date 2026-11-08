@@ -75,10 +75,10 @@ const text = (body: string) => [{ type: "text" as const, text: body }];
 const longOutput = Array.from({ length: 14 }, (_, i) => `line ${i + 1}`).join("\n");
 
 const tools: Record<string, { base: ToolRenderers | undefined; args: Record<string, unknown> }> = {
-  read: { base: createReadToolDefinition(cwd), args: { path: "src/a.ts" } },
+  read: { base: createReadToolDefinition(cwd) as ToolRenderers, args: { path: "src/a.ts" } },
   "no renderers": { base: undefined, args: { query: "pi tool rows", limit: 5 } },
   "renderCall only": {
-    base: { renderCall: (args, theme) => new Text(theme.fg("toolTitle", `custom ${args.query}`), 0, 0) },
+    base: { renderCall: (args, theme) => new Text(theme.fg("toolTitle", `custom ${(args as { query: string }).query}`), 0, 0) },
     args: { query: "pi tool rows" },
   },
 };
@@ -112,7 +112,8 @@ test("a collapsed successful call is one quiet line in pi's box", () => {
 });
 
 test("edit: collapsed rows get pi's box, expanded rows are pi's own edit rows", () => {
-  const edit = createEditToolDefinition(cwd);
+  // pi keeps tool renderers with `args: unknown`; a built-in tool definition types its args.
+  const edit = createEditToolDefinition(cwd) as ToolRenderers;
   const args = { path: "src/a.ts", edits: [{ oldText: "a", newText: "b" }] };
   const success: Result = {
     content: text("Successfully replaced 1 block(s) in src/a.ts."),

@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { after, describe, test } from "node:test";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "nested-index-")));
 // Keep loadProjectContextFiles away from the real agent dir.
@@ -11,9 +12,10 @@ fs.mkdirSync(agentDir);
 process.env.PI_CODING_AGENT_DIR = agentDir;
 after(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
-const { default: extension, TYPE } = await import("../index.ts");
+const { default: extension, TYPE } = await import("./index.ts");
 
-type Handler = (event: any, ctx: any) => unknown;
+type Handler = (event: unknown, ctx: unknown) => unknown;
+type Renderer = (message: unknown, options: { expanded: boolean; outputPad: number }, theme: unknown) => { render(width: number): string[] };
 interface Sent {
   customType: string;
   content: string;
@@ -29,13 +31,13 @@ function setup(root: string) {
   const handlers = new Map<string, Handler>();
   const sent: Sent[] = [];
   const visible: Sent[] = [];
-  let renderer: any;
+  let renderer: Renderer | undefined;
   const pi = {
     on: (name: string, h: Handler) => void handlers.set(name, h),
     sendMessage: (msg: Sent, opts: unknown) => void sent.push({ ...msg, opts }),
-    registerMessageRenderer: (_t: string, r: unknown) => void (renderer = r),
+    registerMessageRenderer: (_t: string, r: Renderer) => void (renderer = r),
   };
-  extension(pi as any);
+  extension(pi as unknown as ExtensionAPI);
   const ctx = {
     cwd: root,
     sessionManager: {
@@ -44,12 +46,12 @@ function setup(root: string) {
       }),
     },
   };
-  const fire = (name: string, event: any) => handlers.get(name)!(event, ctx);
+  const fire = (name: string, event: unknown) => handlers.get(name)!(event, ctx);
   fire("session_start", { reason: "startup" });
   return {
     sent,
     visible,
-    renderer: () => renderer,
+    renderer: () => renderer!,
     startRun: (contextFiles: string[]) => fire("before_agent_start", { systemPromptOptions: { contextFiles: contextFiles.map((p) => ({ path: p, content: "" })) } }),
     read: (p: string, extra: object = {}) => fire("tool_result", { toolName: "read", toolCallId: "t", input: { path: p }, isError: false, ...extra }),
     /** What pi does at the end of a step: turn_end handlers run, then the queued message is appended. */
@@ -105,7 +107,7 @@ describe("injection", () => {
     await t.read("sub/a.txt", { toolName: "bash" });
     await t.read(path.join(outside, "y.txt"));
     await t.read("sub/missing.txt");
-    await t.read(undefined as any, { input: {} });
+    await t.read(undefined as unknown as string, { input: {} });
     assert.equal(t.sent.length, 0);
   });
 
@@ -243,7 +245,7 @@ describe("robustness and renderer", () => {
   test("a throwing session manager never fails the read", async () => {
     const root = project({ "sub/AGENTS.md": "S", "sub/a.txt": "a" });
     const handlers = new Map<string, Handler>();
-    extension({ on: (n: string, h: Handler) => handlers.set(n, h), sendMessage() {}, registerMessageRenderer() {} } as any);
+    extension({ on: (n: string, h: Handler) => handlers.set(n, h), sendMessage() {}, registerMessageRenderer() {} } as unknown as ExtensionAPI);
     const ctx = { cwd: root, sessionManager: { buildSessionProjection: () => { throw new Error("boom"); } } };
     assert.equal(await handlers.get("tool_result")!({ toolName: "read", input: { path: "sub/a.txt" }, isError: false }, ctx), undefined);
   });

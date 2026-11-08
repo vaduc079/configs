@@ -2,51 +2,47 @@
 // Directory handling follows OpenCode's packages/core/src/shell/parse.ts (a plain `cd` with static operands
 // becomes a directory only; wrapped, dynamic or operand-less forms also stay in `commands`).
 import type { ShellParse } from "../types.ts"
-import { scan } from "./scan.ts"
+import { type Result, scan } from "./scan.ts"
 
 const CWD = new Set(["cd", "chdir", "popd", "pushd"])
 
 export function parseShell(command: string): ShellParse {
+  let scanned: Result
+  // parse boundary: the vendored scanner reads model-written commands; if it fails, the command is checked whole
   try {
-    const scanned = scan(command, "bash")
-    if (scanned.kind === "opaque") return opaque(command)
-
-    const commands: string[] = []
-    const directories: string[] = []
-    const pathWords: string[] = []
-    const readPathWords: string[] = []
-    // The scanner leaves redirect targets out of words, so read them from the command text.
-    const targets = scanned.commands.map((item) => redirectTargets(item.resource))
-    // Per line, not per command: `ls P | xargs rm`, `rm $(realpath P)` and `cat x > "$(realpath P)"` let a
-    // read-only command's output pick the file a writer changes. `cd` changes no file; a substitution in its
-    // operand is its own item.
-    const readOnly =
-      !targets.flat().some((target) => target.write && /[$`]/.test(target.text)) &&
-      scanned.commands.every((item) => cdOperands(item.rawWords, item.words) !== undefined || isReadOnly(item))
-    for (const [index, item] of scanned.commands.entries()) {
-      for (const target of targets[index]) {
-        if (!/\s/.test(target.text)) (target.write || !readOnly ? pathWords : readPathWords).push(target.text)
-      }
-      // Declarations are skipped as commands, as in OpenCode; nested substitutions arrive as their own items.
-      if (item.declaration) continue
-
-      const cd = cdOperands(item.rawWords, item.words)
-      // `cd <dir>` reads and edits nothing; its target is already in `directories`.
-      if (!cd) {
-        const into = readOnly ? readPathWords : pathWords
-        for (const word of item.words.slice(1)) {
-          const value = pathWord(word)
-          if (value) into.push(value)
-        }
-      }
-      if (cd) directories.push(...cd.directories)
-      // Unquoted words joined by single spaces: assignment prefixes and extra blanks cannot hide a command.
-      if (!cd?.complete) commands.push(item.words.join(" "))
-    }
-    return { commands, directories, pathWords: [...new Set(pathWords)], readPathWords: [...new Set(readPathWords)] }
+    scanned = scan(command, "bash")
   } catch {
     return opaque(command)
   }
+  if (scanned.kind === "opaque") return opaque(command)
+
+  const commands: string[] = []
+  const directories: string[] = []
+  const pathWords: string[] = []
+  const readPathWords: string[] = []
+  // The scanner leaves redirect targets out of words, so read them from the command text.
+  const targets = scanned.commands.map((item) => redirectTargets(item.resource))
+  // Per line, not per command: `ls P | xargs rm`, `rm $(realpath P)` and `cat x > "$(realpath P)"` let a
+  // read-only command's output pick the file a writer changes. `cd` changes no file; a substitution in its
+  // operand is its own item.
+  const readOnly =
+    !targets.flat().some((target) => target.write && /[$`]/.test(target.text)) &&
+    scanned.commands.every((item) => cdOperands(item.rawWords, item.words) !== undefined || isReadOnly(item))
+  for (const [index, item] of scanned.commands.entries()) {
+    for (const target of targets[index]) {
+      if (!/\s/.test(target.text)) (target.write || !readOnly ? pathWords : readPathWords).push(target.text)
+    }
+    // Declarations are skipped as commands, as in OpenCode; nested substitutions arrive as their own items.
+    if (item.declaration) continue
+
+    const cd = cdOperands(item.rawWords, item.words)
+    // `cd <dir>` reads and edits nothing; its target is already in `directories`.
+    if (!cd) (readOnly ? readPathWords : pathWords).push(...item.words.slice(1).flatMap((word) => pathWord(word) ?? []))
+    if (cd) directories.push(...cd.directories)
+    // Unquoted words joined by single spaces: assignment prefixes and extra blanks cannot hide a command.
+    if (!cd?.complete) commands.push(item.words.join(" "))
+  }
+  return { commands, directories, pathWords: [...new Set(pathWords)], readPathWords: [...new Set(readPathWords)] }
 }
 
 function opaque(command: string): ShellParse {
@@ -59,7 +55,7 @@ function opaque(command: string): ShellParse {
  * so a wrapped command keeps the edit check. This guards against mistakes, not against deliberate bypasses
  * such as a PATH change or an option built by expansion.
  */
-const READ_ONLY: Record<string, (option: string) => boolean> = {
+const READ_ONLY: Partial<Record<string, (option: string) => boolean>> = {
   cat: () => false,
   head: () => false,
   tail: () => false,
@@ -188,7 +184,7 @@ function readWord(text: string, start: number): { text: string; end: number } {
   let i = start
   while (i < text.length) {
     const char = text[i]
-    const next = text[i + 1]
+    const next = text.at(i + 1)
     if (/\s/.test(char) || "|;&()".includes(char)) break
     if ((char === "<" || char === ">") && next !== "(") break
     if (char === "'") {
@@ -197,22 +193,9 @@ function readWord(text: string, start: number): { text: string; end: number } {
       out += text.slice(i + 1, end)
       i = end + 1
     } else if (char === '"') {
-      i++
-      while (i < text.length && text[i] !== '"') {
-        if (text[i] === "\\" && '$`"\\'.includes(text[i + 1] ?? "")) {
-          out += text[i + 1]
-          i += 2
-        } else if (text[i] === "$" && (text[i + 1] === "(" || text[i + 1] === "{")) {
-          const end = skipGroup(text, i + 1)
-          out += text.slice(i, end)
-          i = end
-        } else if (text[i] === "`") {
-          const end = skipBackticks(text, i)
-          out += text.slice(i, end)
-          i = end
-        } else out += text[i++]
-      }
-      i++
+      const quoted = readDoubleQuoted(text, i)
+      out += quoted.text
+      i = quoted.end
     } else if (char === "\\") {
       if (next !== undefined && next !== "\n") out += next
       i += 2
@@ -232,11 +215,33 @@ function readWord(text: string, start: number): { text: string; end: number } {
   return { text: out, end: Math.min(i, text.length) }
 }
 
+/** The value of the double-quoted string opening at `start`, with `$(...)`, `${...}` and backticks kept as written. */
+function readDoubleQuoted(text: string, start: number): { text: string; end: number } {
+  let out = ""
+  let i = start + 1
+  while (i < text.length && text[i] !== '"') {
+    if (text[i] === "\\" && '$`"\\'.includes(text[i + 1] ?? "")) {
+      out += text[i + 1]
+      i += 2
+    } else if (text[i] === "$" && (text[i + 1] === "(" || text[i + 1] === "{")) {
+      const end = skipGroup(text, i + 1)
+      out += text.slice(i, end)
+      i = end
+    } else if (text[i] === "`") {
+      const end = skipBackticks(text, i)
+      out += text.slice(i, end)
+      i = end
+    } else out += text[i++]
+  }
+  return { text: out, end: i + 1 }
+}
+
 /** Index after the group opened at `open` ("(" or "{"), quote-aware; end of text when unbalanced. */
 function skipGroup(text: string, open: number): number {
   const opener = text[open]
   const closer = opener === "(" ? ")" : "}"
   let depth = 0
+  // index-driven scanner: quotes and escapes move the index forward by more than one
   for (let i = open; i < text.length; i++) {
     const char = text[i]
     if (char === "\\") i++

@@ -35,6 +35,7 @@ function preview(toolName: string, input: unknown): string {
     toolName === "bash" && input !== null && typeof input === "object"
       ? (input as Record<string, unknown>).command
       : undefined;
+  // oxlint-disable-next-line typescript/no-unnecessary-condition -- JSON.stringify returns undefined for undefined, a function or a symbol, despite its declared type
   const text = typeof command === "string" ? command : (JSON.stringify(targetFirst(input), null, 2) ?? String(input));
   return text.length > MAX_PREVIEW ? text.slice(0, MAX_PREVIEW) + "\n… (truncated)" : text;
 }

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { JsonLineReader, type RpcEvent, RpcProcess, type RpcProcessOptions } from "../rpc.ts";
+import { JsonLineReader, type RpcEvent, RpcProcess, type RpcProcessOptions } from "./rpc.ts";
 
 function read(chunks: string[]) {
   const records: RpcEvent[] = [];
@@ -36,7 +36,7 @@ test("a line that is not a JSON record is set aside instead of throwing", () => 
 });
 
 /**
- * Runs RpcProcess against test/fake-pi.mjs. RpcProcess starts pi as `node <process.argv[1]> --mode rpc …`,
+ * Runs RpcProcess against fake-pi.fixture.ts. RpcProcess starts pi as `node <process.argv[1]> --mode rpc …`,
  * so pointing argv[1] at the fake swaps the child without a test seam in the code.
  */
 function startFake(args: string[], onUiRequest: RpcProcessOptions["onUiRequest"]) {
@@ -44,7 +44,7 @@ function startFake(args: string[], onUiRequest: RpcProcessOptions["onUiRequest"]
   let exited: () => void = () => {};
   const exit = new Promise<void>((resolve) => (exited = resolve));
   const script = process.argv[1];
-  process.argv[1] = fileURLToPath(new URL("./fake-pi.mjs", import.meta.url));
+  process.argv[1] = fileURLToPath(new URL("./fake-pi.fixture.ts", import.meta.url));
   const rpc = new RpcProcess({ args, cwd: process.cwd(), env: {}, onEvent: (event) => events.push(event), onUiRequest, onExit: () => exited() });
   process.argv[1] = script;
   return { rpc, events, exit };

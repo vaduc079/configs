@@ -50,7 +50,7 @@ function toolPath(p: string, loc: Location): string {
   let s = p.replace(/[\u00a0\u2000-\u200a\u202f\u205f\u3000]/g, " ");
   if (s.startsWith("@")) s = s.slice(1);
   s = expandHome(s, loc.home);
-  return /^file:\/\//.test(s) ? fileURLToPath(s) : s;
+  return s.startsWith("file://") ? fileURLToPath(s) : s;
 }
 
 const GLOB = /[*?[{]/;
@@ -62,6 +62,7 @@ function expandWord(w: string, loc: Location): string[] {
   // a bash brace range ({1..100000}, {a..z}, {1..9..2}) expands to one pattern per value before globSync touches the disk, so leave it alone;
   // other `..` inside braces (`{.env,../x}`) is a path and still gets expanded
   if (!GLOB.test(w) || /\{(?:-?\d+|[A-Za-z])\.\.(?:-?\d+|[A-Za-z])(?:\.\.-?\d+)?\}/.test(w)) return out;
+  // fs boundary: a bad pattern or unreadable folder keeps the literal word
   try {
     // bash 3.2 (pi's shell) has no globstar, so a run of two or more * means *; globSync would walk the whole tree
     const pattern = expandHome(w, loc.home).replace(/\*{2,}/g, "*");

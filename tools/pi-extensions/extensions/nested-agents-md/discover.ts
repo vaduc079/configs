@@ -23,7 +23,7 @@ export function resolveReadPath(input: string, cwd: string, home: string = os.ho
   if (p.startsWith("@")) p = p.slice(1);
   if (p === "~") p = home;
   else if (p.startsWith("~/")) p = path.join(home, p.slice(2));
-  else if (/^file:\/\//.test(p)) p = fileURLToPath(p);
+  else if (p.startsWith("file://")) p = fileURLToPath(p);
   return realpath(path.resolve(cwd, p));
 }
 
@@ -47,6 +47,7 @@ function contextFileIn(dir: string): string | undefined {
   for (const name of NAMES) {
     if (!entries.has(name)) continue;
     const candidate = path.join(dir, name);
+    // fs boundary: the entry can vanish or be unreadable between readdir and stat
     try {
       if (fs.statSync(candidate).isFile()) return fs.realpathSync.native(candidate);
     } catch {

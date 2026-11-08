@@ -1,0 +1,19 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "extensions/*/index.ts",
+    "**/*.test.ts",
+    "scripts/*.ts",
+    "**/*.fixture.ts"
+  ],
+  "project": [
+    "**/*.ts"
+  ],
+  "ignoreDependencies": [
+    "@earendil-works/.+",
+    "typebox"
+  ],
+  "ignore": [
+    "extensions/permissions/shell/scan.ts"
+  ]
+}

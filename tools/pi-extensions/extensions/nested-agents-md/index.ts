@@ -55,6 +55,7 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("tool_result", async (event, ctx) => {
     if (off || event.toolName !== "read" || event.isError) return;
+    // handler boundary: pi would report a thrown error to the user; a missed injection is not worth that
     try {
       const root = realpath(ctx.cwd);
       const input = (event.input as { path?: unknown }).path;

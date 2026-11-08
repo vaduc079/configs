@@ -1,0 +1,27 @@
+{
+  "name": "pi-extensions",
+  "private": true,
+  "type": "module",
+  "description": "Duc's pi extensions: one pi package, shared code in src/, one folder per extension",
+  "pi": {
+    "extensions": [
+      "./extensions/*/index.ts"
+    ]
+  },
+  "scripts": {
+    "postinstall": "npm run link-pi",
+    "link-pi": "node scripts/link-pi.ts",
+    "typecheck": "tsc",
+    "lint": "oxlint --deny-warnings --disable-nested-config && node lint/structure.ts && knip",
+    "test": "node --test --test-timeout=5000 \"extensions/**/*.test.ts\" \"src/**/*.test.ts\" \"lint/**/*.test.ts\"",
+    "check": "npm run typecheck && npm run lint && npm test"
+  },
+  "devDependencies": {
+    "@oxlint/plugins": "^1.90.0",
+    "@types/node": "^26.6.6",
+    "knip": "^6.44.1",
+    "oxlint": "^1.90.0",
+    "oxlint-tsgolint": "^7.0.2005",
+    "typescript": "~5.9"
+  }
+}

@@ -13,6 +13,7 @@ import {
   type Theme,
   ToolExecutionComponent,
   type ToolRendererResolver,
+  type ToolRenderers,
 } from "@earendil-works/pi-coding-agent";
 import { type AutocompleteItem, Text, type TUI } from "@earendil-works/pi-tui";
 import quietToolRows from "./index.ts";
@@ -21,7 +22,8 @@ initTheme("dark", false);
 
 const cwd = process.cwd();
 const WIDTH = 80;
-const read = createReadToolDefinition(cwd);
+// pi keeps tool renderers with `args: unknown`; a built-in tool definition types its args.
+const read = createReadToolDefinition(cwd) as ToolRenderers;
 
 type Handler = (event: unknown, ctx: unknown) => unknown;
 
@@ -343,7 +345,7 @@ test("message events build runs and redraw only the leader of each changed run",
   pi.invalidations.clear();
   pi.emit("message_start", { message: toolResult("b", true) });
   pi.emit("message_end", { message: toolResult("b", true) });
-  assert.deepEqual([...pi.invalidations].sort(), [["a", 1], ["b", 1], ["c", 1]], "both leaders and the failed row");
+  assert.deepEqual([...pi.invalidations].sort(([a], [b]) => a.localeCompare(b)), [["a", 1], ["b", 1], ["c", 1]], "both leaders and the failed row");
 
   pi.invalidations.clear();
   pi.emit("agent_end");
@@ -355,7 +357,7 @@ test("session_start replays the branch and redraws every row; session_tree and s
   const rows = ["a", "b", "x"].map((id) => pi.row(id, ok));
   pi.invalidations.clear();
   pi.start(closedRun());
-  assert.deepEqual([...pi.invalidations].sort(), [["a", 1], ["b", 1], ["x", 1]]);
+  assert.deepEqual([...pi.invalidations].sort(([a], [b]) => a.localeCompare(b)), [["a", 1], ["b", 1], ["x", 1]]);
   assert.deepEqual(plain(rows[0].render(WIDTH)), ["", "Ran 3 tools"]);
   assert.deepEqual(pi.labels, [""], "low hides the thinking label");
 
@@ -382,7 +384,7 @@ test("/tool-verbose switches the mode, saves it, sets the thinking label and red
   await pi.run("low");
   assert.equal(readFileSync(pi.configFile, "utf8"), `{\n  "mode": "low"\n}\n`);
   assert.deepEqual(pi.labels, [undefined, ""]);
-  assert.deepEqual([...pi.invalidations].sort(), [["a", 1], ["b", 1]]);
+  assert.deepEqual([...pi.invalidations].sort(([a], [b]) => a.localeCompare(b)), [["a", 1], ["b", 1]]);
   assert.deepEqual(plain(a.render(WIDTH)), ["", "Ran 3 tools"]);
 
   await pi.run(" normal ");

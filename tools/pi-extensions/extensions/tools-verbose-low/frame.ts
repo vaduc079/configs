@@ -15,6 +15,7 @@ import {
   Text,
   visibleWidth,
 } from "@earendil-works/pi-tui";
+import { formatDuration } from "../../src/format.ts";
 
 export type ToolRenderContext = Parameters<NonNullable<ToolRenderers["renderCall"]>>[2];
 
@@ -36,6 +37,7 @@ export function callFallback(toolName: string, args: unknown, theme: Theme): Tex
     : [["args", args] as const];
   if (args == null || entries.length === 0) return new Text(header, 0, 0);
   const lines = entries.map(([key, value]) => {
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- JSON.stringify returns undefined for undefined, a function or a symbol, despite its declared type
     const text = typeof value === "string" ? value : (JSON.stringify(value, null, 2) ?? String(value));
     return `  ${key}: ${text.replace(/\t/g, "   ").replace(/\r/g, "").split("\n").join("\n    ")}`;
   });
@@ -65,11 +67,13 @@ function textOutput(result: AgentToolResult<unknown>, showImages: boolean): stri
   const texts = result.content.flatMap((c) => (c.type === "text" ? [c] : []));
   const images = result.content.flatMap((c) => (c.type === "image" ? [c] : []));
   let output = texts
+    // oxlint-disable-next-line no-control-regex -- strips control characters on purpose, as pi's getTextOutput does
     .map((c) => stripVTControlCharacters(c.text || "").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\uFFF9-\uFFFB]/g, "").replace(/\r/g, ""))
     .join("\n");
   if (images.length > 0 && (!getCapabilities().images || !showImages)) {
     const placeholders = images
       .map((img) => {
+        // oxlint-disable-next-line typescript/no-unnecessary-condition -- same fallback as pi's getTextOutput (render-utils.js): image blocks from extension tools are not validated, so mimeType can be missing
         const mimeType = img.mimeType ?? "image/unknown";
         const dims = img.data && img.mimeType ? (getImageDimensions(img.data, img.mimeType) ?? undefined) : undefined;
         return imageFallback(mimeType, dims);
@@ -128,7 +132,7 @@ function argHint(args: unknown): string {
     Object.keys(record).find((k) => typeof record[k] === "string");
   if (!key) return "";
   const lines = (record[key] as string).split("\n").map((line) => line.trim());
-  return lines.find((line) => line && !line.startsWith("//") && !line.startsWith("#")) ?? lines[0] ?? "";
+  return lines.find((line) => line && !line.startsWith("//") && !line.startsWith("#")) ?? lines[0];
 }
 
 function statusText(context: ToolRenderContext, theme: Theme): string {
@@ -136,9 +140,4 @@ function statusText(context: ToolRenderContext, theme: Theme): string {
   if (context.isPartial) return theme.fg("muted", "…");
   const duration = context.durationMs === undefined ? "" : ` ${formatDuration(context.durationMs)}`;
   return theme.fg("success", "✓") + theme.fg("muted", duration);
-}
-
-function formatDuration(ms: number): string {
-  const seconds = ms / 1000;
-  return seconds < 60 ? `${seconds.toFixed(1)}s` : `${Math.floor(seconds / 60)}m ${Math.floor(seconds % 60)}s`;
 }

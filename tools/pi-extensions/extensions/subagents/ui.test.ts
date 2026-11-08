@@ -2,8 +2,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import type { Subagent } from "../subagent.ts";
-import { modelLabel, registerResultRenderer } from "../ui.ts";
+import type { Subagent } from "./subagent.ts";
+import { modelLabel, registerResultRenderer } from "./ui.ts";
 
 type Row = { render(width: number): string[]; handleMouse(event: unknown): unknown };
 type Renderer = (message: unknown, options: { expanded: boolean }, theme: unknown) => Row;

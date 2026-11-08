@@ -31,7 +31,7 @@ export type UiRequest = {
 };
 export type UiAnswer = { value: string } | { confirmed: boolean } | { cancelled: true };
 
-export type ExitInfo = { code: number | null; signal: string | null; stderrTail: string };
+type ExitInfo = { code: number | null; signal: string | null; stderrTail: string };
 
 export type RpcProcessOptions = {
   args: string[];

@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { after, describe, test } from "node:test";
-import { findContextFiles, isBelow, resolveReadPath } from "../discover.ts";
+import { findContextFiles, isBelow, resolveReadPath } from "./discover.ts";
 
 const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "nested-discover-")));
 after(() => fs.rmSync(tmp, { recursive: true, force: true }));

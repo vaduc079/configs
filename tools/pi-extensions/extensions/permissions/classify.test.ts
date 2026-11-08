@@ -282,7 +282,7 @@ describe("shell glob words", () => {
   it("matches per word are capped", () => {
     const many = path.join(tmp, "many");
     mkdirSync(many);
-    for (let i = 0; i < 300; i++) writeFileSync(path.join(many, `f${i}`), "");
+    for (const i of Array(300).keys()) writeFileSync(path.join(many, `f${i}`), "");
     const checks = classify("bash", { command: "cat many/*" }, gloc, parseShell);
     const read = checks.find((c) => c.action === "read");
     // literal word + 200 matches, 2 forms each; 300 uncapped matches would give 602

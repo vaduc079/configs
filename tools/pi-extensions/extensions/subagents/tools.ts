@@ -51,7 +51,7 @@ export function registerTools(pi: ExtensionAPI, agents: Agent[], current: () => 
     async execute(_id, params, _signal, _onUpdate, ctx) {
       const agent = agents.find((candidate) => candidate.name === params.agent);
       if (!agent) throw new Error(`Unknown agent "${params.agent}".`);
-      const model = resolveModel(ctx, params.model, params.thinking as Thinking | undefined);
+      const model = resolveModel(ctx, params.model, params.thinking);
 
       if (params.sessionID) {
         const outcome = await current().message(params.sessionID, params.prompt, model);
@@ -67,11 +67,13 @@ export function registerTools(pi: ExtensionAPI, agents: Agent[], current: () => 
       return { content: [{ type: "text", text }], details: { sessionID: subagent.id, outcome: "started" } };
     },
     /** One line with every argument but the prompt; expanded (ctrl+o or a click) adds the full sessionID and the prompt. */
-    renderCall(args, theme, context) {
+    renderCall(callArgs, theme, context) {
+      // The arguments stream in as partial JSON, so any of them can still be missing.
+      const args = callArgs as Partial<Record<keyof typeof callArgs, string>>;
       const target = args.sessionID ? theme.fg("warning", " → ") + theme.fg("dim", String(args.sessionID).slice(0, 8)) : "";
       const head =
         theme.fg("toolTitle", theme.bold("subagent ")) +
-        theme.fg("accent", `${args.agent ?? ""}`) +
+        theme.fg("accent", args.agent ?? "") +
         target +
         theme.fg("muted", ` "${args.description ?? ""}"`) +
         // The model streams in after the prompt; until then there is nothing to show.

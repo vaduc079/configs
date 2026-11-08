@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
-import type { Agent } from "../agents.ts";
-import { type JobEntry, Subagents } from "../manager.ts";
-import type { RpcCommand, RpcConnection, RpcEvent, RpcProcessOptions, RpcResponse } from "../rpc.ts";
-import type { RunResult } from "../subagent.ts";
+import type { Agent } from "./agents.ts";
+import { type JobEntry, Subagents } from "./manager.ts";
+import type { RpcCommand, RpcConnection, RpcEvent, RpcProcessOptions, RpcResponse } from "./rpc.ts";
+import type { RunResult } from "./subagent.ts";
 
 const general: Agent = { name: "general", description: "General agent", systemPrompt: "Do the task." };
 const haiku = { provider: "anthropic", id: "claude-haiku-5-5" };
@@ -338,7 +338,7 @@ test("an error stop reason makes the run an error", async () => {
 
 test("a fifth running child is refused, and a finished child frees a slot", async () => {
   const { processes, start } = setup();
-  for (let i = 0; i < 4; i++) await start();
+  for (const _ of Array(4).keys()) await start();
   await assert.rejects(start(), /4 subagents are already running/);
   processes[0].settle();
   await start();

@@ -2,9 +2,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import type { Agent } from "../agents.ts";
-import type { Subagents } from "../manager.ts";
-import { registerTools } from "../tools.ts";
+import type { Agent } from "./agents.ts";
+import type { Subagents } from "./manager.ts";
+import { registerTools } from "./tools.ts";
 
 type Row = { render(width: number): string[] };
 type Tool = { name: string; renderCall(args: unknown, theme: unknown, context: { expanded: boolean }): Row };
@@ -23,6 +23,10 @@ test("a call shows its model and thinking level, or the default when none is giv
   assert.deepEqual(render({ ...args, thinking: "high" }, false), ['subagent general "find bug" anthropic/claude-opus-5-5 · thinking high']);
   assert.deepEqual(render(args, false), ['subagent general "find bug" anthropic/claude-opus-5-5 · thinking default']);
   assert.deepEqual(render({ agent: "general", description: "find bug" }, false), ['subagent general "find bug"'], "model not streamed in yet");
+});
+
+test("a non-string sessionID is shown, not thrown on", () => {
+  assert.deepEqual(render({ ...args, sessionID: 123 }, true).filter((line) => line.startsWith("sessionID")), ["sessionID: 123"]);
 });
 
 test("an expanded call also shows the full sessionID and the prompt", () => {

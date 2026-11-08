@@ -1,13 +1,12 @@
 import path from "node:path";
 import type { ExtensionAPI, ExtensionContext, Theme, ThemeColor } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { LINES_STATUS_PREFIX } from "../../src/status.ts";
 
 const ICON_FOLDER = "\uf07b";
 const ICON_BRANCH = "\uf418";
 const ICON_CONTEXT = "\u{f01bc}";
 const SEP = " · ";
-/** Extension statuses drawn as their own lines below the status line instead of inline (pi-subagents' running list). */
-const BLOCK_STATUS_KEYS = new Set(["subagents"]);
 
 type Limit = { utilization: number; resetAt: number };
 type Limits = { fiveHour?: Limit; sevenDay?: Limit; status?: string };
@@ -105,7 +104,7 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("after_provider_response", (event, ctx) => {
     if (ctx.model?.provider !== "anthropic") return;
-    const headers = event.headers as Record<string, string>;
+    const headers = event.headers;
     const fiveHour = parseLimit(headers, "5h");
     const sevenDay = parseLimit(headers, "7d");
     if (!fiveHour && !sevenDay) return;
@@ -134,9 +133,9 @@ export default function (pi: ExtensionAPI) {
         render(width: number): string[] {
           const branch = footerData.getGitBranch();
           const statuses = [...footerData.getExtensionStatuses()];
-          const inline = statuses.filter(([key]) => !BLOCK_STATUS_KEYS.has(key)).map(([, text]) => text);
+          const inline = statuses.filter(([key]) => !key.startsWith(LINES_STATUS_PREFIX)).map(([, text]) => text);
           const below = statuses
-            .filter(([key]) => BLOCK_STATUS_KEYS.has(key))
+            .filter(([key]) => key.startsWith(LINES_STATUS_PREFIX))
             .flatMap(([, text]) => text.split("\n"))
             .map((line) => truncateToWidth(line, width));
           const parts = [

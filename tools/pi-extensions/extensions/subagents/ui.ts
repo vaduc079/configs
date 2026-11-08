@@ -1,55 +1,38 @@
 /** What the user sees: the running list under the status line, result messages, the /subagents command, and children's dialogs (dialogs.ts). */
 import { type ExtensionAPI, type ExtensionContext, getMarkdownTheme, type Theme } from "@earendil-works/pi-coding-agent";
-import { Box, Markdown, MouseRegion, Text } from "@earendil-works/pi-tui";
+import { Markdown, Text } from "@earendil-works/pi-tui";
+import { collapsibleRow } from "../../src/collapsible-row.ts";
+import { formatDuration } from "../../src/format.ts";
+import { RunningList } from "../../src/running-list.ts";
 import { DialogForwarder } from "./dialogs.ts";
 import type { Subagents } from "./manager.ts";
 import { blockBody, RESULT_TYPE, type ResultDetails } from "./result.ts";
 import type { Subagent } from "./subagent.ts";
 
-/** pi-statusline draws this status as lines below the status line; pi's built-in footer shows it on one line. */
-const STATUS_KEY = "subagents";
-
 /** UI bound to one session's context: the running-children list and forwarded dialogs. */
 export class SessionUi {
-  private readonly ctx: ExtensionContext;
-  private readonly list: () => Subagent[];
-  private listTimer: NodeJS.Timeout | undefined;
-  /** Children exit after session shutdown; their callbacks must not touch the old context. */
-  private disposed = false;
+  private readonly runningList: RunningList;
   readonly dialogs: DialogForwarder;
 
   constructor(ctx: ExtensionContext, list: () => Subagent[]) {
-    this.ctx = ctx;
-    this.list = list;
     this.dialogs = new DialogForwarder(ctx.ui, ctx.hasUI);
+    this.runningList = new RunningList(ctx.ui, "subagents", () =>
+      list()
+        .filter((subagent) => subagent.state === "running")
+        .map((subagent) => ({
+          label: `${subagent.agent.name} · "${subagent.description}" · ${modelLabel(subagent)}`,
+          startedAt: subagent.runStartedAt,
+        })),
+    );
   }
 
   renderRunningList() {
-    if (this.disposed) return;
-    const running = this.list().filter((subagent) => subagent.state === "running");
-    if (running.length === 0) {
-      this.ctx.ui.setStatus(STATUS_KEY, undefined);
-      clearInterval(this.listTimer);
-      this.listTimer = undefined;
-      return;
-    }
-    // Redraw every second for the elapsed time.
-    this.listTimer ??= setInterval(() => this.renderRunningList(), 1_000);
-    const lines = running.map((subagent, index) => {
-      const seconds = Math.floor((Date.now() - subagent.runStartedAt) / 1000);
-      const elapsed = seconds >= 60 ? `${Math.floor(seconds / 60)}m${seconds % 60}s` : `${seconds}s`;
-      const branch = index === running.length - 1 ? "└──" : "├──";
-      // Styled per line: the footer draws them as separate lines. The tree is bold so it stands out from the dim text.
-      const { theme } = this.ctx.ui;
-      return `${theme.bold(branch)} ${theme.fg("dim", `${subagent.agent.name} · "${subagent.description}" · ${modelLabel(subagent)} · ${elapsed}`)}`;
-    });
-    this.ctx.ui.setStatus(STATUS_KEY, lines.join("\n"));
+    this.runningList.render();
   }
 
   dispose() {
-    this.disposed = true;
+    this.runningList.dispose();
     this.dialogs.dispose();
-    clearInterval(this.listTimer);
   }
 }
 
@@ -66,12 +49,6 @@ export function modelLabel(subagent: Subagent) {
 }
 
 /**
- * Rows the user clicked open or shut, with the ctrl+o state at that time. pi rebuilds the row on ctrl+o and on
- * resize; a click survives a resize, and ctrl+o overrides it, as it does for tool rows.
- */
-const clicks = new WeakMap<object, { open: boolean; expanded: boolean }>();
-
-/**
  * A result shows as one row in the style of a quiet tool row: `▸ subagent general "<description>"  ✓ 1m 2s`.
  * Click it, or press ctrl+o, to see the usage, sessionID, and the child's response. Errors also show a short preview.
  */
@@ -82,28 +59,20 @@ export function registerResultRenderer(pi: ExtensionAPI) {
     if (!details) return new Text(theme.fg("muted", content), 0, 0);
 
     const body = blockBody(content);
-    // Match tool rows, which pad by the outputPad setting.
-    const box = new Box(outputPad, 1, (text) => theme.bg(details.state === "completed" ? "toolSuccessBg" : "toolErrorBg", text));
-    // ctrl+o was pressed since the click.
-    if (clicks.get(message)?.expanded !== expanded) clicks.delete(message);
-    const isOpen = () => clicks.get(message)?.open ?? expanded;
-    const fill = () => {
-      const open = isOpen();
-      box.clear();
-      box.addChild(new Text(resultHeader(details, open, theme), 0, 0));
-      if (open) {
-        box.addChild(new Text(theme.fg("dim", `sessionID: ${details.sessionID}`), 0, 0));
-        box.addChild(new Markdown(body, 0, 0, getMarkdownTheme()));
-      } else if (details.state === "error") {
-        box.addChild(new Text(theme.fg("toolOutput", body.split("\n").slice(0, 3).join("\n")), 0, 0));
-      }
-    };
-    fill();
-    return new MouseRegion(box, (event) => {
-      if (event.type !== "click" || event.button !== "left") return undefined;
-      clicks.set(message, { open: !isOpen(), expanded });
-      fill();
-      return { handled: true };
+    return collapsibleRow({
+      message,
+      expanded,
+      outputPad,
+      background: (text) => theme.bg(details.state === "completed" ? "toolSuccessBg" : "toolErrorBg", text),
+      fill: (box, open) => {
+        box.addChild(new Text(resultHeader(details, open, theme), 0, 0));
+        if (open) {
+          box.addChild(new Text(theme.fg("dim", `sessionID: ${details.sessionID}`), 0, 0));
+          box.addChild(new Markdown(body, 0, 0, getMarkdownTheme()));
+        } else if (details.state === "error") {
+          box.addChild(new Text(theme.fg("toolOutput", body.split("\n").slice(0, 3).join("\n")), 0, 0));
+        }
+      },
     });
   });
 }
@@ -118,12 +87,6 @@ function resultHeader(details: ResultDetails, open: boolean, theme: Theme) {
   const { turns, input, output, cost } = details.usage;
   const usage = open ? theme.fg("dim", ` · ${turns} turns ↑${input} ↓${output} $${cost.toFixed(4)}`) : "";
   return `${head}  ${status}${usage}`;
-}
-
-/** Same format as pi-tools-verbose-low's tool rows. */
-function formatDuration(ms: number) {
-  const seconds = ms / 1000;
-  return seconds < 60 ? `${seconds.toFixed(1)}s` : `${Math.floor(seconds / 60)}m ${Math.floor(seconds % 60)}s`;
 }
 
 export function registerSubagentsCommand(pi: ExtensionAPI, current: () => Subagents, sessionDir: string) {

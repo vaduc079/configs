@@ -2,6 +2,7 @@
  * One child session: its process, its state (stopped → running → idle), and the run in progress.
  * Reports each finished run through onFinish. Knows nothing about other children or the parent session.
  */
+import { SUBAGENT_CHILD_ENV } from "../../src/subagent-child.ts";
 import type { Agent } from "./agents.ts";
 import type { ChildEnv } from "./config.ts";
 import type { RpcConnection, RpcEvent, RpcProcessOptions, UiAnswer, UiRequest } from "./rpc.ts";
@@ -104,6 +105,7 @@ export class Subagent {
     if (!response.success) this.failPrompt(`Subagent rejected the prompt: ${response.error}`);
     // A prompt an extension command consumed is answered "handled" after the command returns (rpc.md).
     // If the command started no run, no agent_settled will come.
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- child events handled during `await rpc.send` can set runStarted; TS keeps the narrowing from the reset above
     if (response.data?.disposition === "handled" && !this.runStarted)
       this.failPrompt("The subagent handled this message as a command, so no run started.");
     this.options.onChange();
@@ -157,7 +159,7 @@ export class Subagent {
       cwd: this.options.cwd,
       // Marks the process as a child: this extension turns itself off (no nested subagents), and
       // pi-permissions blocks `ask` rules instead of prompting.
-      env: { ...this.options.childEnv(model), PI_SUBAGENT_CHILD: "1" },
+      env: { ...this.options.childEnv(model), ...SUBAGENT_CHILD_ENV },
       onEvent: (event) => {
         if (this.rpc === rpc) this.handleEvent(event);
       },
@@ -231,7 +233,6 @@ export class Subagent {
       }
       case "agent_settled":
         this.finishRun(event.aborted ? "cancelled" : this.error ? "error" : "completed");
-        return;
     }
   }
 

@@ -19,22 +19,13 @@ A missing or non-string field never matches, so the earlier rule applies. `input
 
 Shell path words containing `* ? [ {` are also checked as their glob expansion (runs of two or more `*` are treated as `*`, as in bash 3.2 which has no globstar; at most 200 matches per word; words with a brace range such as `{1..9}` or `{a..z}` are left unexpanded).
 
-## Enable
+## Enable and test
 
-```sh
-npm run link-pi      # link pi's node_modules as ./pi_modules (types) and pi-coding-agent into node_modules (tests); rerun after npm install
-pi -e ~/configs/tools/pi-permissions/index.ts   # or list it under "extensions" in settings.json
-```
-
-## Test
-
-```sh
-npx tsc --noEmit && npm test
-```
+Part of the pi-extensions package: see `../../AGENTS.md` for setup and `npm run check`.
 
 ## Known gaps
 
-- Editing `~/.pi/agent/settings.json` (e.g. removing this extension from `extensions`) is not denied unless your rules deny it.
+- Editing `~/.pi/agent/settings.json` (e.g. removing the pi-extensions package from `packages`) is not denied unless your rules deny it.
 - The `grep`, `find` and `ls` tools are checked on the path given, not on files inside a directory that holds secrets.
 - Case variants such as `.ENV` are not matched (rules are case-sensitive; APFS is not).
 - Relative paths after `cd` in the same command resolve against the session cwd, not the `cd` target.

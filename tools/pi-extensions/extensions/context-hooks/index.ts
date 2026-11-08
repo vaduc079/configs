@@ -22,8 +22,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { configFile, readConfig } from "../../src/config.ts";
+import { findModelRule, modelRef } from "../../src/model-rule.ts";
 
-const CONFIG_PATH = join(homedir(), ".pi", "agent", "context-hooks.json");
 const SECTION = "session_context";
 const DEFAULT_TIMEOUT_MS = 5_000;
 
@@ -37,7 +38,7 @@ export default function (pi: ExtensionAPI) {
   let sessionContext: Promise<string> = Promise.resolve("");
 
   pi.on("session_start", async (_event, ctx) => {
-    config = existsSync(CONFIG_PATH) ? (JSON.parse(readFileSync(CONFIG_PATH, "utf8")) as Config) : {};
+    config = (readConfig(configFile("context-hooks")) as Config | undefined) ?? {};
     // Not awaited, so a slow command does not hold up startup; the first run waits for it.
     sessionContext = Promise.all(
       (config.sessionStart ?? []).map(async ({ command, timeoutMs }) => {
@@ -58,8 +59,7 @@ export default function (pi: ExtensionAPI) {
     if (text) options.sections[SECTION] = text;
     else delete options.sections[SECTION];
 
-    const model = ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : "";
-    const rule = config.appendSystemPrompt?.find((r) => globToRegExp(r.model).test(model));
+    const rule = findModelRule(config.appendSystemPrompt ?? [], ctx.model ? modelRef(ctx.model) : "");
     if (!rule) return;
     const path = rule.file.startsWith("~/") ? join(homedir(), rule.file.slice(2)) : rule.file;
     if (!existsSync(path)) {
@@ -68,9 +68,4 @@ export default function (pi: ExtensionAPI) {
     }
     options.appendSystemPrompt = readFileSync(path, "utf8").trim();
   });
-}
-
-function globToRegExp(glob: string): RegExp {
-  const pattern = glob.split("*").map((part) => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*");
-  return new RegExp(`^${pattern}$`);
 }

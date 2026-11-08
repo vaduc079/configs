@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
-import { type DialogUi, DialogForwarder } from "../dialogs.ts";
-import type { UiRequest } from "../rpc.ts";
+import { type DialogUi, DialogForwarder } from "./dialogs.ts";
+import type { UiRequest } from "./rpc.ts";
 
 const live = new AbortController().signal;
 

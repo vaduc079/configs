@@ -30,7 +30,7 @@ export function parseRules(text: string, home: string): Rule[] {
   try {
     data = JSON.parse(text);
   } catch (e) {
-    throw new Error(`permissions: invalid JSON: ${(e as Error).message}`);
+    throw new Error(`permissions: invalid JSON: ${(e as Error).message}`, { cause: e });
   }
   const list = (data as { permissions?: unknown } | null)?.permissions;
   if (!Array.isArray(list)) throw new Error('permissions: expected {"permissions": [...]}');
@@ -62,11 +62,11 @@ function parseInput(raw: unknown, effect: string, i: number): Record<string, str
     throw new Error(`permissions[${i}]: "input" must be a non-empty object`);
   }
   return Object.fromEntries(
-    Object.entries(raw).map(([key, value]) => {
-      const patterns = typeof value === "string" ? [value] : value;
-      const valid = Array.isArray(patterns) && patterns.length > 0 && patterns.every((p) => typeof p === "string");
+    Object.entries(raw as Record<string, unknown>).map(([key, value]) => {
+      const patterns: unknown = typeof value === "string" ? [value] : value;
+      const valid = Array.isArray(patterns) && patterns.length > 0 && patterns.every((p): p is string => typeof p === "string");
       if (!valid) throw new Error(`permissions[${i}]: "input.${key}" must be a string or a non-empty array of strings`);
-      return [key, patterns as string[]];
+      return [key, patterns];
     }),
   );
 }
@@ -80,21 +80,21 @@ function inputMatches(patterns: Record<string, string[]>, input: Record<string, 
 
 export function loadRules(file: string, home: string): Rule[] {
   let text: string;
+  // fs boundary: the error names the file
   try {
     text = readFileSync(file, "utf8");
   } catch (e) {
-    throw new Error(`permissions: cannot read ${file}: ${(e as Error).message}`);
+    throw new Error(`permissions: cannot read ${file}: ${(e as Error).message}`, { cause: e });
   }
   return parseRules(text, home);
 }
 
 /** Last rule where action, resource and (if set) input all match; none → ask. */
 export function evaluate(action: string, resource: string, rules: Rule[], input: Record<string, unknown> = {}): Rule {
-  for (let i = rules.length - 1; i >= 0; i--) {
-    const r = rules[i];
-    if (match(action, r.action) && match(resource, r.resource) && (r.input === undefined || inputMatches(r.input, input))) return r;
-  }
-  return { action, resource: "*", effect: "ask" };
+  const rule = rules.findLast(
+    (r) => match(action, r.action) && match(resource, r.resource) && (r.input === undefined || inputMatches(r.input, input)),
+  );
+  return rule ?? { action, resource: "*", effect: "ask" };
 }
 
 export function decide(checks: Check[], rules: Rule[], input: Record<string, unknown> = {}): Decision {
