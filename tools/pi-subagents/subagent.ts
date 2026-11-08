@@ -3,6 +3,7 @@
  * Reports each finished run through onFinish. Knows nothing about other children or the parent session.
  */
 import type { Agent } from "./agents.ts";
+import type { ChildEnv } from "./config.ts";
 import type { RpcConnection, RpcEvent, RpcProcessOptions, UiAnswer, UiRequest } from "./rpc.ts";
 
 export const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
@@ -20,6 +21,8 @@ export type SubagentOptions = {
   model: ModelChoice;
   cwd: string;
   sessionDir: string;
+  /** Extra environment for the child process, by model. */
+  childEnv: ChildEnv;
   startProcess(options: RpcProcessOptions): RpcConnection;
   /** Called on every run the child starts, including ones prompt() did not start. */
   onRunStart(subagent: Subagent): void;
@@ -79,15 +82,15 @@ export class Subagent {
     clearTimeout(this.idleTimer);
 
     let rpc = this.rpc;
+    if (rpc && !sameModel(model, this.model)) {
+      // The child's env depends on its model (config.ts), so a new model needs a new process.
+      // Replacing this.rpc below makes the old process's late events and exit ignored.
+      rpc.close();
+      rpc = undefined;
+    }
     if (!rpc) {
       this.model = model;
       rpc = this.rpc = this.startProcess();
-    } else if (!sameModel(model, this.model)) {
-      const switchError = await switchModel(rpc, model);
-      // The process exited or was stopped meanwhile; an exit was already reported as this run's error.
-      if (this.rpc !== rpc) return;
-      if (switchError) this.failPrompt(`Could not switch the subagent's model: ${switchError}`);
-      this.model = model;
     }
 
     const response = await rpc.send({ type: "prompt", message: text });
@@ -148,7 +151,7 @@ export class Subagent {
       cwd: this.options.cwd,
       // Marks the process as a child: this extension turns itself off (no nested subagents), and
       // pi-permissions blocks `ask` rules instead of prompting.
-      env: { PI_SUBAGENT_CHILD: "1" },
+      env: { ...this.options.childEnv(model), PI_SUBAGENT_CHILD: "1" },
       onEvent: (event) => {
         if (this.rpc === rpc) this.handleEvent(event);
       },
@@ -237,15 +240,6 @@ export class Subagent {
 
 function emptyUsage(): Usage {
   return { turns: 0, input: 0, output: 0, cost: 0 };
-}
-
-/** Returns the error text, or undefined on success. */
-async function switchModel(rpc: RpcConnection, model: ModelChoice) {
-  const response = await rpc.send({ type: "set_model", provider: model.provider, modelId: model.id });
-  if (!response.success) return response.error ?? "set_model failed";
-  if (!model.thinking) return undefined;
-  const thinking = await rpc.send({ type: "set_thinking_level", level: model.thinking });
-  return thinking.success ? undefined : (thinking.error ?? "set_thinking_level failed");
 }
 
 function sameModel(a: ModelChoice, b: ModelChoice) {

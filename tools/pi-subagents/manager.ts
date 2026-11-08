@@ -4,6 +4,7 @@
  */
 import { randomUUID } from "node:crypto";
 import type { Agent } from "./agents.ts";
+import type { ChildEnv } from "./config.ts";
 import type { RpcConnection, RpcProcessOptions, UiAnswer, UiRequest } from "./rpc.ts";
 import { type ModelChoice, type RunResult, type RunState, Subagent } from "./subagent.ts";
 
@@ -23,6 +24,7 @@ export type SubagentsOptions = {
   cwd: string;
   sessionDir: string;
   agents: Agent[];
+  childEnv: ChildEnv;
   saveJob(entry: JobEntry): void;
   /** Call `delivered` once the result is posted to the parent; only then is the job saved as finished. */
   onFinish(subagent: Subagent, result: RunResult, delivered: () => void): void;
@@ -96,7 +98,7 @@ export class Subagents {
   }
 
   private add(id: string, agent: Agent, description: string, model: ModelChoice) {
-    const { cwd, sessionDir, startProcess, onChange, onUiRequest } = this.options;
+    const { cwd, sessionDir, childEnv, startProcess, onChange, onUiRequest } = this.options;
     const subagent = new Subagent({
       id,
       agent,
@@ -104,6 +106,7 @@ export class Subagents {
       model,
       cwd,
       sessionDir,
+      childEnv,
       startProcess,
       onChange,
       onUiRequest,

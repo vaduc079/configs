@@ -8,6 +8,7 @@
 import * as path from "node:path";
 import { type ExtensionAPI, type ExtensionContext, getAgentDir } from "@earendil-works/pi-coding-agent";
 import { loadAgents } from "./agents.ts";
+import { loadChildEnv } from "./config.ts";
 import { type JobEntry, Subagents } from "./manager.ts";
 import { deliverInterrupted, ResultDelivery } from "./result.ts";
 import { RpcProcess } from "./rpc.ts";
@@ -20,6 +21,7 @@ export default function (pi: ExtensionAPI) {
   if (process.env.PI_SUBAGENT_CHILD === "1") return;
 
   const agents = loadAgents();
+  const childEnv = loadChildEnv();
   // One folder for all children (their IDs are UUIDs).
   const sessionDir = path.join(getAgentDir(), "sessions", "subagents");
   // Pi creates a new extension instance per session, so these are set once in session_start.
@@ -44,6 +46,7 @@ export default function (pi: ExtensionAPI) {
       cwd: ctx.cwd,
       sessionDir,
       agents,
+      childEnv,
       saveJob: (entry) => pi.appendEntry(JOB_TYPE, entry),
       onFinish: (subagent, result, delivered) => results.deliver(subagent, result, delivered),
       onChange: () => sessionUi.renderRunningList(),

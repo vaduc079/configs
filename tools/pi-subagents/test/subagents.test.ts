@@ -75,6 +75,7 @@ function setup(firstResponder?: Responder, ownerSessionId = "parent-1") {
     cwd: "/tmp",
     sessionDir: "/tmp/sessions",
     agents: [general],
+    childEnv: (model) => ({ PI_CACHE_RETENTION: `short:${model.id}` }),
     saveJob: (entry) => {
       if (saveError) throw saveError;
       jobs.push(entry);
@@ -117,7 +118,7 @@ test("start spawns a child with its own session and sends the task", async () =>
   assert.equal(processes.length, 1);
   assert.equal(processes[0].flag("--session-id"), subagent.id);
   assert.equal(processes[0].flag("--model"), "anthropic/claude-haiku-5-5");
-  assert.equal(processes[0].options.env.PI_SUBAGENT_CHILD, "1");
+  assert.deepEqual(processes[0].options.env, { PI_CACHE_RETENTION: "short:claude-haiku-5-5", PI_SUBAGENT_CHILD: "1" });
   assert.equal(processes[0].sent[0].type, "prompt");
   assert.match(String(processes[0].sent[0].message), /^You are a subagent spawned by another session.\nfind the bug$/);
   assert.equal(subagent.state, "running");
@@ -178,28 +179,19 @@ test("a message to an idle child starts a new run in the same process", async ()
   assert.equal(subagent.state, "running");
 });
 
-test("a different model on a follow-up switches the idle child first", async () => {
+test("a different model on a follow-up restarts the idle child with that model and its env", async () => {
   const { manager, processes, start } = setup();
   const subagent = await start();
   processes[0].settle();
 
   await manager.message(subagent.id, "now fix it", { ...sonnet, thinking: "high" });
-  assert.deepEqual(processes[0].types(), ["prompt", "set_model", "set_thinking_level", "prompt"]);
+  assert.equal(processes[0].closed, true);
+  assert.equal(processes[1].flag("--session-id"), subagent.id);
+  assert.equal(processes[1].flag("--model"), "anthropic/claude-sonnet-5");
+  assert.equal(processes[1].flag("--thinking"), "high");
+  assert.equal(processes[1].options.env.PI_CACHE_RETENTION, "short:claude-sonnet-5");
+  assert.deepEqual(processes[1].types(), ["prompt"]);
   assert.deepEqual(subagent.model, { ...sonnet, thinking: "high" });
-});
-
-test("a failed model switch keeps the old model, sends no prompt, and saves no launch", async () => {
-  const { manager, processes, jobs, start } = setup((command) =>
-    command.type === "set_model" ? { success: false, error: "unknown model" } : {},
-  );
-  const subagent = await start();
-  processes[0].settle();
-
-  await assert.rejects(manager.message(subagent.id, "now fix it", sonnet), /Could not switch the subagent's model: unknown model/);
-  assert.deepEqual(subagent.model, haiku);
-  assert.equal(subagent.state, "idle");
-  assert.deepEqual(processes[0].types(), ["prompt", "set_model"]);
-  assert.deepEqual(jobs.map((job) => job.status), ["launched", "completed"]);
 });
 
 test("a command that starts its own run is tracked like any other run", async () => {
@@ -276,17 +268,15 @@ test("a child that exits while starting reports one error and no launch entry", 
   assert.equal(subagent.state, "stopped");
 });
 
-test("a child that exits during a model switch reports one error and no tool error", async () => {
-  const { manager, processes, finished, start } = setup((command, fake) => {
-    if (command.type === "set_model") fake.exit(1, "Error: crashed");
-    return command.type === "set_model" ? { success: false, error: "process exited (1)" } : {};
-  });
+test("the old process exiting after a model switch does not end the new run", async () => {
+  const { manager, processes, finished, start } = setup();
   const subagent = await start();
   processes[0].settle();
 
-  assert.equal(await manager.message(subagent.id, "now fix it", sonnet), "prompted");
-  assert.deepEqual(finished.map((result) => result.state), ["completed", "error"]);
-  assert.equal(subagent.state, "stopped");
+  await manager.message(subagent.id, "now fix it", sonnet);
+  processes[0].exit(1, "Error: crashed");
+  assert.deepEqual(finished.map((result) => result.state), ["completed"]);
+  assert.equal(subagent.state, "running");
 });
 
 test("a child whose first prompt is rejected is dropped", async () => {
