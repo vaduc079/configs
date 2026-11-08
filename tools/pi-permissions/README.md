@@ -1,7 +1,7 @@
 # pi-permissions
 
 Pi extension that gates every tool call with OpenCode-style `allow` / `ask` / `deny` rules (last matching rule wins).
-Deny blocks the call and tells the model why. Ask opens an Allow / Deny / Deny with reason dialog (blocks when no UI, e.g. `pi -p`).
+Deny blocks the call and tells the model why. Ask opens an Allow / Deny / Deny with reason dialog (blocks when no UI, e.g. `pi -p`, or in a pi-subagents child).
 `codemode` is not gated itself; the MCP calls nested inside it are.
 
 ## Rules file

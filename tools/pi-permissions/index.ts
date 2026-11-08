@@ -84,6 +84,10 @@ export default function (pi: ExtensionAPI) {
       const via = decision.check?.denyOnly ? " (path named in a shell command)" : "";
       return { block: true, reason: `Blocked by permission rule: ${action} ${resource}${via}${why ? ": " + why : ""}` };
     }
+    // pi-subagents sets this in its children, which have no user to ask.
+    if (process.env.PI_SUBAGENT_CHILD === "1") {
+      return { block: true, reason: `Permission rule ${action} ${resource} needs user approval, which a subagent cannot ask for` };
+    }
     if (!ctx.hasUI) {
       return {
         block: true,
@@ -91,7 +95,7 @@ export default function (pi: ExtensionAPI) {
       };
     }
     const answer = await enqueue(() =>
-      askUser(ctx.ui, ctx.mode, { toolName: event.toolName, action, resource, rule: decision.rule, input: event.input }),
+      askUser(ctx.ui, { toolName: event.toolName, action, resource, rule: decision.rule, input: event.input }),
     );
     if (answer.allow) return undefined;
     return { block: true, reason: answer.reason ? `Denied by the user: ${answer.reason}` : "Denied by the user" };

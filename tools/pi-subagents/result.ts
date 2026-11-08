@@ -1,5 +1,5 @@
 /**
- * Posts a finished run back into the parent session as a `subagent-result` message.
+ * Posts a finished run back into the parent session as a `subagent-response` message.
  * Long text is cut like OpenCode's tool output (packages/core/src/tool-output.ts).
  */
 import * as fs from "node:fs";
@@ -8,7 +8,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { JobEntry } from "./manager.ts";
 import type { RunResult, RunState, Subagent, Usage } from "./subagent.ts";
 
-export const RESULT_TYPE = "subagent-result";
+export const RESULT_TYPE = "subagent-response";
 
 export type ResultDetails = {
   sessionID: string;
@@ -16,8 +16,7 @@ export type ResultDetails = {
   description: string;
   state: RunState;
   usage: Usage;
-  /** Unset on results saved before it was added. */
-  durationMs?: number;
+  durationMs: number;
   fullOutputPath?: string;
 };
 

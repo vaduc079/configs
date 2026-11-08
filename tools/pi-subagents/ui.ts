@@ -97,7 +97,7 @@ export function registerResultRenderer(pi: ExtensionAPI) {
 
 function resultHeader(details: ResultDetails, open: boolean, theme: Theme) {
   const head = `${theme.fg("muted", open ? "▾ " : "▸ ")}${theme.fg("toolTitle", "subagent")} ${theme.fg("dim", `${details.agent} "${details.description}"`)}`;
-  const duration = details.durationMs === undefined ? "" : ` ${formatDuration(details.durationMs)}`;
+  const duration = ` ${formatDuration(details.durationMs)}`;
   const status =
     details.state === "completed"
       ? theme.fg("success", "✓") + theme.fg("muted", duration)

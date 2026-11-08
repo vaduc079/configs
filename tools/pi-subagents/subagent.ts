@@ -146,7 +146,8 @@ export class Subagent {
     const rpc: RpcConnection = this.options.startProcess({
       args,
       cwd: this.options.cwd,
-      // Turns this extension off inside the child: no nested subagents.
+      // Marks the process as a child: this extension turns itself off (no nested subagents), and
+      // pi-permissions blocks `ask` rules instead of prompting.
       env: { PI_SUBAGENT_CHILD: "1" },
       onEvent: (event) => {
         if (this.rpc === rpc) this.handleEvent(event);

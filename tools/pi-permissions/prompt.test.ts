@@ -10,7 +10,7 @@ initTheme();
 
 async function titleFor(toolName: string, input: unknown, rule?: Rule): Promise<string> {
   const { ui, calls } = customUi("\x1b");
-  await askUser(ui, "tui", { toolName, action: toolName, resource: "*", rule, input });
+  await askUser(ui, { toolName, action: toolName, resource: "*", rule, input });
   return calls.options.blocked.message;
 }
 
@@ -43,46 +43,33 @@ function customUi(...keys: string[]) {
   return { ui: ui as unknown as PromptUi, calls };
 }
 
-/** RPC mode: `confirm` answers `answer`. */
-function rpcUi(answer: boolean) {
-  const calls: string[][] = [];
-  const ui = { confirm: async (title: string, message: string) => (calls.push([title, message]), answer) };
-  return { ui: ui as unknown as PromptUi, calls };
-}
-
 const request = { toolName: "bash", action: "shell", resource: "deploy *", input: { command: "deploy prod" } };
 
 describe("dialog", () => {
   it("reports pi as blocked on a permission and returns the picked option", async () => {
     const { ui, calls } = customUi("\r");
-    assert.deepEqual(await askUser(ui, "tui", request), { allow: true });
+    assert.deepEqual(await askUser(ui, request), { allow: true });
     assert.deepEqual(calls.options, {
       blocked: { kind: "permission", message: "Run bash command?\n\n  deploy prod\n\nRule: ask · shell deploy *" },
     });
   });
   it("Deny is the second option", async () => {
     const { ui } = customUi("\x1b[B", "\r");
-    assert.deepEqual(await askUser(ui, "tui", request), { allow: false });
+    assert.deepEqual(await askUser(ui, request), { allow: false });
   });
   it("a dismissed dialog denies", async () => {
     const { ui } = customUi("\x1b");
-    assert.deepEqual(await askUser(ui, "tui", request), { allow: false });
+    assert.deepEqual(await askUser(ui, request), { allow: false });
   });
   it("puts back a draft whose large paste pi's restore dropped, and leaves an intact draft alone", async () => {
     const lost = customUi("\r");
     lost.calls.editor = "see this:\n" + "line\n".repeat(20);
     lost.calls.afterDialog = "see this:\n[paste #1 +20 lines]";
-    await askUser(lost.ui, "tui", request);
+    await askUser(lost.ui, request);
     assert.equal(lost.calls.editor, "see this:\n" + "line\n".repeat(20));
     const intact = customUi("\r");
-    await askUser(intact.ui, "tui", request);
+    await askUser(intact.ui, request);
     assert.equal(intact.calls.setEditorText, 0);
-  });
-  it("RPC mode asks with confirm: the question as title, the command and rule as message", async () => {
-    const yes = rpcUi(true);
-    assert.deepEqual(await askUser(yes.ui, "rpc", request), { allow: true });
-    assert.deepEqual(yes.calls, [["Run bash command?", "  deploy prod\n\nRule: ask · shell deploy *"]]);
-    assert.deepEqual(await askUser(rpcUi(false).ui, "rpc", request), { allow: false });
   });
 });
 

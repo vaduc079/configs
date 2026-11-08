@@ -1,8 +1,4 @@
-import {
-  type ExtensionContext,
-  ExtensionSelectorComponent,
-  type ExtensionUIContext,
-} from "@earendil-works/pi-coding-agent";
+import { ExtensionSelectorComponent, type ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import type { Rule } from "./types.ts";
 
 export interface AskRequest {
@@ -16,7 +12,7 @@ export interface AskRequest {
 /** The slice of pi's `ctx.ui` that the dialog needs. */
 export type PromptUi = Pick<
   ExtensionUIContext,
-  "confirm" | "input" | "custom" | "getToolsExpanded" | "setToolsExpanded" | "getEditorText" | "setEditorText"
+  "input" | "custom" | "getToolsExpanded" | "setToolsExpanded" | "getEditorText" | "setEditorText"
 >;
 
 const MAX_PREVIEW = 1500;
@@ -46,19 +42,13 @@ function preview(toolName: string, input: unknown): string {
 /** A dismissed dialog counts as Deny. */
 export async function askUser(
   ui: PromptUi,
-  mode: ExtensionContext["mode"],
   request: AskRequest,
 ): Promise<{ allow: boolean; reason?: string }> {
   // What will run comes first; the rule that asked comes last, so the two are not confused.
   const question = request.toolName === "bash" ? "Run bash command?" : `Allow ${request.toolName}?`;
   const body = preview(request.toolName, request.input).replace(/^/gm, "  ");
   const rule = request.rule ? `${request.rule.action} ${request.rule.resource}` : `${request.action} ${request.resource}`;
-  const details = `${body}\n\nRule: ask · ${rule}`;
-  // RPC mode (subagent children) has no custom UI. `confirm` still reports pi as blocked on a
-  // permission (OSC 7501): pi-subagents shows it with the parent's `confirm`. It has no "Deny with reason".
-  if (mode !== "tui") return { allow: await ui.confirm(question, details) };
-
-  const title = `${question}\n\n${details}`;
+  const title = `${question}\n\n${body}\n\nRule: ask · ${rule}`;
   const options = [ALLOW, DENY, DENY_WITH_REASON];
   // pi's `select` reports a question; the same selector shown through `custom` can say permission.
   // pi 1.5.0 restores the user's draft after a custom dialog with `setText`, which drops the text of large

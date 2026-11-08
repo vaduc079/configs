@@ -1,4 +1,4 @@
-/** Shows children's extension dialogs (for example permission prompts) in the parent, one at a time. */
+/** Shows children's extension dialogs in the parent, one at a time. */
 import type { ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import { DIALOG_METHODS, type UiAnswer, type UiRequest } from "./rpc.ts";
 

@@ -25,7 +25,7 @@ function makeCtx(over: Partial<Ui> = {}, hasUI = true) {
     ...over,
   };
   const custom = (_factory: unknown, options: { blocked: { message: string } }) => choose(options.blocked.message);
-  return { ctx: { cwd: os.tmpdir(), hasUI, mode: "tui", ui: { ...ui, custom, getEditorText: () => "" } }, notices };
+  return { ctx: { cwd: os.tmpdir(), hasUI, ui: { ...ui, custom, getEditorText: () => "" } }, notices };
 }
 
 function load(file: string) {
@@ -47,6 +47,9 @@ function rulesFile(rules: unknown[]): string {
   writeFileSync(f, JSON.stringify({ permissions: rules }));
   return f;
 }
+
+// Tests run by a subagent inherit this; the gate must see a normal session unless a test sets it.
+delete process.env.PI_SUBAGENT_CHILD;
 
 const saved = process.env.PI_PERMISSIONS_FILE;
 afterEach(() => {
@@ -83,6 +86,24 @@ describe("gate", () => {
       r?.reason,
       "Permission rule shell deploy prod needs approval and no one is present to give it",
     );
+  });
+
+  it("ask in a subagent child blocks without a dialog; allow and deny are unchanged", async () => {
+    const { call } = load(file);
+    const { ctx } = makeCtx({ choose: async () => assert.fail("no dialog in a subagent") });
+    process.env.PI_SUBAGENT_CHILD = "1";
+    try {
+      const r = await call("bash", { command: "deploy prod" }, ctx);
+      assert.deepEqual(r, {
+        block: true,
+        reason: "Permission rule shell deploy prod needs user approval, which a subagent cannot ask for",
+      });
+      assert.equal(await call("read", { path: "a.txt" }, ctx), undefined);
+      const denied = await call("read", { path: "a/.env" }, ctx);
+      assert.match(denied?.reason ?? "", /^Blocked by permission rule: read .*\.env: secret file$/);
+    } finally {
+      delete process.env.PI_SUBAGENT_CHILD;
+    }
   });
 
   it("ask with UI: Allow passes", async () => {
