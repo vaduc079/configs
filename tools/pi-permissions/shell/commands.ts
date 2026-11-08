@@ -18,12 +18,10 @@ export function parseShell(command: string): ShellParse {
     // The scanner leaves redirect targets out of words, so read them from the command text.
     const targets = scanned.commands.map((item) => redirectTargets(item.resource))
     // Per line, not per command: `ls P | xargs rm`, `rm $(realpath P)` and `cat x > "$(realpath P)"` let a
-    // read-only command's output pick the file a writer changes. An assignment (`PATH=...; cat P`,
-    // `for PATH in ...`) has no scanned item, so it is found in the text. `cd` changes no file; a substitution in
-    // its operand is its own item.
+    // read-only command's output pick the file a writer changes. `cd` changes no file; a substitution in its
+    // operand is its own item.
     const readOnly =
-      !ASSIGNMENT.test(command) &&
-      !targets.flat().some((target) => /[$`]/.test(target.text)) &&
+      !targets.flat().some((target) => target.write && /[$`]/.test(target.text)) &&
       scanned.commands.every((item) => cdOperands(item.rawWords, item.words) !== undefined || isReadOnly(item))
     for (const [index, item] of scanned.commands.entries()) {
       for (const target of targets[index]) {
@@ -58,8 +56,8 @@ function opaque(command: string): ShellParse {
 /**
  * Commands that never change a file named in their arguments, each with a test for the options that
  * would let them write or run another program. Wrappers (`env`, `xargs`, `command`, `sudo`) are not listed,
- * so a wrapped command keeps the edit check. `rg` also reads options from RIPGREP_CONFIG_PATH, which only
- * an assignment or declaration in the same line can set, since pi starts a new shell per call.
+ * so a wrapped command keeps the edit check. This guards against mistakes, not against deliberate bypasses
+ * such as a PATH change or an option built by expansion.
  */
 const READ_ONLY: Record<string, (option: string) => boolean> = {
   cat: () => false,
@@ -79,25 +77,9 @@ const READ_ONLY: Record<string, (option: string) => boolean> = {
   find: (o) => /^-(delete|exec|execdir|ok|okdir|fprint|fprint0|fprintf|fls)$/.test(o),
 }
 
-/**
- * `NAME=`, `NAME+=`, `NAME[i]=`, or a `for`/`select` loop variable, at the start of a word. Also matches
- * arguments like `x=y` or `rg for`, which only over-denies.
- */
-const ASSIGNMENT = /(^|[\s;&|()`])([A-Za-z_]\w*(\[[^\]]*\])?\+?=|(for|select)\s)/
-
-/**
- * A listed command with no argument that bash expands (`$`, backtick, brace, glob), since an expansion can
- * produce an unsafe option such as `-{delete,x}`. A function or `hash -p` that redefines a listed name needs
- * another command in the line, which fails this test.
- */
 function isReadOnly(item: { words: string[]; rawWords: string[] }): boolean {
-  const [name = "", ...args] = item.rawWords
-  const unsafe = READ_ONLY[name]
-  return (
-    unsafe !== undefined &&
-    !args.some((raw) => /[$`{*?[]/.test(raw.replace(/'[^']*'/g, ""))) &&
-    !item.words.slice(1).some(unsafe)
-  )
+  const unsafe = READ_ONLY[item.rawWords[0] ?? ""]
+  return unsafe !== undefined && !item.words.slice(1).some(unsafe)
 }
 
 /** The word if it may name a file: non-empty, no whitespace, not an option; the value of `--opt=value`. */
