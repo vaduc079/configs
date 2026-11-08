@@ -4,7 +4,7 @@
  * Click a row to expand just that call, or press ctrl+o to expand all of them;
  * expanded rows use the tool's normal renderer. Failed calls also show the
  * tool's collapsed error preview. Images in a result still show: pi draws them
- * outside the renderers. Edits keep pi's normal display, a path and its diff.
+ * outside the renderers.
  *
  * Applies to every tool, including built-ins, MCP tools, and codemode, through
  * `pi.registerToolRenderer`.
@@ -18,9 +18,6 @@ type ToolRenderContext = Parameters<RenderCall>[2];
 
 /** Argument keys that best describe a call, in order of preference. */
 const HINT_KEYS = ["command", "path", "file_path", "pattern", "query", "url", "code", "description"];
-
-/** Tools whose normal display stays on, because what it shows is the point of the call. */
-const NORMAL_DISPLAY_TOOLS = new Set(["edit"]);
 
 /** Components each render slot last returned, kept apart because a renderer may reuse its own `lastComponent`. */
 interface QuietState {
@@ -103,7 +100,5 @@ function quietRenderers(toolName: string, base: ToolRenderers | undefined): Tool
 }
 
 export default function (pi: ExtensionAPI) {
-  pi.registerToolRenderer((toolName, next) =>
-    NORMAL_DISPLAY_TOOLS.has(toolName) ? next() : quietRenderers(toolName, next())
-  );
+  pi.registerToolRenderer((toolName, next) => quietRenderers(toolName, next()));
 }
