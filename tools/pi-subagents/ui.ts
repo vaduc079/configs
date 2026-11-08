@@ -41,7 +41,7 @@ export class SessionUi {
       const branch = index === running.length - 1 ? "└──" : "├──";
       // Styled per line: the footer draws them as separate lines. The tree is bold so it stands out from the dim text.
       const { theme } = this.ctx.ui;
-      return `${theme.bold(branch)} ${theme.fg("dim", `${subagent.agent.name} · "${subagent.description}" · ${elapsed}`)}`;
+      return `${theme.bold(branch)} ${theme.fg("dim", `${subagent.agent.name} · "${subagent.description}" · ${modelLabel(subagent)} · ${elapsed}`)}`;
     });
     this.ctx.ui.setStatus(STATUS_KEY, lines.join("\n"));
   }
@@ -51,6 +51,18 @@ export class SessionUi {
     this.dialogs.dispose();
     clearInterval(this.listTimer);
   }
+}
+
+/**
+ * `Opus 5.5 high`, like pi-statusline's model part; `Opus 5.5 thinking off` when off, since a bare `off` reads oddly.
+ * Until the child reports it, the requested model and level.
+ */
+export function modelLabel(subagent: Subagent) {
+  const { model, effective } = subagent;
+  const name = effective ? effective.model.replace(/^Claude /, "") : model.id;
+  const thinking = effective ? effective.thinking : model.thinking;
+  if (!thinking) return name;
+  return thinking === "off" ? `${name} thinking off` : `${name} ${thinking}`;
 }
 
 /**

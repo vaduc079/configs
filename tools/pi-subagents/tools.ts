@@ -66,17 +66,21 @@ export function registerTools(pi: ExtensionAPI, agents: Agent[], current: () => 
       const text = `Subagent started in the background (sessionID: ${subagent.id}). You will be notified when it finishes; do not poll it.`;
       return { content: [{ type: "text", text }], details: { sessionID: subagent.id, outcome: "started" } };
     },
-    renderCall(args, theme) {
+    /** One line with every argument but the prompt; expanded (ctrl+o or a click) adds the full sessionID and the prompt. */
+    renderCall(args, theme, context) {
       const target = args.sessionID ? theme.fg("warning", " → ") + theme.fg("dim", String(args.sessionID).slice(0, 8)) : "";
-      return new Text(
+      const head =
         theme.fg("toolTitle", theme.bold("subagent ")) +
         theme.fg("accent", `${args.agent ?? ""}`) +
         target +
         theme.fg("muted", ` "${args.description ?? ""}"`) +
-        theme.fg("dim", ` ${args.model ?? ""}`),
-        0,
-        0,
-      );
+        // The model streams in after the prompt; until then there is nothing to show.
+        (args.model ? theme.fg("dim", ` ${args.model} · thinking ${args.thinking ?? "default"}`) : "");
+      if (!context.expanded) return new Text(head, 0, 0);
+      const lines = [head];
+      if (args.sessionID) lines.push(theme.fg("dim", `sessionID: ${args.sessionID}`));
+      lines.push("", theme.fg("toolOutput", args.prompt ?? ""));
+      return new Text(lines.join("\n"), 0, 0);
     },
   });
 }

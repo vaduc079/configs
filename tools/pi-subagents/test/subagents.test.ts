@@ -16,6 +16,7 @@ class FakeProcess implements RpcConnection {
   readonly sent: RpcCommand[] = [];
   respond: Responder = () => ({});
   closed = false;
+  stateReads = 0;
 
   constructor(options: RpcProcessOptions) {
     this.options = options;
@@ -23,6 +24,13 @@ class FakeProcess implements RpcConnection {
 
   /** Like pi, an accepted prompt starts a run, unless a command consumed it or it is a steer queued into the current run. */
   send(command: RpcCommand): Promise<RpcResponse> {
+    // A read the child answers like pi does; kept out of `sent` so tests see only commands that act.
+    if (command.type === "get_state") {
+      this.stateReads++;
+      const thinking = this.options.args.includes("--thinking") ? this.flag("--thinking") : "medium";
+      const data = { model: { name: `Model ${this.flag("--model")}` }, thinkingLevel: thinking } as RpcResponse["data"];
+      return Promise.resolve({ type: "response", command: command.type, success: true, data, ...this.respond(command, this) });
+    }
     this.sent.push(command);
     const response: RpcResponse = { type: "response", command: command.type, success: true, ...this.respond(command, this) };
     const startsRun = response.success && response.data?.disposition !== "handled" && !command.streamingBehavior;
@@ -179,12 +187,24 @@ test("a message to an idle child starts a new run in the same process", async ()
   assert.equal(subagent.state, "running");
 });
 
+test("each process is asked once for the model and thinking level it runs with", async () => {
+  const { manager, processes, start } = setup();
+  const subagent = await start();
+  assert.deepEqual(subagent.effective, { model: "Model anthropic/claude-haiku-5-5", thinking: "medium" });
+
+  processes[0].settle();
+  await manager.message(subagent.id, "now fix it", haiku);
+  assert.equal(processes[0].stateReads, 1, "the same process is not asked again");
+});
+
 test("a different model on a follow-up restarts the idle child with that model and its env", async () => {
   const { manager, processes, start } = setup();
   const subagent = await start();
   processes[0].settle();
 
-  await manager.message(subagent.id, "now fix it", { ...sonnet, thinking: "high" });
+  const switching = manager.message(subagent.id, "now fix it", { ...sonnet, thinking: "high" });
+  assert.equal(subagent.effective, undefined, "the old process's model is not shown for the new one");
+  await switching;
   assert.equal(processes[0].closed, true);
   assert.equal(processes[1].flag("--session-id"), subagent.id);
   assert.equal(processes[1].flag("--model"), "anthropic/claude-sonnet-5");
@@ -192,6 +212,13 @@ test("a different model on a follow-up restarts the idle child with that model a
   assert.equal(processes[1].options.env.PI_CACHE_RETENTION, "short:claude-sonnet-5");
   assert.deepEqual(processes[1].types(), ["prompt"]);
   assert.deepEqual(subagent.model, { ...sonnet, thinking: "high" });
+  assert.deepEqual(subagent.effective, { model: "Model anthropic/claude-sonnet-5", thinking: "high" });
+});
+
+test("a failed read leaves the requested model and level to show", async () => {
+  const { start } = setup((command) => (command.type === "get_state" ? { success: false, error: "boom" } : {}));
+  const subagent = await start();
+  assert.equal(subagent.effective, undefined);
 });
 
 test("a command that starts its own run is tracked like any other run", async () => {

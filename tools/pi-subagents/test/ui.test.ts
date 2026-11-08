@@ -2,7 +2,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { registerResultRenderer } from "../ui.ts";
+import type { Subagent } from "../subagent.ts";
+import { modelLabel, registerResultRenderer } from "../ui.ts";
 
 type Row = { render(width: number): string[]; handleMouse(event: unknown): unknown };
 type Renderer = (message: unknown, options: { expanded: boolean }, theme: unknown) => Row;
@@ -48,6 +49,15 @@ test("ctrl+o overrides a click, and pressing it again collapses the row", () => 
   click(render(message, false));
   assert.equal(text(render(message, true)).length, 6);
   assert.equal(text(render(message, false)).length, 1);
+});
+
+test("the running list names the model and thinking level the child reports, else the requested ones", () => {
+  const child = (effective?: Subagent["effective"], thinking?: string) =>
+    ({ model: { provider: "anthropic", id: "claude-opus-5-5", thinking }, effective }) as Subagent;
+  assert.equal(modelLabel(child({ model: "Claude Opus 5.5", thinking: "medium" })), "Opus 5.5 medium");
+  assert.equal(modelLabel(child(undefined, "high")), "claude-opus-5-5 high");
+  assert.equal(modelLabel(child()), "claude-opus-5-5");
+  assert.equal(modelLabel(child({ model: "Claude Opus 5.5", thinking: "off" })), "Opus 5.5 thinking off");
 });
 
 test("a failed result shows a three-line preview when collapsed", () => {

@@ -13,6 +13,8 @@ export type Usage = { turns: number; input: number; output: number; cost: number
 export type RunState = "completed" | "error" | "cancelled";
 export type RunResult = { state: RunState; text: string; usage: Usage; durationMs: number };
 export type SubagentState = "stopped" | "idle" | "running";
+/** The model and thinking level the child process reports it runs with; pi fills in a default level and clamps it to the model. */
+type Effective = { model: string; thinking?: string };
 
 export type SubagentOptions = {
   id: string;
@@ -49,6 +51,8 @@ export class Subagent {
   model: ModelChoice;
   state: SubagentState = "stopped";
   runStartedAt = 0;
+  /** Read from the current process; undefined until it answers. */
+  effective: Effective | undefined;
 
   private readonly options: SubagentOptions;
   /**
@@ -90,7 +94,9 @@ export class Subagent {
     }
     if (!rpc) {
       this.model = model;
+      this.effective = undefined;
       rpc = this.rpc = this.startProcess();
+      void this.readEffective(rpc);
     }
 
     const response = await rpc.send({ type: "prompt", message: text });
@@ -170,6 +176,21 @@ export class Subagent {
       },
     });
     return rpc;
+  }
+
+  private async readEffective(rpc: RpcConnection) {
+    const response = await rpc.send({ type: "get_state" });
+    if (this.rpc !== rpc || !response.success) return;
+    // Checked, not cast: this runs outside RpcProcess's guard, so a throw here (or in the redraw it
+    // triggers) would be an unhandled rejection that exits the parent pi.
+    const data = response.data as { model?: { name?: unknown }; thinkingLevel?: unknown } | undefined;
+    const name = data?.model?.name;
+    const thinking = data?.thinkingLevel;
+    this.effective = {
+      model: typeof name === "string" ? name : this.model.id,
+      thinking: typeof thinking === "string" ? thinking : undefined,
+    };
+    this.options.onChange();
   }
 
   private failPrompt(message: string): never {
