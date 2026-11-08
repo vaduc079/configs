@@ -10,20 +10,22 @@ type Result = { block?: boolean; reason?: string } | undefined;
 type Handler = (event: unknown, ctx: unknown) => unknown;
 
 interface Ui {
-  select: (title: string, options: string[]) => Promise<string | undefined>;
+  /** The option the user picks in the dialog; undefined dismisses it. prompt.test.ts covers the dialog itself. */
+  choose: (title: string) => Promise<string | undefined>;
   input: (title: string, placeholder?: string) => Promise<string | undefined>;
   notify: (message: string, type?: string) => void;
 }
 
 function makeCtx(over: Partial<Ui> = {}, hasUI = true) {
   const notices: string[] = [];
-  const ui: Ui = {
-    select: async () => "Allow",
+  const { choose, ...ui }: Ui = {
+    choose: async () => "Allow",
     input: async () => undefined,
     notify: (m) => notices.push(m),
     ...over,
   };
-  return { ctx: { cwd: os.tmpdir(), hasUI, ui }, notices };
+  const custom = (_factory: unknown, options: { blocked: { message: string } }) => choose(options.blocked.message);
+  return { ctx: { cwd: os.tmpdir(), hasUI, mode: "tui", ui: { ...ui, custom, getEditorText: () => "" } }, notices };
 }
 
 function load(file: string) {
@@ -87,38 +89,37 @@ describe("gate", () => {
     const { call } = load(file);
     let title = "";
     const { ctx } = makeCtx({
-      select: async (t, options) => {
+      choose: async (t) => {
         title = t;
-        assert.deepEqual(options, ["Allow", "Deny", "Deny with reason"]);
         return "Allow";
       },
     });
     assert.equal(await call("bash", { command: "deploy prod" }, ctx), undefined);
-    assert.match(title, /ask: shell deploy prod/);
+    assert.match(title, /Rule: ask · shell deploy \*/);
   });
 
   it("ask with UI: Deny blocks", async () => {
     const { call } = load(file);
-    const { ctx } = makeCtx({ select: async () => "Deny" });
+    const { ctx } = makeCtx({ choose: async () => "Deny" });
     const r = await call("mcp__x__send", { text: "hi" }, ctx);
     assert.deepEqual(r, { block: true, reason: "Denied by the user" });
   });
 
   it("ask with UI: dismissed dialog denies", async () => {
     const { call } = load(file);
-    const { ctx } = makeCtx({ select: async () => undefined });
+    const { ctx } = makeCtx({ choose: async () => undefined });
     const r = await call("mcp__x__send", {}, ctx);
     assert.deepEqual(r, { block: true, reason: "Denied by the user" });
   });
 
   it("ask with UI: Deny with reason passes the text; empty input is plain Deny", async () => {
     const { call } = load(file);
-    const a = makeCtx({ select: async () => "Deny with reason", input: async () => "too risky" });
+    const a = makeCtx({ choose: async () => "Deny with reason", input: async () => "too risky" });
     assert.deepEqual(await call("mcp__x__send", {}, a.ctx), {
       block: true,
       reason: "Denied by the user: too risky",
     });
-    const b = makeCtx({ select: async () => "Deny with reason", input: async () => "  " });
+    const b = makeCtx({ choose: async () => "Deny with reason", input: async () => "  " });
     assert.deepEqual(await call("mcp__x__send", {}, b.ctx), { block: true, reason: "Denied by the user" });
   });
 
@@ -127,7 +128,7 @@ describe("gate", () => {
     const log: string[] = [];
     const releases: Array<() => void> = [];
     const { ctx } = makeCtx({
-      select: (t) => {
+      choose: (t) => {
         log.push("start");
         return new Promise((resolve) =>
           releases.push(() => {
@@ -152,7 +153,7 @@ describe("gate", () => {
   it("allow passes with no dialog", async () => {
     const { call } = load(file);
     let asked = false;
-    const { ctx } = makeCtx({ select: async () => ((asked = true), "Deny") });
+    const { ctx } = makeCtx({ choose: async () => ((asked = true), "Deny") });
     assert.equal(await call("bash", { command: "git status" }, ctx), undefined);
     assert.equal(asked, false);
   });
@@ -160,7 +161,7 @@ describe("gate", () => {
   it("codemode input yields no dialog", async () => {
     const { call } = load(file);
     let asked = false;
-    const { ctx } = makeCtx({ select: async () => ((asked = true), "Deny") });
+    const { ctx } = makeCtx({ choose: async () => ((asked = true), "Deny") });
     assert.equal(await call("codemode", { code: "deploy prod; cat .env" }, ctx), undefined);
     assert.equal(asked, false);
   });

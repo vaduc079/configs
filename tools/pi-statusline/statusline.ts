@@ -6,6 +6,8 @@ const ICON_FOLDER = "\uf07b";
 const ICON_BRANCH = "\uf418";
 const ICON_CONTEXT = "\u{f01bc}";
 const SEP = " · ";
+/** Extension statuses drawn as their own lines below the status line instead of inline (pi-subagents' running list). */
+const BLOCK_STATUS_KEYS = new Set(["subagents"]);
 
 type Limit = { utilization: number; resetAt: number };
 type Limits = { fiveHour?: Limit; sevenDay?: Limit; status?: string };
@@ -131,22 +133,28 @@ export default function (pi: ExtensionAPI) {
         invalidate() { },
         render(width: number): string[] {
           const branch = footerData.getGitBranch();
+          const statuses = [...footerData.getExtensionStatuses()];
+          const inline = statuses.filter(([key]) => !BLOCK_STATUS_KEYS.has(key)).map(([, text]) => text);
+          const below = statuses
+            .filter(([key]) => BLOCK_STATUS_KEYS.has(key))
+            .flatMap(([, text]) => text.split("\n"))
+            .map((line) => truncateToWidth(line, width));
           const parts = [
             renderModel(ctx, pi.getThinkingLevel(), theme),
             `${theme.fg("success", ICON_FOLDER)} ${theme.fg("success", path.basename(ctx.cwd))}`,
             branch ? `${theme.fg("mdLink", ICON_BRANCH)} ${theme.fg("mdLink", branch)}` : undefined,
             renderContext(ctx, theme),
             ctx.model?.provider === "anthropic" ? renderLimits(limits, theme) : undefined,
-            ...[...footerData.getExtensionStatuses().values()],
+            ...inline,
           ].filter((part): part is string => !!part);
           const left = parts.join(theme.fg("dim", SEP));
           const right = renderCacheHit(ctx, theme);
-          if (!right) return [truncateToWidth(left, width)];
+          if (!right) return [truncateToWidth(left, width), ...below];
           // Keep the right part visible; truncate the left part to make room.
           const rightWidth = visibleWidth(right);
           const leftText = truncateToWidth(left, Math.max(0, width - rightWidth - 1));
           const gap = Math.max(1, width - visibleWidth(leftText) - rightWidth);
-          return [truncateToWidth(leftText + " ".repeat(gap) + right, width)];
+          return [truncateToWidth(leftText + " ".repeat(gap) + right, width), ...below];
         },
       };
     });

@@ -91,7 +91,7 @@ export default function (pi: ExtensionAPI) {
       };
     }
     const answer = await enqueue(() =>
-      askUser(ctx.ui, { toolName: event.toolName, action, resource, rule: decision.rule, input: event.input }),
+      askUser(ctx.ui, ctx.mode, { toolName: event.toolName, action, resource, rule: decision.rule, input: event.input }),
     );
     if (answer.allow) return undefined;
     return { block: true, reason: answer.reason ? `Denied by the user: ${answer.reason}` : "Denied by the user" };

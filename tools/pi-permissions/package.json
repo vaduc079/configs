@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Pi permission gate: OpenCode-style allow/ask/deny rules for tool calls",
   "scripts": {
-    "link-pi": "ln -sfn \"$HOME/.pi/agent/install/releases/$(cat \"$HOME/.pi/agent/install/current-version\")/node_modules\" pi_modules",
+    "link-pi": "ln -sfn \"$HOME/.pi/agent/install/releases/$(cat \"$HOME/.pi/agent/install/current-version\")/node_modules\" pi_modules && mkdir -p node_modules/@earendil-works && ln -sfn ../../pi_modules/@earendil-works/pi-coding-agent node_modules/@earendil-works/pi-coding-agent",
     "typecheck": "tsc --noEmit",
     "test": "node --test *.test.ts shell/*.test.ts"
   },

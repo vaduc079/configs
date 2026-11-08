@@ -14,7 +14,7 @@ Shell path words containing `* ? [ {` are also checked as their glob expansion (
 ## Enable
 
 ```sh
-npm run link-pi      # link pi's node_modules as ./pi_modules (types)
+npm run link-pi      # link pi's node_modules as ./pi_modules (types) and pi-coding-agent into node_modules (tests); rerun after npm install
 pi -e ~/configs/tools/pi-permissions/index.ts   # or list it under "extensions" in settings.json
 ```
 

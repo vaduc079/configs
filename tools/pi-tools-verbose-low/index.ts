@@ -17,7 +17,7 @@ type RenderResult = NonNullable<ToolRenderers["renderResult"]>;
 type ToolRenderContext = Parameters<RenderCall>[2];
 
 /** Argument keys that best describe a call, in order of preference. */
-const HINT_KEYS = ["command", "path", "file_path", "pattern", "query", "url", "code"];
+const HINT_KEYS = ["command", "path", "file_path", "pattern", "query", "url", "code", "description"];
 
 /** Tools whose normal display stays on, because what it shows is the point of the call. */
 const NORMAL_DISPLAY_TOOLS = new Set(["edit"]);
