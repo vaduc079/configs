@@ -76,13 +76,14 @@ const clicks = new WeakMap<object, { open: boolean; expanded: boolean }>();
  * Click it, or press ctrl+o, to see the usage, sessionID, and the child's response. Errors also show a short preview.
  */
 export function registerResultRenderer(pi: ExtensionAPI) {
-  pi.registerMessageRenderer<ResultDetails>(RESULT_TYPE, (message, { expanded }, theme) => {
+  pi.registerMessageRenderer<ResultDetails>(RESULT_TYPE, (message, { expanded, outputPad }, theme) => {
     const details = message.details;
     const content = typeof message.content === "string" ? message.content : "";
     if (!details) return new Text(theme.fg("muted", content), 0, 0);
 
     const body = blockBody(content);
-    const box = new Box(1, 1, (text) => theme.bg(details.state === "completed" ? "toolSuccessBg" : "toolErrorBg", text));
+    // Match tool rows, which pad by the outputPad setting.
+    const box = new Box(outputPad, 1, (text) => theme.bg(details.state === "completed" ? "toolSuccessBg" : "toolErrorBg", text));
     // ctrl+o was pressed since the click.
     if (clicks.get(message)?.expanded !== expanded) clicks.delete(message);
     const isOpen = () => clicks.get(message)?.open ?? expanded;

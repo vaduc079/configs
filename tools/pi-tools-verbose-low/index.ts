@@ -10,7 +10,7 @@
  * `pi.registerToolRenderer`.
  */
 import type { ExtensionAPI, Theme, ToolRenderers } from "@earendil-works/pi-coding-agent";
-import { type Component, sliceByColumn, Text, visibleWidth } from "@earendil-works/pi-tui";
+import { Box, type Component, sliceByColumn, Text, visibleWidth } from "@earendil-works/pi-tui";
 
 type RenderCall = NonNullable<ToolRenderers["renderCall"]>;
 type RenderResult = NonNullable<ToolRenderers["renderResult"]>;
@@ -74,6 +74,17 @@ function quietLine(toolName: string, context: ToolRenderContext, theme: Theme): 
   return new QuietLine(head, argHint(context.args), statusText(context, theme), theme);
 }
 
+/**
+ * A tool with `renderShell: "self"`, such as `edit`, draws its own background box, so pi adds none.
+ * Wrap its quiet line in the box pi gives other tools: same state colour and outputPad padding.
+ */
+function shellBox(line: QuietLine, context: ToolRenderContext, theme: Theme): Box {
+  const bg = context.isPartial ? "toolPendingBg" : context.isError ? "toolErrorBg" : "toolSuccessBg";
+  const box = new Box(context.outputPad, 1, (text) => theme.bg(bg, text));
+  box.addChild(line);
+  return box;
+}
+
 function quietRenderers(toolName: string, base: ToolRenderers | undefined): ToolRenderers {
   const renderCall: RenderCall = (args, theme, context) => {
     const state = context.state as QuietState;
@@ -81,7 +92,10 @@ function quietRenderers(toolName: string, base: ToolRenderers | undefined): Tool
     // as the bash timer, which the call renderer starts and only the result renderer stops.
     const baseCall = base?.renderCall?.(args, theme, { ...context, lastComponent: state.baseCall });
     state.baseCall = baseCall;
-    if (!context.expanded) return quietLine(toolName, context, theme);
+    if (!context.expanded) {
+      const line = quietLine(toolName, context, theme);
+      return base?.renderShell === "self" ? shellBox(line, context, theme) : line;
+    }
     // A throwing renderer makes pi draw its own fallback, as it does for tools without one.
     if (!baseCall) throw new Error(`${toolName} has no renderCall`);
     return baseCall;
