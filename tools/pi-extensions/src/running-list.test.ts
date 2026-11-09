@@ -21,7 +21,7 @@ test("running items show as a tree under a lines: status, with elapsed time", ()
     { label: "tests", startedAt: 100_000 - 62_000 },
   ]);
   list.render();
-  assert.equal(statuses.get("lines:jobs"), "*├──* build · 5s\n*└──* tests · 1m2s");
+  assert.equal(statuses.get("lines:jobs"), "*├──* build · 5s\n*└──* tests · 1m 2s");
   list.dispose();
 });
 

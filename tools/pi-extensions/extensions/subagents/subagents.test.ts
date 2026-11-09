@@ -473,3 +473,37 @@ test("after shutdown, the child's late events and exit report nothing", async ()
   assert.equal(finished.length, 0);
   assert.deepEqual(jobs.map((job) => job.status), ["launched"], "the launched entry marks it interrupted for next start");
 });
+
+test("a finished run is kept as the child's last run and saved with its duration", async () => {
+  mock.timers.enable({ apis: ["Date"], now: 0 });
+  const { processes, jobs, start } = setup();
+  const subagent = await start();
+  mock.timers.tick(2_000);
+  processes[0].settle(true);
+  mock.timers.reset();
+
+  assert.deepEqual(subagent.lastRun, { state: "cancelled", durationMs: 2_000 });
+  assert.equal(jobs.at(-1)?.durationMs, 2_000);
+});
+
+test("restore gives each child its last run; an interrupted one counts as cancelled", () => {
+  const { manager } = setup();
+  const job = (id: string, status: JobEntry["status"], durationMs?: number): JobEntry => ({
+    id,
+    ownerSessionId: "parent-1",
+    agent: "general",
+    description: id,
+    model: haiku,
+    status,
+    durationMs,
+  });
+  manager.restore([job("a", "completed", 5_000), job("b", "error"), job("c", "launched")]);
+  assert.deepEqual(
+    manager.list().map((subagent) => subagent.lastRun),
+    [
+      { state: "completed", durationMs: 5_000 },
+      { state: "error", durationMs: undefined },
+      { state: "cancelled", durationMs: undefined },
+    ],
+  );
+});

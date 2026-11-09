@@ -1,9 +1,9 @@
 // Needs pi's packages at runtime: run `npm run link-pi` once (links pi's node_modules here).
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
 import type { Subagent } from "./subagent.ts";
-import { modelLabel, registerResultRenderer } from "./ui.ts";
+import { modelLabel, registerResultRenderer, SubagentList } from "./ui.ts";
 
 type Row = { render(width: number): string[]; handleMouse(event: unknown): unknown };
 type Renderer = (message: unknown, options: { expanded: boolean }, theme: unknown) => Row;
@@ -62,4 +62,105 @@ test("the running list names the model and thinking level the child reports, els
 
 test("a failed result shows a three-line preview when collapsed", () => {
   assert.deepEqual(text(render(result("error"), false)), ['▸ subagent general "find bug"  ✗ error 1m 2s', "line 1", "line 2", "line 3"]);
+});
+
+type ListChild = Pick<Subagent, "id" | "description" | "state" | "runStartedAt" | "lastRun" | "model" | "effective" | "agent">;
+
+function listSetup(children: ListChild[], copyError?: Error) {
+  const aborted: string[] = [];
+  const copied: string[] = [];
+  let closed = false;
+  const keys: Record<string, string> = { "tui.select.cancel": "esc", "tui.select.up": "up", "tui.select.down": "down" };
+  const list = new SubagentList({
+    subagents: {
+      list: () => children as Subagent[],
+      abort: async (id) => {
+        aborted.push(id);
+      },
+    },
+    theme: theme as unknown as Theme,
+    keybindings: { matches: (data, binding) => keys[binding] === data },
+    openCommand: (id) => `pi --session ${id}`,
+    copy: async (text) => {
+      if (copyError) throw copyError;
+      copied.push(text);
+    },
+    requestRender: () => {},
+    done: () => (closed = true),
+  });
+  const lines = () => list.render(120).map((line) => line.trim()).filter((line) => line && !line.startsWith("─"));
+  const settle = () => new Promise((resolve) => setImmediate(resolve));
+  return { list, lines, aborted, copied, closed: () => closed, settle };
+}
+
+const child = (id: string, state: Subagent["state"], lastRun?: Subagent["lastRun"]): ListChild => ({
+  id,
+  description: `task ${id}`,
+  state,
+  runStartedAt: Date.now() - 62_000,
+  lastRun,
+  model: { provider: "anthropic", id: "claude-haiku-5-5", thinking: "low" },
+  effective: undefined,
+  agent: { name: "general", description: "", systemPrompt: "" },
+});
+
+test("/subagents lists running children first, then newest first, with how each last run ended", (t) => {
+  const { list, lines } = listSetup([
+    child("a", "stopped", { state: "completed", durationMs: 243_000 }),
+    child("b", "running"),
+    child("c", "idle", { state: "error", durationMs: 1_500 }),
+    child("d", "stopped", { state: "cancelled" }),
+  ]);
+  t.after(() => list.dispose());
+  assert.deepEqual(lines(), [
+    "Subagents",
+    "→ general · task b · claude-haiku-5-5 low · running 1m 2s",
+    "general · task d · claude-haiku-5-5 low · cancelled",
+    "general · task c · claude-haiku-5-5 low · error 1.5s",
+    "general · task a · claude-haiku-5-5 low · completed 4m 3s",
+    "↑↓ navigate  x abort  c copy open command  esc close",
+  ]);
+});
+
+test("x aborts only a running child; c copies the open command of the selected child", async (t) => {
+  const { list, aborted, copied, lines, settle } = listSetup([child("a", "idle", { state: "completed" }), child("b", "running")]);
+  t.after(() => list.dispose());
+  list.handleInput("x");
+  list.handleInput("j");
+  list.handleInput("x");
+  list.handleInput("c");
+  await settle();
+  assert.deepEqual(aborted, ["b"]);
+  assert.deepEqual(copied, ["pi --session a"]);
+  assert.ok(lines().includes("Copied: pi --session a"));
+});
+
+test("a failed copy shows under the rows, and esc closes the list", async (t) => {
+  const { list, lines, closed, settle } = listSetup([child("a", "running")], new Error("no clipboard"));
+  t.after(() => list.dispose());
+  list.handleInput("c");
+  await settle();
+  assert.ok(lines().includes("Copy failed: no clipboard"));
+  list.handleInput("esc");
+  assert.equal(closed(), true);
+});
+
+test("a key acts on the highlighted child even if the rows reorder before it is pressed", async (t) => {
+  const children = [child("a", "idle", { state: "completed" }), child("b", "running")];
+  const { list, lines, copied, settle } = listSetup(children);
+  t.after(() => list.dispose());
+  assert.ok(lines()[1].startsWith("→ general · task b"));
+  children.push(child("c", "running"));
+  list.handleInput("c");
+  await settle();
+  assert.deepEqual(copied, ["pi --session b"]);
+});
+
+test("esc closes the list even when no child is left", (t) => {
+  const children = [child("a", "running")];
+  const { list, closed } = listSetup(children);
+  t.after(() => list.dispose());
+  children.pop();
+  list.handleInput("esc");
+  assert.equal(closed(), true);
 });

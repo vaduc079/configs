@@ -14,6 +14,8 @@ export type Usage = { turns: number; input: number; output: number; cost: number
 export type RunState = "completed" | "error" | "cancelled";
 export type RunResult = { state: RunState; text: string; usage: Usage; durationMs: number };
 export type SubagentState = "stopped" | "idle" | "running";
+/** The last finished run, for `/subagents`. No duration when restored from an entry saved without one, or interrupted. */
+export type LastRun = { state: RunState; durationMs?: number };
 /** The model and thinking level the child process reports it runs with; pi fills in a default level and clamps it to the model. */
 type Effective = { model: string; thinking?: string };
 
@@ -52,6 +54,7 @@ export class Subagent {
   model: ModelChoice;
   state: SubagentState = "stopped";
   runStartedAt = 0;
+  lastRun: LastRun | undefined;
   /** Read from the current process; undefined until it answers. */
   effective: Effective | undefined;
 
@@ -247,6 +250,7 @@ export class Subagent {
     this.lastText = "";
     this.error = undefined;
     this.usage = emptyUsage();
+    this.lastRun = { state, durationMs: result.durationMs };
     if (this.rpc) this.becomeIdle();
     this.options.onFinish(this, result);
     this.options.onChange();

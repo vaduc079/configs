@@ -17,6 +17,8 @@ export type JobEntry = {
   description: string;
   model: ModelChoice;
   status: "launched" | RunState;
+  /** Set with a finished status. */
+  durationMs?: number;
 };
 
 export type SubagentsOptions = {
@@ -53,7 +55,8 @@ export class Subagents {
     for (const job of latest.values()) {
       const agent = this.options.agents.find((candidate) => candidate.name === job.agent);
       if (!agent) continue;
-      this.add(job.id, agent, job.description, job.model);
+      const subagent = this.add(job.id, agent, job.description, job.model);
+      subagent.lastRun = { state: job.status === "launched" ? "cancelled" : job.status, durationMs: job.durationMs };
       if (job.status !== "launched") continue;
       interrupted.push(job);
       this.options.saveJob({ ...job, status: "cancelled" });
@@ -118,7 +121,7 @@ export class Subagents {
       // that run's `launched` entry.
       onFinish: (finished, result) =>
         this.options.onFinish(finished, result, () => {
-          if (finished.state !== "running") this.save(finished, result.state);
+          if (finished.state !== "running") this.save(finished, result.state, result.durationMs);
         }),
     });
     this.subagents.set(id, subagent);
@@ -136,7 +139,7 @@ export class Subagents {
     if (running >= MAX_RUNNING) throw new Error(`${MAX_RUNNING} subagents are already running. Wait for one to finish.`);
   }
 
-  private save(subagent: Subagent, status: JobEntry["status"]) {
+  private save(subagent: Subagent, status: JobEntry["status"], durationMs?: number) {
     this.options.saveJob({
       id: subagent.id,
       ownerSessionId: this.options.ownerSessionId,
@@ -144,6 +147,7 @@ export class Subagents {
       description: subagent.description,
       model: subagent.model,
       status,
+      durationMs,
     });
   }
 }
