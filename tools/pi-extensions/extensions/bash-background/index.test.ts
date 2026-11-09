@@ -185,6 +185,19 @@ test("a foreground command returns what pi's built-in bash returns", async () =>
   assert.deepEqual(withoutTime(ours), withoutTime(builtin));
 });
 
+test("a background command returns structured content, for codemode scripts, that matches its reply", async () => {
+  const { tool, sent } = setup();
+  const ctx = { cwd: tmp, isIdle: () => true, sessionManager: { getSessionId: () => "session-1", getSessionFile: () => undefined } };
+  const result = await tool!.execute("call-1", { command: "echo done", background: true }, undefined, undefined, ctx);
+  const reply = result.content.map((part) => part.text).join("");
+  const { background_id, log_path, kill_command, note } = result.structuredContent as Record<string, string>;
+  assert.match(reply, new RegExp(`\\(id ${background_id}\\)`));
+  assert.equal(log_path, logPathOf(reply));
+  assert.equal(kill_command, killCommandOf(reply));
+  assert.ok(reply.endsWith(note));
+  await waitFor(() => sent[0]);
+});
+
 test("a shell path that pi normalizes (~, file://) runs the same shell as the built-in", async () => {
   const bash = "/bin/bash";
   for (const shellPath of [`~/${path.relative(os.homedir(), bash)}`, `file://${bash}`]) {

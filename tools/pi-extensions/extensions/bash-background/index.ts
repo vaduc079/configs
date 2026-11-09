@@ -20,6 +20,17 @@ const LOG_DIR = path.join(os.tmpdir(), "pi-bash-bg");
 const BACKGROUND_DESCRIPTION =
   "Run the command in the background. The call returns at once; when the command exits you get one message with its exit status and last lines of output. Use it for long builds, test runs and servers. Background commands have no timeout unless you set one. Do not end the command with '&': the shell would exit at once and the job would report success without output.";
 
+const NOTE =
+  "When it exits you get a message with its status and last lines of output. Do not poll for it: sleeping and re-reading the log is polling. Read the log only when it helps work you can do now. Continue with other work, or end your turn if nothing else is left.";
+
+// What a codemode script gets from a background call, instead of the foreground result it cannot have yet.
+const BackgroundOutput = Type.Object({
+  background_id: Type.String(),
+  log_path: Type.String({ description: "Output so far; the exit message has the last lines" }),
+  kill_command: Type.String({ description: "Stops the command and every process it started" }),
+  note: Type.String(),
+});
+
 type Job = { id: string; command: string; startedAt: number; abort: AbortController };
 
 export default function (pi: ExtensionAPI) {
@@ -38,6 +49,8 @@ export default function (pi: ExtensionAPI) {
       ...builtin.parameters.properties,
       background: Type.Optional(Type.Boolean({ description: BACKGROUND_DESCRIPTION })),
     }),
+    // pi's bash always declares its output schema; the type is optional only because other tools may not.
+    outputSchema: Type.Union([builtin.outputSchema!, BackgroundOutput]),
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       // The options pi builds its own bash tool with. pi normalizes the shell path (`~`, file:// URLs) in
       // SettingsManager.getShellPath, and does not export the normalizing function, so ask a SettingsManager.
@@ -75,13 +88,14 @@ export default function (pi: ExtensionAPI) {
       await start.execute(toolCallId, params, undefined, undefined, ctx);
       runningList?.render();
 
+      const structuredContent = { background_id: job.id, log_path: logPath, kill_command: killCommand(pidPath), note: NOTE };
       const text = [
         `Running in the background (id ${job.id}).`,
         `Output log: ${logPath}`,
-        `To stop it and every process it started: ${killCommand(pidPath)}`,
-        "When it exits you get a message with its status and last lines of output. Do not poll for it: sleeping and re-reading the log is polling. Read the log only when it helps work you can do now. Continue with other work, or end your turn if nothing else is left.",
+        `To stop it and every process it started: ${structuredContent.kill_command}`,
+        NOTE,
       ].join("\n");
-      return { content: [{ type: "text", text }], details: undefined };
+      return { content: [{ type: "text", text }], structuredContent, details: undefined };
     },
   });
 
