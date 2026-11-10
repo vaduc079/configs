@@ -1,3 +1,16 @@
+import { sliceByColumn, visibleWidth } from "@earendil-works/pi-tui";
+
+/**
+ * Plain text cut to exactly `maxWidth` columns, `…` in the last, so cut lines line up. Not pi-tui's truncateToWidth:
+ * that adds a style reset, which would undo the caller's style for the rest of the line.
+ */
+export function cutToWidth(text: string, maxWidth: number) {
+  if (visibleWidth(text) <= maxWidth) return text;
+  const kept = sliceByColumn(text, 0, maxWidth - 1, true);
+  // A wide character that would cross the cut is left out whole; a space fills its column, so `…` stays in place.
+  return `${kept}${" ".repeat(maxWidth - 1 - visibleWidth(kept))}…`;
+}
+
 /** `1.2s` under a minute, `1m 2s` from a minute; the duration on tool and result rows. */
 export function formatDuration(ms: number) {
   const seconds = ms / 1000;

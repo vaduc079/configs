@@ -22,19 +22,44 @@ const result = (status: string) => ({
     durationMs: 5_000,
   },
 });
-const text = (row: Row) => row.render(80).map((line) => line.trim()).filter(Boolean);
+const text = (row: Row, width = 80) => row.render(width).map((line) => line.trim()).filter(Boolean);
 const click = (row: Row) => row.handleMouse({ type: "click", button: "left", x: 1, y: 1, width: 80, height: 3 });
 
-test("a result shows as one row with the command's first line until it is clicked open", () => {
+test("a result shows as one row with the command on one line until it is clicked open, which shows it whole", () => {
   const row = renderer!(result("exit 0"), { expanded: false }, theme);
-  assert.deepEqual(text(row), ["▸ bash npm test  ✓ 5.0s"]);
+  assert.deepEqual(text(row), ["▸ bash npm test --watch=false  ✓ 5.0s"]);
 
   click(row);
-  assert.deepEqual(text(row), ["▾ bash npm test  ✓ 5.0s", "log: /tmp/pi-bash-bg/ab12cd34.log", "line 1", "line 2"]);
+  assert.deepEqual(text(row), [
+    "▾ bash npm test --watch=false  ✓ 5.0s",
+    "$ npm test",
+    "--watch=false",
+    "log: /tmp/pi-bash-bg/ab12cd34.log",
+    "line 1",
+    "line 2",
+  ]);
+});
+
+test("a long command is cut to the row's width, so the status stays on the same line", () => {
+  const long = { ...result("stopped by the user"), details: { ...result("").details, status: "stopped by the user", command: `cd /tmp && ${"x".repeat(200)}` } };
+  for (const width of [80, 120]) {
+    const [line, ...rest] = renderer!(long, { expanded: false }, theme).render(width).filter((row) => row.trim());
+    assert.deepEqual(rest, [], `one line at width ${width}`);
+    assert.ok(line.trimEnd().endsWith("x…  ✗ stopped by the user · 5.0s"), line);
+    assert.ok(line.length <= width);
+  }
+});
+
+test("a status too long for one line keeps a short cut of the command, and the line wraps", () => {
+  const status = `the shell exited (exit 0) but processes it started are still running. Stop them with: kill -TERM -- -$(cat '/tmp/x.pid')`;
+  const long = { ...result(""), details: { ...result("").details, status, command: "x".repeat(100) } };
+  const lines = text(renderer!(long, { expanded: false }, theme));
+  assert.ok(lines[0].startsWith(`▸ bash ${"x".repeat(19)}…  ✗ the shell exited`), lines[0]);
+  assert.ok(lines.length > 1);
 });
 
 test("a failed result names how the command ended", () => {
   assert.deepEqual(text(renderer!(result("exit 143 (SIGTERM)"), { expanded: false }, theme)), [
-    "▸ bash npm test  ✗ exit 143 (SIGTERM) · 5.0s",
+    "▸ bash npm test --watch=false  ✗ exit 143 (SIGTERM) · 5.0s",
   ]);
 });

@@ -49,8 +49,9 @@ export async function runJob({ exec, command, cwd, env, timeout, signal, logPath
     }
   } catch (error) {
     // pi's exec reports a timeout as `timeout:<seconds>`; other errors (missing cwd, bad timeout) read as they are.
+    // An abort is the user's stop from /background: the agent should know it was deliberate, not a crash.
     const message = error instanceof Error ? error.message : String(error);
-    status = message.startsWith("timeout:") ? `timed out after ${timeout}s` : message;
+    status = signal.aborted ? "stopped by the user" : message.startsWith("timeout:") ? `timed out after ${timeout}s` : message;
   } finally {
     log.end();
   }

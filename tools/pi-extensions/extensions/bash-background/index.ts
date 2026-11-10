@@ -1,19 +1,27 @@
 /**
  * pi's `bash` tool with `background: true`, modelled on OpenCode's shell tool (packages/core/src/tool/plugin/shell.ts).
  * A background call returns at once, its output streams to a log file, and when the command exits the agent gets one
- * message, which starts a turn if the agent is idle. Foreground calls run pi's built-in bash unchanged.
+ * message, which starts a turn if the agent is idle. Foreground calls run pi's built-in bash unchanged. `/background`
+ * (ui.ts) lists running commands, shows one's full command and output, and stops one.
  */
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createBashToolDefinition, createLocalBashOperations, type ExtensionAPI, SettingsManager } from "@earendil-works/pi-coding-agent";
+import {
+  copyToClipboard,
+  createBashToolDefinition,
+  createLocalBashOperations,
+  type ExtensionAPI,
+  SettingsManager,
+} from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { registerInbox } from "../../src/inbox.ts";
 import { RunningList } from "../../src/running-list.ts";
 import { isSubagentChild } from "../../src/subagent-child.ts";
 import { killCommand, runJob } from "./job.ts";
 import { postResult, registerResultRenderer } from "./result.ts";
+import { BackgroundList, type BackgroundJob } from "./ui.ts";
 
 const LOG_DIR = path.join(os.tmpdir(), "pi-bash-bg");
 
@@ -31,7 +39,7 @@ const BackgroundOutput = Type.Object({
   note: Type.String(),
 });
 
-type Job = { id: string; command: string; startedAt: number; abort: AbortController };
+type Job = BackgroundJob & { abort: AbortController };
 
 export default function (pi: ExtensionAPI) {
   // A subagent child's run ends with its turn, so a message after the command exits would never reach the parent.
@@ -59,9 +67,10 @@ export default function (pi: ExtensionAPI) {
       const options = { shellPath, commandPrefix: settings.shellCommandPrefix };
       if (!params.background) return createBashToolDefinition(ctx.cwd, options).execute(toolCallId, params, signal, onUpdate, ctx);
 
-      const job: Job = { id: randomUUID().slice(0, 8), command: params.command, startedAt: Date.now(), abort: new AbortController() };
-      const logPath = path.join(LOG_DIR, `${job.id}.log`);
-      const pidPath = path.join(LOG_DIR, `${job.id}.pid`);
+      const id = randomUUID().slice(0, 8);
+      const logPath = path.join(LOG_DIR, `${id}.log`);
+      const pidPath = path.join(LOG_DIR, `${id}.pid`);
+      const job: Job = { id, command: params.command, cwd: ctx.cwd, logPath, startedAt: Date.now(), abort: new AbortController() };
       const { exec } = createLocalBashOperations({ shellPath });
       fs.mkdirSync(LOG_DIR, { recursive: true });
       jobs.set(job.id, job);
@@ -74,11 +83,12 @@ export default function (pi: ExtensionAPI) {
           exec: async (command, cwd, { env, timeout }) => {
             const run = runJob({ exec, command, cwd, env, timeout, signal: job.abort.signal, logPath, pidPath });
             void run.then((end) => {
-              jobs.delete(job.id);
-              // Aborted at session shutdown: the session it would post to is gone.
-              if (job.abort.signal.aborted) return;
+              // Session shutdown already removed it: the session it would post to is gone.
+              if (!jobs.delete(job.id)) return;
+              const durationMs = Date.now() - job.startedAt;
+              job.end = { status: end.status, durationMs };
               runningList?.render();
-              const details = { ...end, id: job.id, command: job.command, logPath, durationMs: Date.now() - job.startedAt };
+              const details = { ...end, id: job.id, command: job.command, logPath, durationMs };
               inbox.deliver((triggerTurn) => postResult(pi, details, triggerTurn));
             });
             return { exitCode: 0 };
@@ -99,9 +109,33 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
+  pi.registerCommand("background", {
+    description: "List running background commands; see one's full command and output, or stop it",
+    handler: async (_args, ctx) => {
+      if (jobs.size === 0) {
+        ctx.ui.notify("No background commands running.", "info");
+        return;
+      }
+      await ctx.ui.custom<void>(
+        (tui, theme, keybindings, done) =>
+          new BackgroundList({
+            running: () => [...jobs.values()],
+            stop: (id) => jobs.get(id)?.abort.abort(),
+            // Leaves room for the footer: its status line, one running-list line per job, and a line of chat.
+            maxHeight: () => tui.terminal.rows - jobs.size - 2,
+            copy: copyToClipboard,
+            theme,
+            keybindings,
+            requestRender: () => tui.requestRender(),
+            done,
+          }),
+      );
+    },
+  });
+
   pi.on("session_start", async (_event, ctx) => {
     runningList = new RunningList(ctx.ui, "bash-background", () =>
-      [...jobs.values()].map((job) => ({ label: `bash · ${job.command.split("\n")[0]}`, startedAt: job.startedAt })),
+      [...jobs.values()].map((job) => ({ name: "bash", label: job.command, startedAt: job.startedAt })),
     );
   });
 

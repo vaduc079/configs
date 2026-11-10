@@ -1,8 +1,8 @@
 /** The message a finished background command posts, and its row in the chat. */
 import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
-import { Text } from "@earendil-works/pi-tui";
+import { Text, visibleWidth } from "@earendil-works/pi-tui";
 import { collapsibleRow } from "../../src/collapsible-row.ts";
-import { formatDuration } from "../../src/format.ts";
+import { cutToWidth, formatDuration } from "../../src/format.ts";
 import type { JobEnd } from "./job.ts";
 
 const RESULT_TYPE = "bash-background-result";
@@ -28,8 +28,8 @@ export function postResult(pi: ExtensionAPI, details: ResultDetails, triggerTurn
 }
 
 /**
- * One row in the style of a subagent result: `▸ bash <command>  ✓ 5.0s`. Click it, or press ctrl+o, to see the log
- * path and the last lines of output.
+ * One row in the style of a subagent result: `▸ bash <command>  ✓ 5.0s`, the command cut to fit the line. Click it, or
+ * press ctrl+o, to see the full command, the log path, and the last lines of output.
  */
 export function registerResultRenderer(pi: ExtensionAPI) {
   pi.registerMessageRenderer<ResultDetails>(RESULT_TYPE, (message, { expanded, outputPad }, theme) => {
@@ -42,8 +42,10 @@ export function registerResultRenderer(pi: ExtensionAPI) {
       outputPad,
       background: (text) => theme.bg(succeeded(details) ? "toolSuccessBg" : "toolErrorBg", text),
       fill: (box, open) => {
-        box.addChild(new Text(resultHeader(details, open, theme), 0, 0));
+        // The header is built at render time: only then is the width known that the command is cut to.
+        box.addChild({ render: (width) => new Text(resultHeader(details, open, theme, width), 0, 0).render(width), invalidate() {} });
         if (!open) return;
+        box.addChild(new Text(theme.fg("toolOutput", `$ ${details.command}`), 0, 0));
         box.addChild(new Text(theme.fg("dim", `log: ${details.logPath}`), 0, 0));
         box.addChild(new Text(theme.fg("toolOutput", details.output || "(no output)"), 0, 0));
       },
@@ -53,12 +55,16 @@ export function registerResultRenderer(pi: ExtensionAPI) {
 
 const succeeded = (details: ResultDetails) => details.status === "exit 0";
 
-function resultHeader(details: ResultDetails, open: boolean, theme: Theme) {
-  const command = details.command.split("\n")[0];
-  const head = `${theme.fg("muted", open ? "▾ " : "▸ ")}${theme.fg("toolTitle", "bash")} ${theme.fg("dim", command)}`;
+/** Shortest command cut kept when the status is long (a left-running `&` warning): the line then wraps. */
+const MIN_COMMAND_WIDTH = 20;
+
+function resultHeader(details: ResultDetails, open: boolean, theme: Theme, width: number) {
   const duration = formatDuration(details.durationMs);
   const status = succeeded(details)
     ? theme.fg("success", "✓") + theme.fg("muted", ` ${duration}`)
     : theme.fg("error", "✗") + theme.fg("muted", ` ${details.status} · ${duration}`);
-  return `${head}  ${status}`;
+  const head = `${theme.fg("muted", open ? "▾ " : "▸ ")}${theme.fg("toolTitle", "bash")} `;
+  const room = width - visibleWidth(`${head}  ${status}`);
+  const command = cutToWidth(details.command.replace(/\s+/g, " "), Math.max(MIN_COMMAND_WIDTH, room));
+  return `${head}${theme.fg("dim", command)}  ${status}`;
 }

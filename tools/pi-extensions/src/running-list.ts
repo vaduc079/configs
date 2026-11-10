@@ -1,12 +1,23 @@
 // A list of running background jobs below the status line, with elapsed time.
 import type { ExtensionUIContext } from "@earendil-works/pi-coding-agent";
-import { formatElapsed } from "./format.ts";
+import { visibleWidth } from "@earendil-works/pi-tui";
+import { cutToWidth, formatElapsed } from "./format.ts";
 import { LINES_STATUS_PREFIX } from "./status.ts";
 
-export type RunningItem = { label: string; startedAt: number };
+/** `name` says what runs (`bash`, an agent name); `label` says which one (a command, a task) and may be long. */
+export type RunningItem = { name: string; label: string; startedAt: number };
 
 /**
- * Shows `items()` as a tree under the status line (`├── <label> · 1m 2s`), redrawn every second while any run.
+ * A line after its tree branch is cut to this width: the footer is no place to read a whole shell command. The line is
+ * cut, not the label, so cut lines end in the same column whatever the width of their name and time. 91 leaves 80
+ * columns of command after `bash 23s · `.
+ */
+const MAX_LINE_WIDTH = 91;
+
+/**
+ * Shows `items()` as a tree under the status line (`├── <name> 1m 2s · <label>`), redrawn every second while any run.
+ * The time comes before the label: the footer cuts a line wider than the terminal from the right, and that should
+ * cost the end of the label, not the time.
  * statusline draws it as lines below the status line; pi's built-in footer shows it on one line.
  * One per session: dispose it on session shutdown.
  */
@@ -39,7 +50,9 @@ export class RunningList {
       const elapsed = formatElapsed(Date.now() - item.startedAt);
       const branch = index === items.length - 1 ? "└──" : "├──";
       // Styled per line: the footer draws them as separate lines. The tree is bold so it stands out from the dim text.
-      return `${theme.bold(branch)} ${theme.fg("dim", `${item.label} · ${elapsed}`)}`;
+      const head = `${item.name} ${elapsed} · `;
+      const label = cutToWidth(item.label.replace(/\s+/g, " "), MAX_LINE_WIDTH - visibleWidth(head));
+      return `${theme.bold(branch)} ${theme.fg("dim", head + label)}`;
     });
     this.ui.setStatus(this.key, lines.join("\n"));
   }

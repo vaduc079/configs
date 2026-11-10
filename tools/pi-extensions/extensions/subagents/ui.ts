@@ -28,7 +28,8 @@ export class SessionUi {
       list()
         .filter((subagent) => subagent.state === "running")
         .map((subagent) => ({
-          label: `${subagent.agent.name} · "${subagent.description}" · ${modelLabel(subagent)}`,
+          name: subagent.agent.name,
+          label: `"${subagent.description}" · ${modelLabel(subagent)}`,
           startedAt: subagent.runStartedAt,
         })),
     );

@@ -19,14 +19,21 @@ delete process.env.PI_SUBAGENT_CHILD;
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "bash-background-test-"));
 after(() => fs.rmSync(tmp, { recursive: true }));
 
+type Command = { handler: (args: string, ctx: unknown) => Promise<void> };
+type Screen = { handleInput(data: string): void; render(width: number): string[]; dispose(): void };
+
 function setup(settings = {}) {
   let tool: Tool | undefined;
+  const commands = new Map<string, Command>();
+  const notices: string[] = [];
+  let screen: Screen | undefined;
   const handlers = new Map<string, ((event: unknown, ctx: unknown) => Promise<void>)[]>();
   const agent = { idle: true };
   const sent: Sent[] = [];
   const pi = {
     registerTool: (definition: Tool) => (tool = definition),
     registerMessageRenderer: () => {},
+    registerCommand: (name: string, command: Command) => commands.set(name, command),
     on: (name: string, handler: (event: unknown, ctx: unknown) => Promise<void>) => handlers.set(name, [...(handlers.get(name) ?? []), handler]),
     getSettings: () => settings,
     sendMessage: (message: Sent["message"], options: Sent["options"]) => sent.push({ message, options }),
@@ -36,7 +43,16 @@ function setup(settings = {}) {
     cwd: tmp,
     isIdle: () => agent.idle,
     sessionManager: { getSessionId: () => "session-1", getSessionFile: () => undefined },
-    ui: { setStatus: () => {}, theme: { bold: (text: string) => text, fg: (_color: string, text: string) => text } },
+    ui: {
+      setStatus: () => {},
+      theme,
+      notify: (message: string) => notices.push(message),
+      // Opens the screen and leaves it open; the test drives it with keys.
+      custom: (factory: (tui: object, theme: object, keybindings: object, done: () => void) => Screen) => {
+        screen = factory({ requestRender: () => {}, terminal: { rows: 40 } }, theme, { matches: (data: string, binding: string) => data === binding }, () => {});
+        return Promise.resolve();
+      },
+    },
   };
   // Like pi: every handler of an event runs, in registration order (the inbox's first).
   const emit = async (name: string, event: object = {}) => {
@@ -47,8 +63,14 @@ function setup(settings = {}) {
     const result = await tool!.execute("call-1", params, undefined, undefined, ctx);
     return result.content.map((part) => part.text).join("");
   };
-  return { tool, run, sent, agent, emit };
+  const openBackground = async () => {
+    await commands.get("background")!.handler("", ctx);
+    return screen;
+  };
+  return { tool, run, sent, agent, emit, openBackground, notices };
 }
+
+const theme = { bold: (text: string) => text, fg: (_color: string, text: string) => text };
 
 async function waitFor<T>(check: () => T | undefined, timeoutMs = 4_000): Promise<T> {
   for (const end = Date.now() + timeoutMs; Date.now() < end; await sleep(20)) {
@@ -116,6 +138,36 @@ test("a command that ends with '&' reports the processes it left running, and th
 
   execFileSync("bash", ["-c", killCommandOf(reply)]);
   await waitFor(() => (isRunning(childPid) ? undefined : true));
+});
+
+test("/background stops a running command and its child processes, and the result says the user stopped it", async (t) => {
+  const { run, sent, openBackground } = setup();
+  const childPidPath = path.join(tmp, "stopped-child.pid");
+  const reply = await run({ command: `sleep 30 & echo $! > ${childPidPath}; echo started; wait`, background: true });
+  await waitFor(() => (readLog(logPathOf(reply)).includes("started") ? true : undefined));
+
+  const screen = (await openBackground())!;
+  t.after(() => screen.dispose());
+  assert.ok(screen.render(120).some((line) => line.includes("sleep 30 & echo")));
+  screen.handleInput("tui.select.confirm");
+  screen.handleInput("x");
+  const { message } = await waitFor(() => sent[0]);
+  assert.equal(message.details.status, "stopped by the user");
+  assert.match(message.content, /finished after [\d.]+m?s: stopped by the user/);
+  const childPid = Number(fs.readFileSync(childPidPath, "utf8"));
+  await waitFor(() => (isRunning(childPid) ? undefined : true));
+  // The open details show how it ended, and x is no longer offered.
+  const details = screen.render(120);
+  assert.match(details.find((line) => line.includes("Background command"))!, /· stopped by the user · [\d.]+m?s/);
+  assert.ok(details.some((line) => line.trim() === "x stop  c copy log path  esc back"));
+  screen.handleInput("tui.select.cancel");
+  assert.ok(screen.render(120).some((line) => line.includes("No background commands running.")));
+});
+
+test("/background with nothing running says so instead of opening", async () => {
+  const { openBackground, notices } = setup();
+  assert.equal(await openBackground(), undefined);
+  assert.deepEqual(notices, ["No background commands running."]);
 });
 
 test("a background command with a timeout reports that it timed out", async () => {
