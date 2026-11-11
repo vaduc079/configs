@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { test } from "node:test";
-import { loadChildEnv } from "./config.ts";
+import { loadChildEnv, loadFloatSize } from "./config.ts";
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-config-"));
 let n = 0;
@@ -57,4 +57,17 @@ test("invalid config fails at load", () => {
     () => loadChildEnv(write({ models: [{ model: "anthropic/*", cacheRetention: "none" }] })),
     /models\[0\]\.cacheRetention must be one of short, long/,
   );
+});
+
+test("the float size defaults to 0.8 by 0.8; either side can be set", () => {
+  assert.deepEqual(loadFloatSize(path.join(dir, "missing.json")), { width: 0.8, height: 0.8 });
+  assert.deepEqual(loadFloatSize(write({ float: { width: 1 } })), { width: 1, height: 0.8 });
+  assert.deepEqual(loadFloatSize(write({ float: { width: 0.9, height: 0.5 } })), { width: 0.9, height: 0.5 });
+});
+
+test("an invalid float size fails at load", () => {
+  assert.throws(() => loadFloatSize(write({ float: 0.8 })), /"float" must be an object/);
+  assert.throws(() => loadFloatSize(write({ float: [0.8, 0.6] })), /"float" must be an object/);
+  assert.throws(() => loadFloatSize(write({ float: { width: 0 } })), /float\.width must be a number above 0 and at most 1/);
+  assert.throws(() => loadFloatSize(write({ float: { height: "80%" } })), /float\.height must be/);
 });

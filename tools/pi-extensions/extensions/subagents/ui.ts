@@ -8,13 +8,15 @@ import {
   type KeybindingsManager,
   type Theme,
 } from "@earendil-works/pi-coding-agent";
-import { type Component, Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
+import { type Component, Container, Markdown, Spacer, Text, visibleWidth } from "@earendil-works/pi-tui";
 import { collapsibleRow } from "../../src/collapsible-row.ts";
-import { formatDuration, formatElapsed } from "../../src/format.ts";
+import { type FloatSize, floatOpener } from "../../src/float.ts";
+import { cutToWidth, formatDuration, formatElapsed } from "../../src/format.ts";
 import { RunningList } from "../../src/running-list.ts";
 import { DialogForwarder } from "./dialogs.ts";
 import type { Subagents } from "./manager.ts";
 import { blockBody, RESULT_TYPE, type ResultDetails } from "./result.ts";
+import { piInvocation } from "./rpc.ts";
 import type { Subagent } from "./subagent.ts";
 
 /** UI bound to one session's context: the running-children list and forwarded dialogs. */
@@ -29,7 +31,7 @@ export class SessionUi {
         .filter((subagent) => subagent.state === "running")
         .map((subagent) => ({
           name: subagent.agent.name,
-          label: `"${subagent.description}" · ${modelLabel(subagent)}`,
+          label: `${subagent.description} · ${modelLabel(subagent)}`,
           startedAt: subagent.runStartedAt,
         })),
     );
@@ -98,22 +100,32 @@ function resultHeader(details: ResultDetails, open: boolean, theme: Theme) {
   return `${head}  ${status}${usage}`;
 }
 
-export function registerSubagentsCommand(pi: ExtensionAPI, current: () => Subagents, sessionDir: string) {
+export function registerSubagentsCommand(pi: ExtensionAPI, current: () => Subagents, sessionDir: string, floatSize: FloatSize) {
+  const sessionArgs = (id: string) => ["--session", id, "--session-dir", sessionDir];
   pi.registerCommand("subagents", {
-    description: "List this session's subagents; abort one or copy the command that opens its session",
+    description: "List this session's subagents; abort one, open its session in a float, or copy the command that opens it",
     handler: async (_args, ctx) => {
       const subagents = current();
       if (subagents.list().length === 0) {
         ctx.ui.notify("No subagents in this session.", "info");
         return;
       }
+      const opener = floatOpener();
+      // The running pi's own runtime and script, not `pi` from PATH: the same pi version, whatever the shell finds.
+      const openFloat =
+        opener &&
+        ((subagent: Subagent) => {
+          const { command, args } = piInvocation(sessionArgs(subagent.id));
+          return opener({ argv: [command, ...args], cwd: ctx.cwd, title: `subagent: ${subagent.description}` }, floatSize);
+        });
       await ctx.ui.custom<void>(
         (tui, theme, keybindings, done) =>
           new SubagentList({
             subagents,
             theme,
             keybindings,
-            openCommand: (id) => `pi --session ${id} --session-dir ${sessionDir}`,
+            openCommand: (id) => ["pi", ...sessionArgs(id)].join(" "),
+            openFloat,
             copy: copyToClipboard,
             requestRender: () => tui.requestRender(),
             done,
@@ -128,14 +140,20 @@ type SubagentListOptions = {
   theme: Theme;
   keybindings: Pick<KeybindingsManager, "matches">;
   openCommand: (id: string) => string;
+  /** Undefined when pi runs in a terminal it can't open floats in. */
+  openFloat: ((subagent: Subagent) => Promise<void>) | undefined;
   copy: (text: string) => Promise<void>;
   requestRender: () => void;
   done: () => void;
 };
 
+/** A description wider than this is cut, so one long task doesn't push the model and status columns off to the right. */
+const MAX_DESCRIPTION_WIDTH = 50;
+const SEPARATOR = " · ";
+
 /**
- * The `/subagents` screen: one row per child, running first, then newest first. `x` aborts the selected running child,
- * `c` copies the command that opens its session, Esc closes. Redrawn every second so running times tick.
+ * The `/subagents` screen: one row per child in aligned columns, running first, then newest first. `x` aborts the selected running child,
+ * `o` opens its session in a float, `c` copies the command that opens its session, Esc closes. Redrawn every second so running times tick.
  */
 export class SubagentList implements Component {
   private readonly options: SubagentListOptions;
@@ -163,17 +181,34 @@ export class SubagentList implements Component {
     box.addChild(new Spacer(1));
     box.addChild(new Text(theme.fg("accent", theme.bold("Subagents")), 1, 0));
     box.addChild(new Spacer(1));
-    for (const subagent of rows) {
-      const label = `${subagent.agent.name} · ${subagent.description} · ${modelLabel(subagent)} · `;
-      const line =
-        subagent === selected ? theme.fg("accent", `→ ${label}`) : `  ${theme.fg("text", label)}`;
-      box.addChild(new Text(line + this.status(subagent), 1, 0));
+    const cells = rows.map((subagent) => ({
+      subagent,
+      name: subagent.agent.name,
+      description: subagent.description.replace(/\s+/g, " "),
+      model: modelLabel(subagent),
+      status: this.status(subagent),
+    }));
+    const widest = (texts: string[]) => Math.max(0, ...texts.map((text) => visibleWidth(text)));
+    const nameWidth = widest(cells.map((cell) => cell.name));
+    const modelWidth = widest(cells.map((cell) => cell.model));
+    const statusWidth = widest(cells.map((cell) => cell.status));
+    // Text pads 1 column on each side and every row starts with a 2-column marker (`→ ` or two spaces).
+    const room = width - 4 - nameWidth - modelWidth - statusWidth - 3 * SEPARATOR.length;
+    // At least 10 columns, so a narrow terminal still shows the start of each description.
+    const descriptionWidth = Math.min(widest(cells.map((cell) => cell.description)), Math.max(10, Math.min(MAX_DESCRIPTION_WIDTH, room)));
+    const pad = (text: string, columns: number) => text + " ".repeat(columns - visibleWidth(text));
+    for (const cell of cells) {
+      const description = pad(cutToWidth(cell.description, descriptionWidth), descriptionWidth);
+      const label = [pad(cell.name, nameWidth), description, pad(cell.model, modelWidth), ""].join(SEPARATOR);
+      const line = cell.subagent === selected ? theme.fg("accent", `→ ${label}`) : `  ${theme.fg("text", label)}`;
+      box.addChild(new Text(line + cell.status, 1, 0));
     }
     if (this.notice) box.addChild(new Text(theme.fg("muted", this.notice), 1, 0));
     box.addChild(new Spacer(1));
     const hints = [
       hint("↑↓", "navigate"),
       hint("x", "abort", selected?.state === "running"),
+      hint("o", "open in float", this.options.openFloat !== undefined),
       hint("c", "copy open command"),
       hint("esc", "close"),
     ];
@@ -199,6 +234,14 @@ export class SubagentList implements Component {
       this.selectedId = rows[Math.min(rows.length - 1, index + 1)].id;
     } else if (data === "x" && selected.state === "running") {
       this.act(this.options.subagents.abort(selected.id), `Aborted ${selected.description}.`, "Abort failed");
+    } else if (data === "o" && this.options.openFloat) {
+      // The float loads the session file once. A live child keeps writing to that file from its own process, so the
+      // float doesn't update, and a message sent from it starts a branch the child never sees.
+      const opened =
+        selected.state === "stopped"
+          ? `Opened ${selected.description}.`
+          : `Opened a snapshot of ${selected.description}: it is still ${selected.state}, so a message sent there starts a separate branch.`;
+      this.act(this.options.openFloat(selected), opened, "Open failed");
     } else if (data === "c") {
       const command = this.options.openCommand(selected.id);
       this.act(this.options.copy(command), `Copied: ${command}`, "Copy failed");

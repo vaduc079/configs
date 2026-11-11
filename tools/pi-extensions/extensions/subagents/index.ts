@@ -10,7 +10,7 @@ import { type ExtensionAPI, getAgentDir } from "@earendil-works/pi-coding-agent"
 import { registerInbox } from "../../src/inbox.ts";
 import { isSubagentChild } from "../../src/subagent-child.ts";
 import { loadAgents } from "./agents.ts";
-import { loadChildEnv } from "./config.ts";
+import { loadChildEnv, loadFloatSize } from "./config.ts";
 import { type JobEntry, Subagents } from "./manager.ts";
 import { deliverInterrupted, postResult } from "./result.ts";
 import { RpcProcess } from "./rpc.ts";
@@ -37,7 +37,7 @@ export default function (pi: ExtensionAPI) {
   const inbox = registerInbox(pi, "Subagent result");
   registerTools(pi, agents, current);
   registerResultRenderer(pi);
-  registerSubagentsCommand(pi, current, sessionDir);
+  registerSubagentsCommand(pi, current, sessionDir, loadFloatSize());
 
   pi.on("session_start", async (_event, ctx) => {
     // `manager` is read only when a callback fires, after it is assigned below.

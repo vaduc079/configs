@@ -204,7 +204,7 @@ function parseRecord(text: string): RpcEvent | undefined {
 }
 
 /** Same lookup as pi's subagent example: rerun the current pi entry point with the same runtime. */
-function piInvocation(args: string[]) {
+export function piInvocation(args: string[]) {
   const script = process.argv[1];
   if (script && !script.startsWith("/$bunfs/root/") && fs.existsSync(script))
     return { command: process.execPath, args: [script, ...args] };

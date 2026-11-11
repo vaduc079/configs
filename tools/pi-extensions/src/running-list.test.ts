@@ -18,10 +18,10 @@ test("running items show as a tree under a lines: status: name, elapsed time, th
   mock.timers.enable({ apis: ["Date", "setInterval"], now: 100_000 });
   const { statuses, list } = setup([
     { name: "bash", label: "make build", startedAt: 95_000 },
-    { name: "general", label: '"find bug" · Opus 5.5 high', startedAt: 100_000 - 62_000 },
+    { name: "general", label: "find bug · Opus 5.5 high", startedAt: 100_000 - 62_000 },
   ]);
   list.render();
-  assert.equal(statuses.get("lines:jobs"), '*├──* bash 5s · make build\n*└──* general 1m 2s · "find bug" · Opus 5.5 high');
+  assert.equal(statuses.get("lines:jobs"), '*├──* bash 5s · make build\n*└──* general 1m 2s · find bug · Opus 5.5 high');
   list.dispose();
 });
 
