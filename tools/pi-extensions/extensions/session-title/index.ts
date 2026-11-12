@@ -6,7 +6,7 @@
  * title agent (sst/opencode packages/core/src/plugin/agent.ts, PROMPT_TITLE).
  * Sessions that already have a name, from /name, --name, or this extension, are left alone.
  */
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { type ExtensionAPI, type ExtensionContext, parseSkillBlock } from "@earendil-works/pi-coding-agent";
 
 const TITLE_MODEL = { provider: "anthropic", id: "claude-haiku-5-5" };
 const MAX_PROMPT_LENGTH = 2_000;
@@ -40,6 +40,14 @@ function firstLine(text: string): string | undefined {
     .find((line) => line.length > 0);
 }
 
+// `/skill:name args` reaches before_agent_start already expanded to the full SKILL.md, which
+// would crowd out what the user asked. Name from the args, or the skill name when there are none.
+function userText(prompt: string): string {
+  const skill = parseSkillBlock(prompt);
+  if (!skill) return prompt;
+  return skill.userMessage ?? `${skill.name} skill`;
+}
+
 function shorten(text: string): string {
   return text.length <= MAX_TITLE_LENGTH ? text : `${text.slice(0, MAX_TITLE_LENGTH - 1)}…`;
 }
@@ -61,7 +69,7 @@ export default function (pi: ExtensionAPI) {
   pi.on("before_agent_start", async (event, ctx) => {
     if (event.messageType !== "user" || !event.prompt || pi.getSessionName()) return;
 
-    const prompt = event.prompt.slice(0, MAX_PROMPT_LENGTH);
+    const prompt = userText(event.prompt).slice(0, MAX_PROMPT_LENGTH);
     const fallback = firstLine(prompt);
     const setName = (title: string | undefined) => {
       // Skip if the user named the session while the call was running.
