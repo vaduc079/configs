@@ -10,6 +10,8 @@ const SEP = " · ";
 
 type Limit = { utilization: number; resetAt: number };
 type Limits = { fiveHour?: Limit; sevenDay?: Limit; status?: string };
+// LiteLLM reports dollars spent by the virtual key, not a usage window. maxBudget is sent only when the key has one.
+type Spend = { provider: string; spend: number; maxBudget?: number };
 
 const THINKING_COLOR: Record<string, ThemeColor> = {
   off: "thinkingOff",
@@ -97,14 +99,50 @@ function renderLimits(limits: Limits, theme: Theme): string | undefined {
   return `${part(fiveHour, false)}${theme.fg("dim", " - ")}${part(sevenDay, true)}`;
 }
 
+// x-litellm-key-spend is the key's total before this request, so it trails by one call.
+function parseSpend(headers: Record<string, string>, provider: string): Spend | undefined {
+  const spend = Number(headers["x-litellm-key-spend"]);
+  if (!Number.isFinite(spend)) return undefined;
+  const maxBudget = Number(headers["x-litellm-key-max-budget"]);
+  return { provider, spend, maxBudget: Number.isFinite(maxBudget) && maxBudget > 0 ? maxBudget : undefined };
+}
+
+// pi's estimate from the prices in models.json, summed over every branch since abandoned branches were billed too.
+// The key total moves too slowly to show what one session costs.
+function sessionCost(ctx: ExtensionContext, provider: string): number {
+  let total = 0;
+  for (const entry of ctx.sessionManager.getEntries()) {
+    if (entry.type === "message" && entry.message.role === "assistant" && entry.message.provider === provider) {
+      total += entry.message.usage.cost.total;
+    }
+  }
+  return total;
+}
+
+function renderSpend(spend: Spend, sessionTotal: number, theme: Theme): string {
+  const session = theme.fg("dim", ` (+$${sessionTotal.toFixed(2)})`);
+  if (spend.maxBudget === undefined) return theme.fg("muted", `$${spend.spend.toFixed(2)}`) + session;
+  const left = 1 - spend.spend / spend.maxBudget;
+  const color = left < 0.1 ? "error" : left < 0.25 ? "warning" : "muted";
+  return theme.fg(color, `$${spend.spend.toFixed(2)}/$${spend.maxBudget.toFixed(2)}`) + session;
+}
+
 export default function (pi: ExtensionAPI) {
   let limits: Limits = {};
+  let spend: Spend | undefined;
   let requestRender: (() => void) | undefined;
   const rerender = () => requestRender?.();
 
   pi.on("after_provider_response", (event, ctx) => {
-    if (ctx.model?.provider !== "anthropic") return;
+    const provider = ctx.model?.provider;
     const headers = event.headers;
+    const litellmSpend = provider ? parseSpend(headers, provider) : undefined;
+    if (litellmSpend) {
+      spend = litellmSpend;
+      rerender();
+      return;
+    }
+    if (provider !== "anthropic") return;
     const fiveHour = parseLimit(headers, "5h");
     const sevenDay = parseLimit(headers, "7d");
     if (!fiveHour && !sevenDay) return;
@@ -144,6 +182,7 @@ export default function (pi: ExtensionAPI) {
             branch ? `${theme.fg("mdLink", ICON_BRANCH)} ${theme.fg("mdLink", branch)}` : undefined,
             renderContext(ctx, theme),
             ctx.model?.provider === "anthropic" ? renderLimits(limits, theme) : undefined,
+            spend && ctx.model?.provider === spend.provider ? renderSpend(spend, sessionCost(ctx, spend.provider), theme) : undefined,
             ...inline,
           ].filter((part): part is string => !!part);
           const left = parts.join(theme.fg("dim", SEP));
