@@ -25,3 +25,4 @@ tools/permission-evaluator/rules.json
 /.config/yazi/flavors/
 .config/finicky/shopback.ts
 /.config/rex/ssh_config
+/.config/rex/machine.lua

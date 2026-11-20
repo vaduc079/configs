@@ -3,6 +3,7 @@
 require("vim_navigation")
 require("floating")
 require("permission_dashboard")
+local dir_picker = require("dir_picker")
 
 local prefix = "ctrl+a>"
 local directions = { h = "left", j = "down", k = "up", l = "right" }
@@ -47,3 +48,21 @@ end
 -- Popups defined in floating.lua.
 rex.bind(prefix .. "ctrl+g", "lazygit")
 rex.bind(prefix .. "ctrl+f", "yazi")
+
+-- Machine-specific values (gitignored machine.lua); features that need one are skipped when it's missing.
+local ok, machine = pcall(require, "machine")
+if not ok then
+	machine = {}
+end
+
+if machine.workspace_root then
+	dir_picker.define({
+		name = "open_workspace",
+		title = "Open Workspace",
+		root = machine.workspace_root,
+		prompt = "Open workspace",
+		placeholder = "Filter workspaces",
+		open = "split",
+		exclude = { "archives" },
+	})
+end
