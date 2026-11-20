@@ -25,10 +25,10 @@ function live(tracker: RunTracker, message: AgentMessage) {
   return tracker.messageEnd(message);
 }
 
-/** Runs holding `ids`, in order, as "a,b" with a trailing "*" while open. */
+/** Runs holding `ids`, in order, as "a,b" with " !1" for one failed call and a trailing "*" while open. */
 function shape(tracker: RunTracker, ids: string[]) {
   const runs = [...new Set(ids.map((id) => tracker.runOf(id)).filter((r) => r !== undefined))];
-  return runs.map((r) => r.ids.join(",") + (r.closed ? "" : "*"));
+  return runs.map((r) => r.ids.join(",") + (r.failed ? ` !${r.failed}` : "") + (r.closed ? "" : "*"));
 }
 
 function entries(messages: AgentMessage[]): SessionEntry[] {
@@ -155,51 +155,24 @@ test("streaming: an empty trailing text block is skipped on message end", () => 
   assert.deepEqual(shape(t, ["a", "b"]), ["a,b*"]);
 });
 
-test("a call that fails first is alone and the rest start a new open run", () => {
-  const t = createRunTracker();
-  live(t, assistant(call("a"), call("b"), call("c")));
-  live(t, result("a", true));
-  assert.equal(t.runOf("a"), undefined);
-  assert.deepEqual(shape(t, ["b", "c"]), ["b,c*"]);
-});
-
-test("a call that fails in the middle splits the run", () => {
+test("a failed call stays in its run, which counts it and stays open", () => {
   const t = createRunTracker();
   live(t, assistant(call("a"), call("b"), call("c")));
   live(t, result("a"));
   live(t, result("b", true));
-  assert.deepEqual(shape(t, ["a", "c"]), ["a", "c*"]);
+  live(t, result("c", true));
   live(t, assistant(call("d")));
-  assert.deepEqual(shape(t, ["c", "d"]), ["c,d*"]);
+  assert.deepEqual(shape(t, ["a", "b", "c", "d"]), ["a,b,c,d !2*"]);
 });
 
-test("a call that fails last leaves the earlier calls and later calls start a new run", () => {
+test("a failure in a closed run is counted and keeps it closed", () => {
   const t = createRunTracker();
-  live(t, assistant(call("a"), call("b")));
-  live(t, result("a"));
+  live(t, assistant(call("a"), call("b"), text("done")));
   live(t, result("b", true));
-  live(t, assistant(call("c")));
-  assert.deepEqual(shape(t, ["a", "b", "c"]), ["a", "c*"]);
+  assert.deepEqual(shape(t, ["a", "b"]), ["a,b !1"]);
 });
 
-test("a single-call run that fails leaves no run", () => {
-  const t = createRunTracker();
-  live(t, assistant(call("a")));
-  const changed = live(t, result("a", true));
-  assert.deepEqual(changed, []);
-  assert.equal(t.runOf("a"), undefined);
-  live(t, assistant(call("b")));
-  assert.deepEqual(shape(t, ["b"]), ["b*"]);
-});
-
-test("a failure in a closed run keeps the calls after it closed", () => {
-  const t = createRunTracker();
-  live(t, assistant(call("a"), call("b"), call("c"), text("done")));
-  live(t, result("b", true));
-  assert.deepEqual(shape(t, ["a", "c"]), ["a", "c"]);
-});
-
-test("changed runs: calls, close, and split", () => {
+test("changed runs: calls, failure, and close", () => {
   const t = createRunTracker();
   const [first] = live(t, assistant(call("a"), call("b")));
   assert.deepEqual(first.ids, ["a", "b"]);
@@ -208,29 +181,25 @@ test("changed runs: calls, close, and split", () => {
   assert.deepEqual(added.map((r) => r.ids), [["a", "b", "c"]]);
   assert.equal(added[0], first);
 
-  const split = live(t, result("b", true));
-  assert.deepEqual(split.map((r) => r.ids), [["a"], ["c"]]);
+  assert.deepEqual(live(t, result("b", true)), [first]);
 
-  const closed = live(t, user);
-  assert.deepEqual(closed.map((r) => r.ids), [["c"]]);
+  assert.deepEqual(live(t, user), [first]);
 
   assert.deepEqual(live(t, user), []);
   assert.deepEqual(live(t, result("zzz")), []);
 });
 
 for (const stopReason of ["aborted", "error"]) {
-  test(`a response stopped with ${stopReason} fails its calls, live and on replay`, () => {
+  test(`a response stopped with ${stopReason} fails its calls and ends the run, live and on replay`, () => {
     const stopped = { ...assistant(call("b"), call("c")), stopReason } as AgentMessage;
-    const messages = [assistant(call("a")), result("a"), stopped];
+    const messages = [assistant(call("a")), result("a"), stopped, assistant(call("d"))];
     const t = createRunTracker();
     for (const message of messages) live(t, message);
-    assert.deepEqual(shape(t, ["a", "b", "c"]), ["a"]);
-    assert.equal(t.runOf("b"), undefined);
-    assert.equal(t.runOf("c"), undefined);
+    assert.deepEqual(shape(t, ["a", "b", "c", "d"]), ["a,b,c !2", "d*"]);
 
     const replayed = createRunTracker();
     replayed.replay(entries(messages));
-    assert.deepEqual(shape(replayed, ["a", "b", "c"]), ["a"]);
+    assert.deepEqual(shape(replayed, ["a", "b", "c", "d"]), ["a,b,c !2", "d"]);
   });
 }
 
@@ -245,15 +214,6 @@ test("a response that failed with no content ends the run, so a retry starts a n
   const replayed = createRunTracker();
   replayed.replay(entries(messages));
   assert.deepEqual(shape(replayed, ["a", "b"]), ["a", "b"]);
-});
-
-test("a split keeps the expanded flag on both halves", () => {
-  const t = createRunTracker();
-  live(t, assistant(call("a"), call("b"), call("c")));
-  t.runOf("a")!.expanded = true;
-  live(t, result("b", true));
-  assert.equal(t.runOf("a")!.expanded, true);
-  assert.equal(t.runOf("c")!.expanded, true);
 });
 
 const sequence: AgentMessage[] = [
@@ -292,9 +252,8 @@ test("replay of entries equals the live result", () => {
   replayed.replay(entries(sequence));
 
   assert.deepEqual(shape(replayed, ids), shape(liveTracker, ids));
-  assert.deepEqual(ids.filter((id) => !replayed.runOf(id)), ["b", "g"]);
   // Spelled out so the shared result is not only compared with itself.
-  assert.deepEqual(shape(replayed, ids), ["a", "c,d", "e,f", "h", "i", "j", "k"]);
+  assert.deepEqual(shape(replayed, ids), ["a,b,c,d !1", "e,f", "g,h !1", "i", "j", "k"]);
 });
 
 test("replay maps non-message entries like their live messages", () => {
@@ -329,7 +288,6 @@ test("replay maps non-message entries like their live messages", () => {
 test("replay resets previous state and closes the open run", () => {
   const t = createRunTracker();
   live(t, assistant(call("old")));
-  live(t, result("old", true));
   t.replay(entries([assistant(call("a"), call("b"))]));
   assert.equal(t.runOf("old"), undefined);
   assert.deepEqual(shape(t, ["a", "b"]), ["a,b"]);

@@ -198,17 +198,22 @@ test("low: clicking the header opens the run into normal rows without expanding 
   assert.deepEqual(rows[1].render(WIDTH), []);
 });
 
-test("low: a failed call renders as normal and splits the run", () => {
+test("low: a failed call stays in the run, the header counts it, and opening the run shows its error", () => {
   const pi = load(`{"mode":"low"}`);
   const failure = { isError: true, text: "boom" };
   const rows = [pi.row("a", ok), pi.row("b", failure), pi.row("c", ok)];
   pi.start(closedRun("b"));
-  assert.deepEqual(plain(rows[0].render(WIDTH)), ["", "Ran 1 tool"]);
+  const leader = rows[0].render(WIDTH);
+  assert.deepEqual(plain(leader), ["", "Ran 3 tools · 1 failed"]);
+  assert.ok(leader[1].includes(theme!.fg("error", "1 failed")), "the error colour");
+  assert.deepEqual(rows[1].render(WIDTH), []);
+  assert.deepEqual(rows[2].render(WIDTH), []);
+
+  click(rows[0], 1);
   assert.deepEqual(rows[1].render(WIDTH), normalRow("b", { result: failure }));
-  assert.deepEqual(plain(rows[2].render(WIDTH)), ["", "Ran 1 tool"]);
 });
 
-test("low: calls of an aborted response render exactly as normal", () => {
+test("low: calls of an aborted response stay grouped as failed", () => {
   const pi = load(`{"mode":"low"}`);
   const rows = ["a", "b"].map((id) => pi.row(id));
   pi.start([]);
@@ -219,8 +224,8 @@ test("low: calls of an aborted response render exactly as normal", () => {
   const aborted = { isError: true, text: "Operation aborted" };
   for (const row of rows) row.updateResult({ content: [{ type: "text", text: aborted.text }], isError: true, durationMs: 1200 });
   pi.emit("agent_end");
-  assert.deepEqual(rows[0].render(WIDTH), normalRow("a", { result: aborted }));
-  assert.deepEqual(rows[1].render(WIDTH), normalRow("b", { result: aborted }));
+  assert.deepEqual(plain(rows[0].render(WIDTH)), ["", "Ran 2 tools · 2 failed"]);
+  assert.deepEqual(rows[1].render(WIDTH), []);
 });
 
 test("low: after a compaction that cuts mid-run, the first kept call shows the header", () => {
@@ -345,11 +350,11 @@ test("message events build runs and redraw only the leader of each changed run",
   pi.invalidations.clear();
   pi.emit("message_start", { message: toolResult("b", true) });
   pi.emit("message_end", { message: toolResult("b", true) });
-  assert.deepEqual([...pi.invalidations].sort(([a], [b]) => a.localeCompare(b)), [["a", 1], ["b", 1], ["c", 1]], "both leaders and the failed row");
+  assert.deepEqual([...pi.invalidations], [["a", 1]], "a failure redraws the leader");
 
   pi.invalidations.clear();
   pi.emit("agent_end");
-  assert.deepEqual([...pi.invalidations], [["c", 1]], "closing redraws the leader");
+  assert.deepEqual([...pi.invalidations], [["a", 1]], "closing redraws the leader");
 });
 
 test("session_start replays the branch and redraws every row; session_tree and session_compact forget the old rows", async () => {

@@ -7,9 +7,9 @@
  *   just that call, or press ctrl+o to expand all of them; expanded rows use the tool's normal renderer.
  *   Failed calls also show the tool's collapsed error preview.
  * - `low`: consecutive tool calls fold into one header line, styled like pi's hidden-thinking line:
- *   `Running 3 tools...` while the run is open and `Ran 3 tools` once text or another message ends it. Click the header to open the run
- *   into `normal` rows. A failed call keeps its own `normal` row and ends the run. ctrl+o shows every
- *   row as in `normal`. Hidden thinking renders nothing.
+ *   `Running 3 tools...` while the run is open and `Ran 3 tools` once text or another message ends it, plus
+ *   ` · 1 failed` when calls failed. Click the header to open the run into `normal` rows, where a failed call
+ *   shows its error preview. ctrl+o shows every row as in `normal`. Hidden thinking renders nothing.
  *
  * Images in a result still show: pi draws them outside the renderers. Applies to every tool, including
  * built-ins, MCP tools, and codemode, through `pi.registerToolRenderer`. Every row is drawn with
@@ -67,7 +67,7 @@ export default function (pi: ExtensionAPI) {
   const rows: Rows = {
     groupOf: (id) => (mode === "low" && !ui?.getToolsExpanded() ? tracker.runOf(id) : undefined),
     register: (id, invalidate) => registry.set(id, invalidate),
-    // A tracker change alters only a run's header (count, Running/Ran, a new leader after a split): members look
+    // A tracker change alters only a run's header (count, Running/Ran, failures): members look
     // the same, and a new call's row is built after the tracker placed it. In normal no row depends on runs.
     invalidate: (runs) => {
       if (mode === "low") new Set(runs.map((run) => run.ids[0])).forEach((id) => registry.get(id)?.());
@@ -105,13 +105,7 @@ export default function (pi: ExtensionAPI) {
   });
   pi.on("message_start", (event) => tracker.messageStart(event.message));
   pi.on("message_update", (event) => rows.invalidate(tracker.messageUpdate(event.message)));
-  pi.on("message_end", (event) => {
-    rows.invalidate(tracker.messageEnd(event.message));
-    // A failed call leaves its run, so it is in no changed run.
-    if (mode === "low" && event.message.role === "toolResult" && event.message.isError) {
-      registry.get(event.message.toolCallId)?.();
-    }
-  });
+  pi.on("message_end", (event) => rows.invalidate(tracker.messageEnd(event.message)));
   pi.on("agent_end", () => rows.invalidate(tracker.closeOpen()));
 
   pi.registerCommand("tool-verbose", {
@@ -185,11 +179,12 @@ function quietRenderers(toolName: string, base: ToolRenderers | undefined, rows:
   return { ...base, renderShell: "self", renderCall, renderResult };
 }
 
-/** `Running 3 tools...` or `Ran 3 tools`, drawn like pi's hidden-thinking line; a left click opens or closes the run. */
+/** `Running 3 tools...` or `Ran 3 tools · 1 failed`, drawn like pi's hidden-thinking line; a left click opens or closes the run. */
 function header(run: Run, context: ToolRenderContext, theme: Theme, rows: Rows): Component {
   const count = `${run.ids.length} ${run.ids.length === 1 ? "tool" : "tools"}`;
-  const label = run.closed ? `Ran ${count}` : `Running ${count}...`;
-  const line = new Text(theme.italic(theme.fg("thinkingText", label)), context.outputPad, 0);
+  const label = run.closed ? `Ran ${count}` : `Running ${count}`;
+  const failed = run.failed > 0 ? `${theme.fg("muted", " · ")}${theme.fg("error", `${run.failed} failed`)}` : "";
+  const line = new Text(theme.italic(theme.fg("thinkingText", label) + failed), context.outputPad, 0);
   // Handled here, so pi's own click toggle on the leader's row does not fire.
   return new MouseRegion(line, (event) => {
     if (event.type !== "click" || event.button !== "left") return undefined;

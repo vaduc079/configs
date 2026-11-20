@@ -6,6 +6,7 @@ export interface Run {
   ids: string[];
   /** A break or agent_end happened after the last call. */
   closed: boolean;
+  failed: number;
   /** The header was clicked open. */
   expanded: boolean;
 }
@@ -35,7 +36,7 @@ export function createRunTracker() {
   }
 
   function addCall(id: string): Run[] {
-    if (!open) open = { ids: [], closed: false, expanded: false };
+    if (!open) open = { ids: [], closed: false, failed: 0, expanded: false };
     open.ids.push(id);
     byId.set(id, open);
     return [open];
@@ -44,22 +45,8 @@ export function createRunTracker() {
   function fail(id: string): Run[] {
     const run = byId.get(id);
     if (!run) return [];
-    byId.delete(id);
-    const at = run.ids.indexOf(id);
-    const after = run.ids.slice(at + 1);
-    const wasOpen = run === open;
-
-    // The failure ends the run: what came before it is closed.
-    run.ids = run.ids.slice(0, at);
-    run.closed = true;
-    if (wasOpen) open = undefined;
-
-    const changed = run.ids.length > 0 ? [run] : [];
-    if (after.length === 0) return changed;
-    const tail: Run = { ids: after, closed: !wasOpen, expanded: run.expanded };
-    for (const afterId of after) byId.set(afterId, tail);
-    if (wasOpen) open = tail;
-    return [...changed, tail];
+    run.failed++;
+    return [run];
   }
 
   function walk(message: Extract<AgentMessage, { role: "assistant" }>, final: boolean): Run[] {
@@ -134,7 +121,7 @@ export function createRunTracker() {
       }
       closeOpen();
     },
-    /** The run holding this call, or undefined if unknown or failed. */
+    /** The run holding this call, or undefined if unknown. */
     runOf: (id: string) => byId.get(id),
   };
 }
