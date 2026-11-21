@@ -1,7 +1,7 @@
 # pi-permissions
 
 Pi extension that gates every tool call with OpenCode-style `allow` / `ask` / `deny` rules (last matching rule wins).
-Deny blocks the call and tells the model why. Ask opens an Allow / Deny / Deny with reason dialog (blocks when no UI, e.g. `pi -p`, or in a pi-subagents child).
+Deny blocks the call and tells the model why. Ask opens an Allow / Deny / Deny with reason dialog (blocks when no UI, e.g. `pi -p`).
 `codemode` is not gated itself; the MCP calls nested inside it are.
 
 ## Rules file
@@ -15,7 +15,7 @@ An `allow` rule can carry `input`: it then matches only when every named tool-in
 { "action": "mcp__slack__slack_send_message", "resource": "*", "input": { "channel_id": ["C0123", "U0456"] }, "effect": "allow" }
 ```
 
-A missing or non-string field never matches, so the earlier rule applies. `input` is matched against the raw tool input, and like any later allow rule it also overrides earlier deny rules, so name the exact tool in `action`. `input` on an `ask` or `deny` rule is a load error. A matching exception also applies in pi-subagents children.
+A missing or non-string field never matches, so the earlier rule applies. `input` is matched against the raw tool input, and like any later allow rule it also overrides earlier deny rules, so name the exact tool in `action`. `input` on an `ask` or `deny` rule is a load error.
 
 Shell path words containing `* ? [ {` are also checked as their glob expansion (runs of two or more `*` are treated as `*`, as in bash 3.2 which has no globstar; at most 200 matches per word; words with a brace range such as `{1..9}` or `{a..z}` are left unexpanded).
 

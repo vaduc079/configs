@@ -14,8 +14,6 @@ type Result = { content: { type: string; text: string }[]; structuredContent?: R
 type Tool = { execute: (id: string, params: object, signal: undefined, onUpdate: undefined, ctx: unknown) => Promise<Result> };
 type Sent = { message: { content: string; details: ResultDetails }; options: { triggerTurn?: boolean; deliverAs?: string } };
 
-// The tests may run inside a subagent child, which sets this; only the last test wants it.
-delete process.env.PI_SUBAGENT_CHILD;
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "bash-background-test-"));
 after(() => fs.rmSync(tmp, { recursive: true }));
 
@@ -275,14 +273,5 @@ test("a shell path that pi normalizes (~, file://) runs the same shell as the bu
     assert.deepEqual(builtin.content, [{ type: "text", text: await run(params) }], shellPath);
     await run({ ...params, background: true });
     assert.equal((await waitFor(() => sent[0])).message.details.output, "OK\n", shellPath);
-  }
-});
-
-test("a subagent child keeps pi's built-in bash", () => {
-  process.env.PI_SUBAGENT_CHILD = "1";
-  try {
-    assert.equal(setup().tool, undefined);
-  } finally {
-    delete process.env.PI_SUBAGENT_CHILD;
   }
 });

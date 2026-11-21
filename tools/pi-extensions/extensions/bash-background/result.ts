@@ -26,7 +26,7 @@ export function resultMessage(details: ResultDetails): InboxMessage {
 }
 
 /**
- * One row in the style of a subagent result: `▸ bash <command>  ✓ 5.0s`, the command cut to fit the line. Click it, or
+ * One row: `▸ bash <command>  ✓ 5.0s`, the command cut to fit the line. Click it, or
  * press ctrl+o, to see the full command, the log path, and the last lines of output.
  */
 export function registerResultRenderer(pi: ExtensionAPI) {

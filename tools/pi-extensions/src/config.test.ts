@@ -9,7 +9,7 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-extensions-config-"));
 
 test("configFile is <agent dir>/<name>.json", () => {
   process.env.PI_CODING_AGENT_DIR = dir;
-  assert.equal(configFile("subagents"), path.join(dir, "subagents.json"));
+  assert.equal(configFile("permissions"), path.join(dir, "permissions.json"));
 });
 
 test("a missing file reads as undefined", () => {

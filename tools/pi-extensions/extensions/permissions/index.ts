@@ -2,7 +2,6 @@ import { execFileSync } from "node:child_process";
 import os from "node:os";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { configFile } from "../../src/config.ts";
-import { isSubagentChild } from "../../src/subagent-child.ts";
 import { classify } from "./classify.ts";
 import { askUser } from "./prompt.ts";
 import { decide, loadRules } from "./rules.ts";
@@ -86,9 +85,6 @@ export default function (pi: ExtensionAPI) {
       const why = decision.rule?.reason;
       const via = decision.check?.denyOnly ? " (path named in a shell command)" : "";
       return { block: true, reason: `Blocked by permission rule: ${action} ${resource}${via}${why ? ": " + why : ""}` };
-    }
-    if (isSubagentChild()) {
-      return { block: true, reason: `Permission rule ${action} ${resource} needs user approval, which a subagent cannot ask for` };
     }
     if (!ctx.hasUI) {
       return {

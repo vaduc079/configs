@@ -1,4 +1,4 @@
-// Posting messages to the agent from background work (a subagent result, a finished background command).
+// Posting messages to the agent from background work, such as a finished background command.
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 export type InboxMessage = Parameters<ExtensionAPI["sendMessage"]>[0];

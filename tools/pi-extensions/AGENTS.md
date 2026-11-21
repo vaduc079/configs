@@ -51,8 +51,7 @@ Review these:
 - **pi imports each extension separately with `moduleCache: false`.** Every extension gets its own copy of a `src/` module, so a module-level variable is not shared. Cross-extension state goes through `pi.events` or `globalThis`.
 - **Host packages** (`@earendil-works/pi-ai`, `pi-agent-core`, `pi-coding-agent`, `pi-tui`, `typebox`) come from the running pi. Never add them to `dependencies` and never npm-install them. `scripts/link-pi.ts` links each one from the installed release so types and tests match.
 - **Only erasable TypeScript** (no enums, namespaces, or parameter properties), and use `import type` for types. pi and Node's type stripping load the `.ts` files as they are; `tsconfig.json` enforces this.
-- **`PI_SUBAGENT_CHILD=1`** is set by `subagents` in its child sessions. Code that would prompt the user must not prompt in a child: `permissions` blocks `ask` rules there.
-- **A displayed custom message** (a subagent result, a background command's result) closes the open tool group in `tools-verbose-low` low mode.
+- **A displayed custom message** (such as a background command's result) closes the open tool group in `tools-verbose-low` low mode.
 - pi docs: `node_modules/@earendil-works/pi-coding-agent/docs` (linked from the installed release).
 
 ## Working rules

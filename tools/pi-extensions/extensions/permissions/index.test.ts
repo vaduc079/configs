@@ -48,12 +48,8 @@ function rulesFile(rules: unknown[]): string {
   return f;
 }
 
-// Tests run by a subagent inherit this; the gate must see a normal session unless a test sets it.
-delete process.env.PI_SUBAGENT_CHILD;
-
 const saved = process.env.PI_PERMISSIONS_FILE;
 afterEach(() => {
-  delete process.env.PI_SUBAGENT_CHILD;
   if (saved === undefined) delete process.env.PI_PERMISSIONS_FILE;
   else process.env.PI_PERMISSIONS_FILE = saved;
 });
@@ -87,20 +83,6 @@ describe("gate", () => {
       r.reason,
       "Permission rule shell deploy prod needs approval and no one is present to give it",
     );
-  });
-
-  it("ask in a subagent child blocks without a dialog; allow and deny are unchanged", async () => {
-    const { call } = load(file);
-    const { ctx } = makeCtx({ choose: async () => assert.fail("no dialog in a subagent") });
-    process.env.PI_SUBAGENT_CHILD = "1";
-    const r = await call("bash", { command: "deploy prod" }, ctx);
-    assert.deepEqual(r, {
-      block: true,
-      reason: "Permission rule shell deploy prod needs user approval, which a subagent cannot ask for",
-    });
-    assert.equal(await call("read", { path: "a.txt" }, ctx), undefined);
-    const denied = await call("read", { path: "a/.env" }, ctx);
-    assert.match(denied?.reason ?? "", /^Blocked by permission rule: read .*\.env: secret file$/);
   });
 
   it("ask with UI: Allow passes", async () => {
@@ -192,7 +174,7 @@ describe("input exceptions to an ask rule", () => {
     { action: "mcp__x__send", resource: "*", input: { channel_id: ["C1", "U2"] }, effect: "allow" },
   ];
 
-  it("listed channel passes with no dialog, also in a subagent child; others still ask", async () => {
+  it("listed channel passes with no dialog; others still ask", async () => {
     const { call } = load(rulesFile(rules));
     let asked = 0;
     const { ctx } = makeCtx({ choose: async () => (asked++, "Deny") });
@@ -201,9 +183,6 @@ describe("input exceptions to an ask rule", () => {
     assert.equal(asked, 0);
     assert.equal((await call("mcp__x__send", { channel_id: "C9" }, ctx))?.block, true);
     assert.equal(asked, 1);
-    process.env.PI_SUBAGENT_CHILD = "1";
-    assert.equal(await call("mcp__x__send", { channel_id: "C1" }, ctx), undefined);
-    assert.match((await call("mcp__x__send", { channel_id: "C9" }, ctx))?.reason ?? "", /subagent cannot ask/);
   });
 });
 

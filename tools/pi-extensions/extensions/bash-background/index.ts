@@ -18,7 +18,6 @@ import {
 import { Type } from "typebox";
 import { registerInbox } from "../../src/inbox.ts";
 import { RunningList } from "../../src/running-list.ts";
-import { isSubagentChild } from "../../src/subagent-child.ts";
 import { killCommand, runJob } from "./job.ts";
 import { registerResultRenderer, resultMessage } from "./result.ts";
 import { BackgroundList, type BackgroundJob } from "./ui.ts";
@@ -42,9 +41,6 @@ const BackgroundOutput = Type.Object({
 type Job = BackgroundJob & { abort: AbortController };
 
 export default function (pi: ExtensionAPI) {
-  // A subagent child's run ends with its turn, so a message after the command exits would never reach the parent.
-  if (isSubagentChild()) return;
-
   const inbox = registerInbox(pi, "Background command result");
   const jobs = new Map<string, Job>();
   let runningList: RunningList | undefined;
