@@ -4,6 +4,8 @@ const MINUTE = 60_000;
 
 export const CONFIG = {
   dryRun: false,
+  // false: only the hook rules in rules.js run; every other ask is left to the human.
+  evaluatorEnabled: false,
   auditEnabled: true,
   notifyEnabled: true,
   model: "haiku",

@@ -168,13 +168,29 @@ describe("enqueue", () => {
     expect(getAsks(db, [queued.id])[0].status).toBe("pending");
   });
 
-  test("escalates AskUserQuestion without an evaluator run", () => {
+  test("with the evaluator off, still approves allowlisted Slack but does not queue other asks", () => {
+    const db = openQueue(":memory:");
+    const slack = {
+      ...permissionRequest(),
+      tool_name: "mcp__slack__slack_send_message",
+      tool_input: { channel_id: "C1", message: "hi" },
+    };
+    const options = { harnessName: "claude", env: HERDR_ENV, rules: { slackChannels: ["C1"] }, evaluatorEnabled: false };
+
+    const approved = enqueue(db, { ...options, hookInput: slack });
+    expect(approved.decision.status).toBe("handled");
+
+    expect(enqueue(db, { ...options, hookInput: permissionRequest() })).toBeNull();
+    expect(enqueue(db, { ...options, hookInput: { ...slack, tool_input: { channel_id: "C2" } } })).toBeNull();
+    expect(pendingAsks(db, "herdr:w1:p2")).toEqual([]);
+  });
+
+  test("ignores AskUserQuestion: not stored, notified or evaluated", () => {
     const db = openQueue(":memory:");
     const hookInput = { ...permissionRequest(), tool_name: "AskUserQuestion", tool_input: { questions: [] } };
-    const queued = enqueue(db, { harnessName: "claude", hookInput, env: HERDR_ENV });
 
-    expect(queued.decision.status).toBe("need_human");
-    expect(getAsks(db, [queued.id])[0].status).toBe("need_human");
+    expect(enqueue(db, { harnessName: "claude", hookInput, env: HERDR_ENV })).toBeNull();
+    expect(pendingAsks(db, "herdr:w1:p2")).toEqual([]);
   });
 
   test("records a rule approval in dry run as a dry-run row", () => {

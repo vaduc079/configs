@@ -26,8 +26,8 @@ describe("ruleDecision", () => {
     for (const ask of asks) expect(ruleDecision(ask, RULES)).toBeNull();
   });
 
-  test("escalates AskUserQuestion", () => {
-    expect(ruleDecision({ tool: "AskUserQuestion", input: {} }, RULES)).toMatchObject({ status: "need_human" });
+  test("leaves AskUserQuestion undecided", () => {
+    expect(ruleDecision({ tool: "AskUserQuestion", input: {} }, RULES)).toBeNull();
   });
 });
 

@@ -28,11 +28,6 @@ export function loadRules(pluginRoot) {
 export function ruleDecision(context, rules) {
   const { tool, input } = context;
 
-  // A question for the user, not a permission: only the user can answer it.
-  if (tool === "AskUserQuestion") {
-    return { status: "need_human", rule: "ask-user-question", reason: "question for you" };
-  }
-
   if (tool === "mcp__slack__slack_send_message" && rules.slackChannels.includes(input?.channel_id)) {
     return {
       status: "handled",

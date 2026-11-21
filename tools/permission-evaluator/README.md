@@ -25,12 +25,11 @@ runner.js --target <pane> ──> lock <pane> ──> claude -p ──> herdr ag
                                          └─> handled / need_human (+ notification) / stale
 ```
 
-1. The harness hook (Claude Code `PermissionRequest`) runs `queue.js enqueue`. It first applies
-   the deterministic rules in `rules.js`:
+1. The harness hook (Claude Code `PermissionRequest`) runs `queue.js enqueue`. It ignores
+   `AskUserQuestion` (a question, not a permission: not stored, notified or evaluated), then
+   applies the deterministic rules in `rules.js`:
    - `slack_send_message` to a channel in `rules.json` is approved through the hook's own output
-     (`decision.behavior: "allow"`), with no evaluator run or keys sent;
-   - `AskUserQuestion` is a question, not a permission, so it goes to `need_human` with a
-     notification and no evaluator run.
+     (`decision.behavior: "allow"`), with no evaluator run or keys sent.
 
    A rule-decided ask is stored already decided (reason `rule <name>: …`) and audited. Any other
    ask is stored pending with its target (where the agent runs) and context (tool and input), then
@@ -144,6 +143,7 @@ ends up in the evaluator's Bash allowlist.
 | Key | Default | Meaning |
 |---|---|---|
 | `dryRun` | `false` | Record would-approve decisions without sending keys |
+| `evaluatorEnabled` | `true` | `false` keeps only the hook rules (Slack allowlist); other asks are not queued, so no evaluator runs and you answer them |
 | `auditEnabled` | `true` | Append `audit.jsonl` for the viewer |
 | `notifyEnabled` | `true` | macOS notification for each `need_human`, showing the evaluator's reason. With `terminal-notifier` installed, clicking it brings the target's app forward (the driver's `appBundleId`: Ghostty for Herdr, Rex for Rex) and focuses the pane; otherwise it falls back to `osascript` (no click action) |
 | `model` | `claude-haiku-5-5` | Evaluator model |

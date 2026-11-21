@@ -41,15 +41,22 @@ export function truncateStrings(value) {
 
 // Returns { id, targetKey, decision } for a stored ask, where `decision` is set when a rule decided
 // it and the runner must not. Returns { decision } for a rule-decided ask outside a supported target,
-// and null when the ask is neither decided nor one the runner could act on.
-export function enqueue(db, { harnessName, hookInput, env, rules = { slackChannels: [] }, dryRun = false }) {
+// and null when the ask is neither decided nor one the runner could act on. With the evaluator off,
+// an ask no rule decides is not stored, so no runner ever sees it and the human answers it.
+export function enqueue(
+  db,
+  { harnessName, hookInput, env, rules = { slackChannels: [] }, dryRun = false, evaluatorEnabled = true },
+) {
   const harness = HARNESSES[harnessName];
   if (!harness) throw new Error(`unknown harness: ${harnessName}`);
 
   const ask = harness.parseHookInput(hookInput);
-  if (!ask) return null;
+  // A question for the user, not a permission: the user is already looking at it, so it is not
+  // stored, notified or evaluated.
+  if (!ask || ask.context.tool === "AskUserQuestion") return null;
 
   const decision = ruleDecision(ask.context, rules);
+  if (!decision && !evaluatorEnabled) return null;
   const detected = detectTarget(env);
   if (!detected) return decision ? { decision } : null;
 
@@ -142,13 +149,14 @@ async function runEnqueue(args) {
   try {
     const hookInput = JSON.parse(await Bun.stdin.text());
     const db = openQueue();
-    const { dryRun } = CONFIG;
+    const { dryRun, evaluatorEnabled } = CONFIG;
     const queued = enqueue(db, {
       harnessName: flagValue(args, "--harness"),
       hookInput,
       env: process.env,
       rules: loadRules(import.meta.dir),
       dryRun,
+      evaluatorEnabled,
     });
     if (queued?.decision?.status === "handled" && !dryRun) process.stdout.write(ALLOW_OUTPUT);
     if (queued?.decision && queued.id) reportRuleDecision(db, queued.id, dryRun);
