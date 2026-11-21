@@ -12,7 +12,7 @@ import { isSubagentChild } from "../../src/subagent-child.ts";
 import { loadAgents } from "./agents.ts";
 import { loadChildEnv, loadFloatSize } from "./config.ts";
 import { type JobEntry, Subagents } from "./manager.ts";
-import { deliverInterrupted, postResult } from "./result.ts";
+import { deliverInterrupted, resultMessage } from "./result.ts";
 import { RpcProcess } from "./rpc.ts";
 import { registerTools } from "./tools.ts";
 import { registerResultRenderer, registerSubagentsCommand, SessionUi } from "./ui.ts";
@@ -49,11 +49,7 @@ export default function (pi: ExtensionAPI) {
       agents,
       childEnv,
       saveJob: (entry) => pi.appendEntry(JOB_TYPE, entry),
-      onFinish: (subagent, result, delivered) =>
-        inbox.deliver((triggerTurn) => {
-          postResult(pi, sessionDir, subagent, result, triggerTurn);
-          delivered();
-        }),
+      onFinish: (subagent, result, delivered) => inbox.deliver(resultMessage(sessionDir, subagent, result), delivered),
       onChange: () => sessionUi.renderRunningList(),
       onUiRequest: (subagent, request, signal) => sessionUi.dialogs.forward(subagent.description, request, signal),
       startProcess: (options) => new RpcProcess(options),

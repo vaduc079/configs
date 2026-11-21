@@ -1,7 +1,7 @@
 /**
  * pi's `bash` tool with `background: true`, modelled on OpenCode's shell tool (packages/core/src/tool/plugin/shell.ts).
  * A background call returns at once, its output streams to a log file, and when the command exits the agent gets one
- * message, which starts a turn if the agent is idle. Foreground calls run pi's built-in bash unchanged. `/background`
+ * message, steered into the current run or starting a turn if the agent is idle. Foreground calls run pi's built-in bash unchanged. `/background`
  * (ui.ts) lists running commands, shows one's full command and output, and stops one.
  */
 import { randomUUID } from "node:crypto";
@@ -20,7 +20,7 @@ import { registerInbox } from "../../src/inbox.ts";
 import { RunningList } from "../../src/running-list.ts";
 import { isSubagentChild } from "../../src/subagent-child.ts";
 import { killCommand, runJob } from "./job.ts";
-import { postResult, registerResultRenderer } from "./result.ts";
+import { registerResultRenderer, resultMessage } from "./result.ts";
 import { BackgroundList, type BackgroundJob } from "./ui.ts";
 
 const LOG_DIR = path.join(os.tmpdir(), "pi-bash-bg");
@@ -89,7 +89,7 @@ export default function (pi: ExtensionAPI) {
               job.end = { status: end.status, durationMs };
               runningList?.render();
               const details = { ...end, id: job.id, command: job.command, logPath, durationMs };
-              inbox.deliver((triggerTurn) => postResult(pi, details, triggerTurn));
+              inbox.deliver(resultMessage(details));
             });
             return { exitCode: 0 };
           },

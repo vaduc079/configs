@@ -12,7 +12,7 @@ import type { ResultDetails } from "./result.ts";
 
 type Result = { content: { type: string; text: string }[]; structuredContent?: Record<string, unknown> };
 type Tool = { execute: (id: string, params: object, signal: undefined, onUpdate: undefined, ctx: unknown) => Promise<Result> };
-type Sent = { message: { content: string; details: ResultDetails }; options: { triggerTurn: boolean } };
+type Sent = { message: { content: string; details: ResultDetails }; options: { triggerTurn?: boolean; deliverAs?: string } };
 
 // The tests may run inside a subagent child, which sets this; only the last test wants it.
 delete process.env.PI_SUBAGENT_CHILD;
@@ -28,7 +28,7 @@ function setup(settings = {}) {
   const notices: string[] = [];
   let screen: Screen | undefined;
   const handlers = new Map<string, ((event: unknown, ctx: unknown) => Promise<void>)[]>();
-  const agent = { idle: true };
+  const agent = { idle: true, running: false };
   const sent: Sent[] = [];
   const pi = {
     registerTool: (definition: Tool) => (tool = definition),
@@ -42,6 +42,9 @@ function setup(settings = {}) {
   const ctx = {
     cwd: tmp,
     isIdle: () => agent.idle,
+    get signal() {
+      return agent.running ? new AbortController().signal : undefined;
+    },
     sessionManager: { getSessionId: () => "session-1", getSessionFile: () => undefined },
     ui: {
       setStatus: () => {},
@@ -189,7 +192,17 @@ test("session shutdown kills running commands, and they post nothing", async () 
   assert.equal(sent.length, 0);
 });
 
-test("a result that arrives while the agent is busy is held, and delivered once when the agent settles", async () => {
+test("a result that arrives while the agent runs is steered into the run at once", async () => {
+  const { run, sent, agent } = setup();
+  agent.idle = false;
+  agent.running = true;
+  await run({ command: "echo done", background: true });
+  const { message, options } = await waitFor(() => sent[0]);
+  assert.equal(message.details.output, "done\n");
+  assert.deepEqual(options, { deliverAs: "steer" });
+});
+
+test("a result that arrives while the agent is busy but not running is held, and delivered once when the agent settles", async () => {
   const { run, sent, agent, emit } = setup();
   agent.idle = false;
   const logPath = logPathOf(await run({ command: "echo done", background: true }));
@@ -210,7 +223,9 @@ test("after an aborted settle the held result is posted without starting a turn"
   await waitFor(() => (readLog(logPath) === "done\n" ? true : undefined));
   await sleep(100);
 
+  agent.idle = true;
   await emit("agent_settled", { aborted: true });
+  await sleep(0);
   assert.equal(sent.length, 1);
   assert.equal(sent[0].options.triggerTurn, false);
 });

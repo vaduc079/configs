@@ -1,6 +1,7 @@
 /** Posts a finished run back into the parent session as a `subagent-response` message, long text capped. */
 import * as path from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { InboxMessage } from "../../src/inbox.ts";
 import { capText } from "../../src/output.ts";
 import type { JobEntry } from "./manager.ts";
 import type { RunResult, RunState, Subagent, Usage } from "./subagent.ts";
@@ -17,25 +18,18 @@ export type ResultDetails = {
   fullOutputPath?: string;
 };
 
-export function postResult(pi: ExtensionAPI, sessionDir: string, subagent: Subagent, result: RunResult, triggerTurn: boolean) {
+export function resultMessage(sessionDir: string, subagent: Subagent, result: RunResult): InboxMessage {
   const { text, fullOutputPath } = capText(result.text, path.join(sessionDir, `${subagent.id}-result-${Date.now()}.md`));
-  pi.sendMessage<ResultDetails>(
-    {
-      customType: RESULT_TYPE,
-      display: true,
-      content: subagentBlock(subagent.id, result.state, subagent.description, text),
-      details: {
-        sessionID: subagent.id,
-        agent: subagent.agent.name,
-        description: subagent.description,
-        state: result.state,
-        usage: result.usage,
-        durationMs: result.durationMs,
-        fullOutputPath,
-      },
-    },
-    { triggerTurn },
-  );
+  const details: ResultDetails = {
+    sessionID: subagent.id,
+    agent: subagent.agent.name,
+    description: subagent.description,
+    state: result.state,
+    usage: result.usage,
+    durationMs: result.durationMs,
+    fullOutputPath,
+  };
+  return { customType: RESULT_TYPE, display: true, content: subagentBlock(subagent.id, result.state, subagent.description, text), details };
 }
 
 /** Told on the parent's next prompt rather than starting a turn: pi just started and the user may not be there. */

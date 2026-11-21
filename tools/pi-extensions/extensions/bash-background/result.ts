@@ -1,5 +1,6 @@
 /** The message a finished background command posts, and its row in the chat. */
 import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
+import type { InboxMessage } from "../../src/inbox.ts";
 import { Text, visibleWidth } from "@earendil-works/pi-tui";
 import { collapsibleRow } from "../../src/collapsible-row.ts";
 import { cutToWidth, formatDuration } from "../../src/format.ts";
@@ -9,22 +10,19 @@ const RESULT_TYPE = "bash-background-result";
 
 export type ResultDetails = JobEnd & { id: string; command: string; logPath: string; durationMs: number };
 
-export function postResult(pi: ExtensionAPI, details: ResultDetails, triggerTurn: boolean) {
+export function resultMessage(details: ResultDetails): InboxMessage {
   const { id, command, status, durationMs, logPath, output } = details;
-  pi.sendMessage<ResultDetails>(
-    {
-      customType: RESULT_TYPE,
-      display: true,
-      content: [
-        `Background command ${id} finished after ${formatDuration(durationMs)}: ${status}`,
-        `$ ${command}`,
-        `Last lines of output (full log: ${logPath}):`,
-        output || "(no output)",
-      ].join("\n"),
-      details,
-    },
-    { triggerTurn },
-  );
+  return {
+    customType: RESULT_TYPE,
+    display: true,
+    content: [
+      `Background command ${id} finished after ${formatDuration(durationMs)}: ${status}`,
+      `$ ${command}`,
+      `Last lines of output (full log: ${logPath}):`,
+      output || "(no output)",
+    ].join("\n"),
+    details,
+  };
 }
 
 /**
