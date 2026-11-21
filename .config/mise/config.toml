@@ -4,6 +4,7 @@ minimum_release_age = "7d"
 minimum_release_age_excludes = ["npm:ai-devkit"]
 
 [tools]
+go = "latest"
 node = "26.13.1"
 "npm:@devcontainers/cli" = "0.88.0"
 "npm:@tobilu/qmd" = "2.8.3"
