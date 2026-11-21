@@ -11,18 +11,16 @@ const RESULT_TYPE = "bash-background-result";
 export type ResultDetails = JobEnd & { id: string; command: string; logPath: string; durationMs: number };
 
 export function resultMessage(details: ResultDetails): InboxMessage {
-  const { id, command, status, durationMs, logPath, output } = details;
-  return {
-    customType: RESULT_TYPE,
-    display: true,
-    content: [
-      `Background command ${id} finished after ${formatDuration(durationMs)}: ${status}`,
-      `$ ${command}`,
-      `Last lines of output (full log: ${logPath}):`,
-      output || "(no output)",
-    ].join("\n"),
-    details,
-  };
+  return { customType: RESULT_TYPE, display: true, content: resultText(details), details };
+}
+
+export function resultText({ id, command, status, durationMs, logPath, output }: ResultDetails) {
+  return [
+    `Background command ${id} finished after ${formatDuration(durationMs)}: ${status}`,
+    `$ ${command}`,
+    `Last lines of output (full log: ${logPath}):`,
+    output || "(no output)",
+  ].join("\n");
 }
 
 /**

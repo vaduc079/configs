@@ -24,8 +24,42 @@ type RunOptions = {
  * Stops the job's whole process group. pi starts the shell detached, so its PID is the group ID; a plain `kill`
  * of the shell would leave `cmd &` children running.
  */
-export function killCommand(pidPath: string) {
+function killCommand(pidPath: string) {
   return `kill -TERM -- -$(cat '${pidPath}')`;
+}
+
+/**
+ * Stops a job's process group: SIGTERM, then SIGKILL once the job ends or `graceMs` passes. The SIGKILL also catches
+ * children that outlived the shell. Before the shell has saved its PID there is no group to signal, so `abort` makes
+ * pi kill the process tree.
+ */
+export async function stopJob(pidPath: string, ended: Promise<unknown>, abort: AbortController, graceMs = 3_000) {
+  let pgid: number;
+  try {
+    pgid = Number(fs.readFileSync(pidPath, "utf8"));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    pgid = 0;
+  }
+  // An empty file is a shell that has created it but not yet written its PID; `-0` would signal pi's own group.
+  if (!pgid) {
+    abort.abort();
+    return;
+  }
+  signalGroup(pgid, "SIGTERM");
+  let timer: NodeJS.Timeout | undefined;
+  await Promise.race([ended, new Promise((resolve) => (timer = setTimeout(resolve, graceMs)))]);
+  clearTimeout(timer);
+  signalGroup(pgid, "SIGKILL");
+}
+
+function signalGroup(pgid: number, signal: NodeJS.Signals) {
+  try {
+    process.kill(-pgid, signal);
+  } catch (error) {
+    // The group has already exited.
+    if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+  }
 }
 
 export async function runJob({ exec, command, cwd, env, timeout, signal, logPath, pidPath }: RunOptions): Promise<JobEnd> {
@@ -49,9 +83,9 @@ export async function runJob({ exec, command, cwd, env, timeout, signal, logPath
     }
   } catch (error) {
     // pi's exec reports a timeout as `timeout:<seconds>`; other errors (missing cwd, bad timeout) read as they are.
-    // An abort is the user's stop from /background: the agent should know it was deliberate, not a crash.
+    // A stop or shutdown is reported by the caller, which knows who stopped the job.
     const message = error instanceof Error ? error.message : String(error);
-    status = signal.aborted ? "stopped by the user" : message.startsWith("timeout:") ? `timed out after ${timeout}s` : message;
+    status = message.startsWith("timeout:") ? `timed out after ${timeout}s` : message;
   } finally {
     log.end();
   }

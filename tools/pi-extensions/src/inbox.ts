@@ -3,7 +3,14 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 
 export type InboxMessage = Parameters<ExtensionAPI["sendMessage"]>[0];
 
-type Post = { message: InboxMessage; onPosted?: () => void };
+type Post = { message: InboxMessage; onPosted?: () => void; startTurn: boolean };
+
+type DeliverOptions = {
+  /** Runs once the post is in the conversation, or handed to pi when no run is active. */
+  onPosted?: () => void;
+  /** Whether the post may start a turn when the agent is idle (default true). A steered post joins the run either way. */
+  startTurn?: boolean;
+};
 
 /**
  * While the agent is busy outside a run (compaction, /tree summaries, a run still starting), posts wait here. They are
@@ -30,10 +37,14 @@ export function registerInbox(pi: ExtensionAPI, label: string) {
     pi.sendMessage(post.message, { deliverAs: "steer" });
   };
 
-  /** Taken one at a time, so if one post throws, the rest stay held for the next flush. */
+  /**
+   * Taken one at a time, so if one post throws, the rest stay held for the next flush. The last post starts one turn
+   * for the batch, if the flush allows it and a post in the batch asked for one.
+   */
   const flush = (startTurn: boolean) => {
+    const batchWantsTurn = startTurn && held.some((post) => post.startTurn);
     for (let post = held.shift(); post; post = held.shift()) {
-      pi.sendMessage(post.message, { triggerTurn: startTurn && held.length === 0 });
+      pi.sendMessage(post.message, { triggerTurn: batchWantsTurn && held.length === 0 });
       post.onPosted?.();
     }
   };
@@ -100,11 +111,10 @@ export function registerInbox(pi: ExtensionAPI, label: string) {
   pi.on("session_tree", flushAfterCompaction);
 
   return {
-    /** Posts `message`; `onPosted` runs once it is in the conversation, or handed to pi when no run is active. */
-    deliver(message: InboxMessage, onPosted?: () => void) {
-      const post = { message, onPosted };
+    deliver(message: InboxMessage, { onPosted, startTurn = true }: DeliverOptions = {}) {
+      const post = { message, onPosted, startTurn };
       if (!session || session.isIdle()) {
-        pi.sendMessage(message, { triggerTurn: true });
+        pi.sendMessage(message, { triggerTurn: startTurn });
         onPosted?.();
       }
       // `signal` is set only while an agent run is active, which is when pi accepts a steer. Once aborted (Esc already

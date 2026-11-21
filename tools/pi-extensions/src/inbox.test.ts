@@ -36,7 +36,7 @@ function setup() {
   };
   const emit = (name: string, event: unknown = {}) => handlers.get(name)?.(event, ctx);
   const message = (name: string) => ({ customType: "result", display: true, content: name });
-  const deliver = (name: string, onPosted?: () => void) => inbox.deliver(message(name), onPosted);
+  const deliver = (name: string, onPosted?: () => void, startTurn?: boolean) => inbox.deliver(message(name), { onPosted, startTurn });
   const reachModel = (name: string) => emit("message_end", { message: { role: "custom", ...message(name) } });
   void emit("session_start");
   return {
@@ -56,6 +56,41 @@ test("a post for an idle agent goes out at once and may start a turn", () => {
   deliver("a", () => (posted = true));
   assert.deepEqual(sent, [["a", { triggerTurn: true }]]);
   assert.ok(posted);
+});
+
+test("a post for an idle agent that must not start a turn goes out at once without one", () => {
+  const { sent, deliver } = setup();
+  let posted = false;
+  deliver("a", () => (posted = true), false);
+  assert.deepEqual(sent, [["a", { triggerTurn: false }]]);
+  assert.ok(posted);
+});
+
+test("a held batch of posts that must not start a turn never starts one", async () => {
+  const { emit, sent, deliver, setState } = setup();
+  setState("busy");
+  deliver("a", undefined, false);
+  deliver("b", undefined, false);
+  setState("idle");
+  await emit("agent_settled", { aborted: false });
+  assert.deepEqual(sent, [
+    ["a", { triggerTurn: false }],
+    ["b", { triggerTurn: false }],
+  ]);
+});
+
+test("a held batch with one post that may start a turn starts one, on the last post", async () => {
+  const { emit, sent, deliver, setState } = setup();
+  setState("busy");
+  deliver("a");
+  deliver("b", undefined, false);
+  await emit("session_compact");
+  setState("idle");
+  await tick(0);
+  assert.deepEqual(sent, [
+    ["a", { triggerTurn: false }],
+    ["b", { triggerTurn: true }],
+  ]);
 });
 
 test("a post while the agent runs is steered in at once, and counts as posted once it reaches the model", async () => {
