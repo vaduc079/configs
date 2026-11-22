@@ -126,12 +126,20 @@ export class BackgroundList implements Component {
       const index = rows.indexOf(selected);
       this.selectedId = rows[up ? Math.max(0, index - 1) : Math.min(rows.length - 1, index + 1)].id;
     } else if (selected && keybindings.matches(data, "tui.select.confirm")) {
-      this.opened = selected;
-      this.tail = readTail(selected.logPath);
-      this.notice = "";
+      this.open(selected.id);
     } else if (selected && data === "x") {
       this.stop(selected);
     }
+    this.options.requestRender();
+  }
+
+  open(id: string) {
+    const job = this.options.running().find((running) => running.id === id);
+    if (!job) return;
+    this.selectedId = id;
+    this.opened = job;
+    this.tail = readTail(job.logPath);
+    this.notice = "";
     this.options.requestRender();
   }
 

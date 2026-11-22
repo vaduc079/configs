@@ -177,6 +177,17 @@ test("c in the details copies the log path; a failed copy shows its error", asyn
   assert.ok(failing.lines().includes(" Copy failed: no clipboard"));
 });
 
+test("open shows a running command's details; esc then goes back to the list with it highlighted", (t) => {
+  const { list, lines } = setup([job("aaaa1111", "make", 1_000), job("bbbb2222", "make test", 2_000)]);
+  t.after(() => list.dispose());
+  list.open("missing");
+  assert.equal(lines()[0], " Background commands", "an id not running opens nothing");
+  list.open("aaaa1111");
+  assert.ok(lines()[0].startsWith(" Background command aaaa1111 ·"));
+  list.handleInput("esc");
+  assert.ok(lines()[2].startsWith(" → aaaa1111"));
+});
+
 test("esc in the details goes back to the list; esc in the list closes it", (t) => {
   const { list, lines, closed } = setup([job("aaaa1111", "make", 1_000)]);
   t.after(() => list.dispose());

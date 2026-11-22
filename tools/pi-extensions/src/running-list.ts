@@ -1,11 +1,13 @@
 // A list of running background jobs below the status line, with elapsed time.
-import type { ExtensionUIContext } from "@earendil-works/pi-coding-agent";
+import type { EventBus, ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import { visibleWidth } from "@earendil-works/pi-tui";
 import { cutToWidth, formatElapsed } from "./format.ts";
-import { LINES_STATUS_PREFIX } from "./status.ts";
+import { LINES_STATUS_PREFIX, STATUS_LINE_CLICK, type StatusLineClick } from "./status.ts";
 
 /** `name` says what runs (`bash`, an agent name); `label` says which one (a command, a task) and may be long. */
-export type RunningItem = { name: string; label: string; startedAt: number };
+export type RunningItem = { id: string; name: string; label: string; startedAt: number };
+
+type ClickOptions = { events: Pick<EventBus, "on">; onClick: (id: string) => void };
 
 /**
  * A line after its tree branch is cut to this width: the footer is no place to read a whole shell command. The line is
@@ -28,16 +30,25 @@ export class RunningList {
   private timer: NodeJS.Timeout | undefined;
   /** Jobs can finish after session shutdown; their callbacks must not touch the old context. */
   private disposed = false;
+  /** The items as last drawn: a click names a line on screen, and items may have started or ended since. */
+  private shown: RunningItem[] = [];
+  private readonly unsubscribe: (() => void) | undefined;
 
-  constructor(ui: ExtensionUIContext, name: string, items: () => RunningItem[]) {
+  constructor(ui: ExtensionUIContext, name: string, items: () => RunningItem[], click?: ClickOptions) {
     this.ui = ui;
     this.key = `${LINES_STATUS_PREFIX}${name}`;
     this.items = items;
+    this.unsubscribe = click?.events.on(STATUS_LINE_CLICK, (data) => {
+      const { key, line } = data as StatusLineClick;
+      const item = key === this.key ? this.shown.at(line) : undefined;
+      if (item) click.onClick(item.id);
+    });
   }
 
   render() {
     if (this.disposed) return;
     const items = this.items();
+    this.shown = items;
     if (items.length === 0) {
       this.ui.setStatus(this.key, undefined);
       clearInterval(this.timer);
@@ -60,5 +71,6 @@ export class RunningList {
   dispose() {
     this.disposed = true;
     clearInterval(this.timer);
+    this.unsubscribe?.();
   }
 }

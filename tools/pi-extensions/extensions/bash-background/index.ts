@@ -3,7 +3,7 @@
  * A background call returns at once, its output streams to a log file, and when the command exits the agent gets one
  * message, steered into the current run or starting a turn if the agent is idle. Foreground calls run pi's built-in bash unchanged.
  * `background_stop` stops one from the agent; `/background` (ui.ts) lists running commands, shows one's full command
- * and output, and stops one.
+ * and output, and stops one. Clicking a command's line in the footer opens `/background` on its details.
  */
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
@@ -14,6 +14,7 @@ import {
   createBashToolDefinition,
   createLocalBashOperations,
   type ExtensionAPI,
+  type ExtensionContext,
   SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
@@ -63,6 +64,8 @@ export default function (pi: ExtensionAPI) {
   const inbox = registerInbox(pi, "Background command result");
   const jobs = new Map<string, Job>();
   let runningList: RunningList | undefined;
+  /** The /background screen while it is open: a footer click shows its command there instead of opening another. */
+  let shown: BackgroundList | undefined;
   registerResultRenderer(pi);
   registerNoticeRenderer(pi);
 
@@ -180,6 +183,34 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
+  const showBackground = async (ctx: ExtensionContext, openId?: string) => {
+    if (shown) {
+      if (openId) shown.open(openId);
+      return;
+    }
+    await ctx.ui.custom<void>((tui, theme, keybindings, done) => {
+      const list = new BackgroundList({
+        running: () => [...jobs.values()],
+        stop: (id) => {
+          const job = jobs.get(id);
+          // A signal pi may not send (EPERM) is shown rather than left as an unhandled rejection.
+          if (job) stop(job, "user").catch((error: unknown) => ctx.ui.notify(`Stop failed: ${error instanceof Error ? error.message : String(error)}`, "error"));
+        },
+        // Leaves room for the footer: its status line, one running-list line per job, and a line of chat.
+        maxHeight: () => tui.terminal.rows - jobs.size - 2,
+        copy: copyToClipboard,
+        theme,
+        keybindings,
+        requestRender: () => tui.requestRender(),
+        done,
+      });
+      if (openId) list.open(openId);
+      shown = list;
+      return list;
+    });
+    shown = undefined;
+  };
+
   pi.registerCommand("background", {
     description: "List running background commands; see one's full command and output, or stop it",
     handler: async (_args, ctx) => {
@@ -187,30 +218,16 @@ export default function (pi: ExtensionAPI) {
         ctx.ui.notify("No background commands running.", "info");
         return;
       }
-      await ctx.ui.custom<void>(
-        (tui, theme, keybindings, done) =>
-          new BackgroundList({
-            running: () => [...jobs.values()],
-            stop: (id) => {
-              const job = jobs.get(id);
-              // A signal pi may not send (EPERM) is shown rather than left as an unhandled rejection.
-              if (job) stop(job, "user").catch((error: unknown) => ctx.ui.notify(`Stop failed: ${error instanceof Error ? error.message : String(error)}`, "error"));
-            },
-            // Leaves room for the footer: its status line, one running-list line per job, and a line of chat.
-            maxHeight: () => tui.terminal.rows - jobs.size - 2,
-            copy: copyToClipboard,
-            theme,
-            keybindings,
-            requestRender: () => tui.requestRender(),
-            done,
-          }),
-      );
+      await showBackground(ctx);
     },
   });
 
   pi.on("session_start", async (_event, ctx) => {
-    runningList = new RunningList(ctx.ui, "bash-background", () =>
-      [...jobs.values()].map((job) => ({ name: "bash", label: job.command, startedAt: job.startedAt })),
+    runningList = new RunningList(
+      ctx.ui,
+      "bash-background",
+      () => [...jobs.values()].map((job) => ({ id: job.id, name: "bash", label: job.command, startedAt: job.startedAt })),
+      { events: pi.events, onClick: (id) => void showBackground(ctx, id) },
     );
 
     // A fork copies the parent's entries under a new session id; only this session's jobs are its to report.

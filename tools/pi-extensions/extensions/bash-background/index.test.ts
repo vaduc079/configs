@@ -6,7 +6,8 @@ import os from "node:os";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { after, test } from "node:test";
-import { createBashToolDefinition, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { createBashToolDefinition, createEventBus, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { STATUS_LINE_CLICK } from "../../src/status.ts";
 import extension from "./index.ts";
 import type { ResultDetails } from "./result.ts";
 
@@ -26,10 +27,13 @@ async function setup(settings = {}, { sessionId = "session-1", branch = [] as En
   const commands = new Map<string, Command>();
   const notices: string[] = [];
   let screen: Screen | undefined;
+  const screens: Screen[] = [];
   const handlers = new Map<string, ((event: unknown, ctx: unknown) => Promise<void>)[]>();
   const agent = { idle, running: false };
   const sent: Sent[] = [];
+  const events = createEventBus();
   const pi = {
+    events,
     registerTool: (definition: Tool) => tools.set(definition.name, definition),
     appendEntry: (customType: string, data: Entry["data"]) => branch.push({ type: "custom", customType, data }),
     registerMessageRenderer: () => {},
@@ -50,11 +54,12 @@ async function setup(settings = {}, { sessionId = "session-1", branch = [] as En
       setStatus: () => {},
       theme,
       notify: (message: string) => notices.push(message),
-      // Opens the screen and leaves it open; the test drives it with keys.
-      custom: (factory: (tui: object, theme: object, keybindings: object, done: () => void) => Screen) => {
-        screen = factory({ requestRender: () => {}, terminal: { rows: 40 } }, theme, { matches: (data: string, binding: string) => data === binding }, () => {});
-        return Promise.resolve();
-      },
+      // Like pi, the screen stays open until it calls done; the test drives it with keys.
+      custom: (factory: (tui: object, theme: object, keybindings: object, done: () => void) => Screen) =>
+        new Promise<void>((resolve) => {
+          screen = factory({ requestRender: () => {}, terminal: { rows: 40 } }, theme, { matches: (data: string, binding: string) => data === binding }, resolve);
+          screens.push(screen);
+        }),
     },
   };
   // Like pi: every handler of an event runs, in registration order (the inbox's first).
@@ -69,11 +74,12 @@ async function setup(settings = {}, { sessionId = "session-1", branch = [] as En
     return result.content.map((part) => part.text).join("");
   };
   const stop = (id: string) => tools.get("background_stop")!.execute("call-2", { id }, undefined, undefined, ctx);
+  // Not awaited: the command resolves only once its screen closes.
   const openBackground = async () => {
-    await commands.get("background")!.handler("", ctx);
+    void commands.get("background")!.handler("", ctx);
     return screen;
   };
-  return { tool, run, stop, sent, agent, emit, openBackground, notices, branch };
+  return { tool, run, stop, sent, agent, emit, events, openBackground, screens, notices, branch };
 }
 
 const theme = { bold: (text: string) => text, fg: (_color: string, text: string) => text };
@@ -182,6 +188,30 @@ test("/background stops a running command and its child processes, and the resul
   assert.ok(details.some((line) => line.trim() === "x stop  c copy log path  esc back"));
   screen.handleInput("tui.select.cancel");
   assert.ok(screen.render(120).some((line) => line.includes("No background commands running.")));
+});
+
+test("a click on a command's footer line opens /background on its details; a click while open switches it", async (t) => {
+  const { run, events, screens, emit } = await setup();
+  t.after(() => emit("session_shutdown"));
+  t.after(() => screens.forEach((screen) => screen.dispose()));
+  const first = idOf(await run({ command: "sleep 30 # first", background: true }));
+  const second = idOf(await run({ command: "sleep 30 # second", background: true }));
+  const click = (line: number) => events.emit(STATUS_LINE_CLICK, { key: "lines:bash-background", line });
+  const shows = (id: string) => screens.at(-1)!.render(120).some((line) => line.includes(`Background command ${id}`));
+
+  click(1);
+  assert.ok(shows(second));
+  await sleep(0);
+  click(0);
+  assert.equal(screens.length, 1, "the open screen switched, rather than a second one opening");
+  assert.ok(shows(first));
+
+  screens[0].handleInput("tui.select.cancel");
+  screens[0].handleInput("tui.select.cancel");
+  await sleep(0);
+  click(1);
+  assert.equal(screens.length, 2, "once closed, a click opens a new screen");
+  assert.ok(shows(second));
 });
 
 test("/background with nothing running says so instead of opening", async () => {

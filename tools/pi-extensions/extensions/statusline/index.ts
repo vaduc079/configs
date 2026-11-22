@@ -1,7 +1,7 @@
 import path from "node:path";
 import type { ExtensionAPI, ExtensionContext, Theme, ThemeColor } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import { LINES_STATUS_PREFIX } from "../../src/status.ts";
+import { LINES_STATUS_PREFIX, STATUS_LINE_CLICK, type StatusLineClick } from "../../src/status.ts";
 
 const ICON_FOLDER = "\uf07b";
 const ICON_BRANCH = "\uf418";
@@ -162,20 +162,29 @@ export default function (pi: ExtensionAPI) {
     ctx.ui.setFooter((tui, theme, footerData) => {
       requestRender = () => tui.requestRender();
       const unsubscribe = footerData.onBranchChange(() => tui.requestRender());
+      // The `lines:` status line drawn on each footer row below the status line, as last rendered.
+      let rows: StatusLineClick[] = [];
       return {
         dispose() {
           unsubscribe();
           requestRender = undefined;
         },
         invalidate() { },
+        // pi sends mouse events only in fullscreen mode; `y` counts from the footer's first row, the status line.
+        handleMouse(event) {
+          const isLeftClick = event.type === "click" && event.button === "left";
+          const row = rows[event.y - 1] as StatusLineClick | undefined;
+          if (!isLeftClick || !row) return undefined;
+          pi.events.emit(STATUS_LINE_CLICK, row);
+          return { handled: true };
+        },
         render(width: number): string[] {
           const branch = footerData.getGitBranch();
           const statuses = [...footerData.getExtensionStatuses()];
           const inline = statuses.filter(([key]) => !key.startsWith(LINES_STATUS_PREFIX)).map(([, text]) => text);
-          const below = statuses
-            .filter(([key]) => key.startsWith(LINES_STATUS_PREFIX))
-            .flatMap(([, text]) => text.split("\n"))
-            .map((line) => truncateToWidth(line, width));
+          const lineStatuses = statuses.filter(([key]) => key.startsWith(LINES_STATUS_PREFIX)).map(([key, text]) => ({ key, lines: text.split("\n") }));
+          rows = lineStatuses.flatMap(({ key, lines }) => lines.map((_, line) => ({ key, line })));
+          const below = lineStatuses.flatMap(({ lines }) => lines).map((line) => truncateToWidth(line, width));
           const parts = [
             renderModel(ctx, pi.getThinkingLevel(), theme),
             `${theme.fg("success", ICON_FOLDER)} ${theme.fg("success", path.basename(ctx.cwd))}`,
