@@ -64,7 +64,7 @@ interface Row {
   outputPad?: number;
 }
 
-function render(toolName: string, definition: ToolRenderers | undefined, row: Row): string[] {
+function render(toolName: string, definition: ToolRenderers | undefined, row: Row): readonly string[] {
   const component = new ToolExecutionComponent(toolName, "call-1", row.args, { outputPad: row.outputPad }, definition, ui, cwd);
   if (row.result) component.updateResult(row.result);
   component.setExpanded(row.expanded ?? false);

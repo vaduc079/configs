@@ -7,7 +7,7 @@
  *   just that call, or press ctrl+o to expand all of them; expanded rows use the tool's normal renderer.
  *   Failed calls also show the tool's collapsed error preview.
  * - `low`: consecutive tool calls fold into one header line, styled like pi's hidden-thinking line:
- *   `Running 3 tools...` while the run is open and `Ran 3 tools` once text or another message ends it, plus
+ *   `Running 3 tools` while the run is open and `Ran 3 tools` once text or another message ends it, plus
  *   ` · 1 failed` when calls failed. Click the header to open the run into `normal` rows, where a failed call
  *   shows its error preview. ctrl+o shows every row as in `normal`. Hidden thinking renders nothing.
  *
@@ -179,7 +179,7 @@ function quietRenderers(toolName: string, base: ToolRenderers | undefined, rows:
   return { ...base, renderShell: "self", renderCall, renderResult };
 }
 
-/** `Running 3 tools...` or `Ran 3 tools · 1 failed`, drawn like pi's hidden-thinking line; a left click opens or closes the run. */
+/** `Running 3 tools` or `Ran 3 tools · 1 failed`, drawn like pi's hidden-thinking line; a left click opens or closes the run. */
 function header(run: Run, context: ToolRenderContext, theme: Theme, rows: Rows): Component {
   const count = `${run.ids.length} ${run.ids.length === 1 ? "tool" : "tools"}`;
   const label = run.closed ? `Ran ${count}` : `Running ${count}`;

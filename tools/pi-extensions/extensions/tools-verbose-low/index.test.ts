@@ -120,7 +120,7 @@ const closedRun = (failing?: string) => [
   entry(assistant(say("done"))),
 ];
 
-const plain = (lines: string[]) => lines.map((line) => stripVTControlCharacters(line).trim());
+const plain = (lines: readonly string[]) => lines.map((line) => stripVTControlCharacters(line).trim());
 const ok = { isError: false };
 
 let theme: Theme | undefined;
@@ -158,8 +158,8 @@ test("low: an open run says Running", () => {
   // pi builds a call's row after extensions saw the event.
   const rows = ["a", "b"].map((id) => pi.row(id));
   const [leader, b] = rows.map((r) => r.render(WIDTH));
-  assert.deepEqual(plain(leader), ["", "Running 2 tools..."]);
-  assert.ok(leader[1].includes(theme!.fg("thinkingText", "Running 2 tools...")), "the hidden-thinking colour (italic is not testable: chalk emits no codes without a TTY)");
+  assert.deepEqual(plain(leader), ["", "Running 2 tools"]);
+  assert.ok(leader[1].includes(theme!.fg("thinkingText", "Running 2 tools")), "the hidden-thinking colour (italic is not testable: chalk emits no codes without a TTY)");
   assert.deepEqual(b, []);
 
   pi.emit("agent_end");
