@@ -12,16 +12,17 @@ rex.bind(prefix .. "ctrl+a", "pane.send_key", { key = "ctrl+a" })
 rex.bind(prefix .. "ctrl+z", "pane.zoom")
 
 rex.bind("alt+backspace", "pane.send_key", { key = "ctrl+w" })
-rex.bind("ctrl+enter", "pane.split.auto")
 rex.bind("cmd+p", "client.palette.toggle")
 rex.unbind("cmd+n")
 rex.bind("cmd+n", "session.new")
 rex.unbind("cmd+shift+n")
 rex.bind("cmd+shift+n", "client.window.new")
 
-for index = 1, 9 do
-	rex.bind("ctrl+" .. index, "client.tab.goto", { index = index })
-end
+-- ctrl stuffs
+-- rex.bind("ctrl+enter", "pane.split.auto")
+-- for index = 1, 9 do
+-- 	rex.bind("ctrl+" .. index, "client.tab.goto", { index = index })
+-- end
 
 -- Resize mode: h/j/k/l or arrows resize, = balances.
 rex.mode("resize", { exclusive = true })
