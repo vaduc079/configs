@@ -1,5 +1,6 @@
 #!/bin/zsh
 
+export CLICOLOR=1
 export EDITOR=nvim
 export HOMEBREW_NO_ANALYTICS=1
 # for shopback repositories

@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # eza, better ls
-alias ls='eza'
+# alias ls='eza'
 alias ll='eza --icons --group-directories-first --color always -lahog'
 
 alias load_zshrc='source ~/.zshrc'
