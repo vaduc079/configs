@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import {
   acquireLock,
   awaitingHuman,
@@ -16,6 +16,17 @@ import {
   releaseLock,
 } from "./db.js";
 import { enqueue, runnerEnvironment, truncateStrings } from "./queue.js";
+
+function withRexInspect(implementation, run) {
+  const spawnSync = spyOn(Bun, "spawnSync").mockImplementation(implementation);
+  try {
+    run(spawnSync);
+  } finally {
+    spawnSync.mockRestore();
+  }
+}
+
+const inspectOutput = (json) => () => ({ success: true, stdout: Buffer.from(JSON.stringify(json)) });
 
 const HERDR_ENV = { HERDR_ENV: "1", HERDR_PANE_ID: "w1:p2", HERDR_SOCKET_PATH: "/tmp/herdr.sock" };
 const REX_ENV = {
@@ -90,16 +101,59 @@ describe("enqueue", () => {
 
   test("stores a permission request for a Rex block", () => {
     const db = openQueue(":memory:");
-    const { id, targetKey } = enqueue(db, { harnessName: "claude", hookInput: permissionRequest(), env: REX_ENV });
+    withRexInspect(inspectOutput({ session_id: "session:other" }), (spawnSync) => {
+      const { id, targetKey } = enqueue(db, { harnessName: "claude", hookInput: permissionRequest(), env: REX_ENV });
 
-    expect(targetKey).toBe("rex:block:01a15a0d-8bef");
-    expect(getAsks(db, [id])[0].target).toEqual({
-      type: "rex",
-      pane_id: "block:01a15a0d-8bef",
-      server: REX_ENV.REX_SERVER,
-      bin_dir: REX_ENV.REX_BIN_DIR,
-      session_id: REX_ENV.REX_SESSION,
+      expect(targetKey).toBe("rex:block:01a15a0d-8bef");
+      expect(getAsks(db, [id])[0].target).toEqual({
+        type: "rex",
+        pane_id: "block:01a15a0d-8bef",
+        server: REX_ENV.REX_SERVER,
+        bin_dir: REX_ENV.REX_BIN_DIR,
+        session_id: REX_ENV.REX_SESSION,
+      });
+      expect(spawnSync).not.toHaveBeenCalled();
     });
+  });
+
+  test("looks up the Rex block's session when the terminal sets no REX_SESSION", () => {
+    const db = openQueue(":memory:");
+    const { REX_SESSION, ...env } = REX_ENV;
+    withRexInspect(inspectOutput({ session_id: "session:01a1" }), (spawnSync) => {
+      const { id } = enqueue(db, { harnessName: "claude", hookInput: permissionRequest(), env });
+
+      expect(getAsks(db, [id])[0].target.session_id).toBe("session:01a1");
+      expect(spawnSync.mock.calls[0][0]).toEqual([
+        `${REX_ENV.REX_BIN_DIR}/rex`,
+        "-S",
+        REX_ENV.REX_SERVER,
+        "block",
+        "inspect",
+        REX_ENV.REX_BLOCK,
+        "--json",
+      ]);
+    });
+  });
+
+  test("stores a Rex ask without a session when the lookup fails or returns an unusable ID", () => {
+    const db = openQueue(":memory:");
+    const { REX_SESSION, ...env } = REX_ENV;
+    const lookups = {
+      "missing rex": () => {
+        throw Object.assign(new Error("posix_spawn"), { code: "ENOENT" });
+      },
+      "nonzero exit": () => ({ success: false, stdout: Buffer.from("") }),
+      "malformed JSON": () => ({ success: true, stdout: Buffer.from("not json") }),
+      "unsafe ID": inspectOutput({ session_id: "session:x; rm -rf /" }),
+      "non-string ID": inspectOutput({ session_id: ["session:01a1"] }),
+    };
+
+    for (const [name, lookup] of Object.entries(lookups)) {
+      withRexInspect(lookup, () => {
+        const queued = enqueue(db, { harnessName: "claude", hookInput: permissionRequest(), env });
+        expect({ name, session: getAsks(db, [queued.id])[0].target.session_id }).toEqual({ name, session: null });
+      });
+    }
   });
 
   test("prefers the Herdr pane when Herdr runs inside a Rex block", () => {

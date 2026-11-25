@@ -15,6 +15,9 @@ const BIN_DIR_PATTERN = /^\/[^:\n]*$/;
 // Rex's own Claude Code SessionStart hook treat the evaluator as an agent in a Rex block.
 const rexCommand = (target, args) => `rex -S ${target.server} ${args}`;
 
+// The absolute path works from bare environments such as launchd or a notification click.
+const rexExecutable = (target) => (target.bin_dir ? join(target.bin_dir, "rex") : (Bun.which("rex") ?? "rex"));
+
 export const rex = {
   type: "rex",
 
@@ -27,9 +30,29 @@ export const rex = {
       pane_id: env.REX_BLOCK,
       server: env.REX_SERVER,
       bin_dir: env.REX_BIN_DIR || null,
-      session_id: env.REX_SESSION || null,
+      session_id: null,
     };
-    return rex.isValid(target) ? target : null;
+    if (!rex.isValid(target)) return null;
+
+    // Only older terminals set REX_SESSION. A block never leaves its session, so a lookup made
+    // now stays valid.
+    target.session_id = env.REX_SESSION || rex.sessionOf(target);
+    if (!rex.isValid(target)) target.session_id = null;
+    return target;
+  },
+
+  sessionOf(target) {
+    try {
+      const result = Bun.spawnSync(
+        [rexExecutable(target), "-S", target.server, "block", "inspect", target.pane_id, "--json"],
+        { stdout: "pipe", stderr: "ignore", timeout: 2000 },
+      );
+      if (!result.success) return null;
+      const { session_id } = JSON.parse(result.stdout.toString());
+      return typeof session_id === "string" ? session_id : null;
+    } catch {
+      return null;
+    }
   },
 
   isValid(target) {
@@ -60,10 +83,9 @@ export const rex = {
   // Brings the block forward for the human (dashboard, notification click): switches Rex.app to the
   // block's session (needs Remote Control on in its Settings), then focuses the block, which `rex
   // focus` alone does only inside a session the app may not be showing. Argv, not part of any
-  // allowlist; the values reach the script as positional arguments, never as script text. The
-  // absolute path works from the bare environment of a notification click.
+  // allowlist; the values reach the script as positional arguments, never as script text.
   focusCommand(target) {
-    const executable = target.bin_dir ? join(target.bin_dir, "rex") : (Bun.which("rex") ?? "rex");
+    const executable = rexExecutable(target);
     if (!target.session_id) return [executable, "-S", target.server, "focus", target.pane_id];
     return [
       "/bin/sh",
