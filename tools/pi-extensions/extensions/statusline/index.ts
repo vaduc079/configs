@@ -90,7 +90,8 @@ function renderCacheHit(ctx: ExtensionContext, theme: Theme): string | undefined
 function renderLimits(limits: Limits, theme: Theme): string | undefined {
   const { fiveHour, sevenDay } = limits;
   if (!fiveHour || !sevenDay) return undefined;
-  const blocked = limits.status !== undefined && limits.status !== "allowed";
+  // Status is allowed, allowed_warning (nearing a limit), or rejected; only rejected means blocked.
+  const blocked = limits.status === "rejected";
   const part = (limit: Limit, useDays: boolean) => {
     const left = Math.round(100 - limit.utilization * 100);
     const color = blocked || left < 25 ? "error" : "warning";
