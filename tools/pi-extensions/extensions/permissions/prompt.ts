@@ -1,4 +1,4 @@
-import { ExtensionSelectorComponent, type ExtensionUIContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import type { Rule } from "./types.ts";
 
 export interface AskRequest {
@@ -10,10 +10,7 @@ export interface AskRequest {
 }
 
 /** The slice of pi's `ctx.ui` that the dialog needs. */
-export type PromptUi = Pick<
-  ExtensionUIContext,
-  "input" | "custom" | "getToolsExpanded" | "setToolsExpanded" | "getEditorText" | "setEditorText"
->;
+export type PromptUi = Pick<ExtensionUIContext, "select" | "input">;
 
 const MAX_PREVIEW = 1500;
 const ALLOW = "Allow";
@@ -51,18 +48,8 @@ export async function askUser(
   const rule = request.rule ? `${request.rule.action} ${request.rule.resource}` : `${request.action} ${request.resource}`;
   const title = `${question}\n\n${body}\n\nRule: ask · ${rule}`;
   const options = [ALLOW, DENY, DENY_WITH_REASON];
-  // pi's `select` reports a question; the same selector shown through `custom` can say permission.
-  // pi 1.5.0 restores the user's draft after a custom dialog with `setText`, which drops the text of large
-  // pastes and keeps only their `[paste #1 …]` markers; put the expanded draft back.
-  const draft = ui.getEditorText();
-  const choice = await ui.custom<string | undefined>(
-    (_tui, _theme, _keybindings, done) =>
-      new ExtensionSelectorComponent(title, options, done, () => done(undefined), {
-        onToggleToolsExpanded: () => ui.setToolsExpanded(!ui.getToolsExpanded()),
-      }),
-    { blocked: { kind: "permission", message: title } },
-  );
-  if (ui.getEditorText() !== draft) ui.setEditorText(draft);
+  // pi reports only the first line of the title (`question`) as the blocked message.
+  const choice = await ui.select(title, options, { blockedKind: "permission" });
   if (choice === ALLOW) return { allow: true };
   if (choice === DENY_WITH_REASON) {
     const reason = (await ui.input("Reason for denying (sent to the model):"))?.trim();

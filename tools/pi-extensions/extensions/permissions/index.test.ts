@@ -24,8 +24,7 @@ function makeCtx(over: Partial<Ui> = {}, hasUI = true) {
     notify: (m) => notices.push(m),
     ...over,
   };
-  const custom = (_factory: unknown, options: { blocked: { message: string } }) => choose(options.blocked.message);
-  return { ctx: { cwd: os.tmpdir(), hasUI, ui: { ...ui, custom, getEditorText: () => "" } }, notices };
+  return { ctx: { cwd: os.tmpdir(), hasUI, ui: { ...ui, select: choose } }, notices };
 }
 
 function load(file: string) {

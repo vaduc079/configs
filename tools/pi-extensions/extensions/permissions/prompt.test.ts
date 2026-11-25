@@ -1,43 +1,21 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { initTheme } from "@earendil-works/pi-coding-agent";
-import type { Component } from "@earendil-works/pi-tui";
 import { askUser, type PromptUi } from "./prompt.ts";
 import type { Rule } from "./types.ts";
 
-// Interactive mode sets pi's theme before any dialog; the selector reads it.
-initTheme();
-
 async function titleFor(toolName: string, input: unknown, rule?: Rule): Promise<string> {
-  const { ui, calls } = customUi("\x1b");
+  const { ui, calls } = selectUi(() => undefined);
   await askUser(ui, { toolName, action: toolName, resource: "*", rule, input });
-  return calls.options.blocked.message;
+  return calls.title;
 }
 
-/**
- * Shows the custom dialog and presses `keys` in it, as interactive mode would. On close, the editor holds
- * `calls.afterDialog`, as pi's draft restore leaves it.
- */
-function customUi(...keys: string[]) {
-  const calls = { options: { blocked: { message: "" } }, editor: "draft", afterDialog: "draft", setEditorText: 0 };
+/** A `select` that picks by `pick`; `undefined` is a dismissed dialog. */
+function selectUi(pick: (options: string[]) => string | undefined) {
+  const calls = { title: "", options: [] as string[], opts: undefined as unknown };
   const ui = {
-    custom: (
-      factory: (tui: unknown, theme: unknown, keybindings: unknown, done: (result: unknown) => void) => Component,
-      options: typeof calls.options,
-    ) =>
-      new Promise((resolve) => {
-        calls.options = options;
-        const close = (result: unknown) => {
-          calls.editor = calls.afterDialog;
-          resolve(result);
-        };
-        const dialog = factory(undefined, undefined, undefined, close);
-        for (const key of keys) dialog.handleInput?.(key);
-      }),
-    getEditorText: () => calls.editor,
-    setEditorText: (text: string) => {
-      calls.setEditorText++;
-      calls.editor = text;
+    select: async (title: string, options: string[], opts: unknown) => {
+      Object.assign(calls, { title, options, opts });
+      return pick(options);
     },
   };
   return { ui: ui as unknown as PromptUi, calls };
@@ -47,29 +25,26 @@ const request = { toolName: "bash", action: "shell", resource: "deploy *", input
 
 describe("dialog", () => {
   it("reports pi as blocked on a permission and returns the picked option", async () => {
-    const { ui, calls } = customUi("\r");
+    const { ui, calls } = selectUi((options) => options[0]);
     assert.deepEqual(await askUser(ui, request), { allow: true });
-    assert.deepEqual(calls.options, {
-      blocked: { kind: "permission", message: "Run bash command?\n\n  deploy prod\n\nRule: ask · shell deploy *" },
-    });
+    assert.equal(calls.title, "Run bash command?\n\n  deploy prod\n\nRule: ask · shell deploy *");
+    assert.deepEqual(calls.options, ["Allow", "Deny", "Deny with reason"]);
+    assert.deepEqual(calls.opts, { blockedKind: "permission" });
   });
-  it("Deny is the second option", async () => {
-    const { ui } = customUi("\x1b[B", "\r");
+  it("Deny denies", async () => {
+    const { ui } = selectUi((options) => options[1]);
     assert.deepEqual(await askUser(ui, request), { allow: false });
   });
   it("a dismissed dialog denies", async () => {
-    const { ui } = customUi("\x1b");
+    const { ui } = selectUi(() => undefined);
     assert.deepEqual(await askUser(ui, request), { allow: false });
   });
-  it("puts back a draft whose large paste pi's restore dropped, and leaves an intact draft alone", async () => {
-    const lost = customUi("\r");
-    lost.calls.editor = "see this:\n" + "line\n".repeat(20);
-    lost.calls.afterDialog = "see this:\n[paste #1 +20 lines]";
-    await askUser(lost.ui, request);
-    assert.equal(lost.calls.editor, "see this:\n" + "line\n".repeat(20));
-    const intact = customUi("\r");
-    await askUser(intact.ui, request);
-    assert.equal(intact.calls.setEditorText, 0);
+  it("Deny with reason sends the trimmed reason to the model", async () => {
+    const { ui } = selectUi((options) => options[2]);
+    const withReason = { ...ui, input: async () => "  too risky " } as PromptUi;
+    assert.deepEqual(await askUser(withReason, request), { allow: false, reason: "too risky" });
+    const blank = { ...ui, input: async () => " " } as PromptUi;
+    assert.deepEqual(await askUser(blank, request), { allow: false });
   });
 });
 
