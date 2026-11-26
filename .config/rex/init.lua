@@ -50,6 +50,13 @@ end
 rex.bind(prefix .. "ctrl+g", "lazygit")
 rex.bind(prefix .. "ctrl+f", "yazi")
 
+-- Resume pi after a server restart; the osc7577 pi extension reports `pi --session <file>`.
+-- Under ~ rather than ~/.pi/agent/sessions: ~/.pi is a symlink, and Rex re-checks the path after
+-- resolving it.
+rex.set("resume.trust.pi", {
+	command = { "pi", "--session", rex.match.under("~") },
+})
+
 -- Machine-specific values (gitignored machine.lua); features that need one are skipped when it's missing.
 local ok, machine = pcall(require, "machine")
 if not ok then
