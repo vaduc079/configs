@@ -5,7 +5,7 @@
  *
  * The terminal decides whether to trust the command. Rex, for example, needs a rule in
  * ~/.config/rex/init.lua:
- *   rex.set("resume.trust.pi", { command = { "pi", "--session", rex.match.under("~") } })
+ *   rex.set("resume.trust.pi", { command = { "pi", "--session", rex.match.under("~/.pi/agent/sessions") } })
  * and shows the record with: rex block call -b "$REX_BLOCK" program_resume_records
  */
 import { resolve } from "node:path";
