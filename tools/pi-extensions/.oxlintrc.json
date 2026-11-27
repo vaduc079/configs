@@ -11,6 +11,8 @@
     // Structure: extensions import their own folder, src/, and packages; src/ never imports an extension.
     "local/boundaries": "error",
     "local/disable-reason": "error",
+    // lint/structure.ts follows only static ESM, so require() would hide an import from it.
+    "typescript/no-require-imports": "error",
 
     // Validate once at the boundary; do not re-check what the types already guarantee.
     "typescript/no-unnecessary-condition": "error",

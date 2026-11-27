@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import ts from "typescript";
+import { parseSync } from "oxc-parser";
 import { directiveProblem } from "./plugin.ts";
 
 const ROOT_ENTRIES = new Set([
@@ -29,6 +29,7 @@ export function structureProblems(root: string): string[] {
     ...testFolders(root).map((dir) => `${dir}: put tests next to the module they test (x.test.ts beside x.ts)`),
     ...directiveProblems(root),
     ...unusedSrc(root).map((module) => `${module}: no extension uses it; delete it or move it into the extension that needs it`),
+    ...dynamicImports(root).map((file) => `${file}: use static imports; the src/ reachability check follows only static ESM`),
   ];
 }
 
@@ -87,10 +88,21 @@ function reachableSrc(start: string[], src: string) {
 
 function importsOf(file: string) {
   if (!fs.existsSync(file) || !/\.(ts|js)$/.test(file)) return [];
-  const { importedFiles } = ts.preProcessFile(fs.readFileSync(file, "utf8"), true, true);
-  return importedFiles
-    .filter(({ fileName }) => fileName.startsWith("."))
-    .map(({ fileName }) => path.resolve(path.dirname(file), fileName));
+  const { module } = parseSync(file, fs.readFileSync(file, "utf8"));
+  const sources = [
+    ...module.staticImports.map((entry) => entry.moduleRequest.value),
+    ...module.staticExports.flatMap((entry) => entry.entries.flatMap((e) => (e.moduleRequest ? [e.moduleRequest.value] : []))),
+  ];
+  return sources.filter((source) => source.startsWith(".")).map((source) => path.resolve(path.dirname(file), source));
+}
+
+/** Non-test extension and src/ files with an `import()`: reachability would miss its target. `require` is linted by oxlint. */
+function dynamicImports(root: string) {
+  return ["extensions", "src"]
+    .flatMap((dir) => sourceFiles(path.join(root, dir)))
+    .filter((file) => file.endsWith(".ts") && !file.endsWith(".test.ts"))
+    .filter((file) => parseSync(file, fs.readFileSync(file, "utf8")).module.dynamicImports.length > 0)
+    .map((file) => path.relative(root, file));
 }
 
 function allEntries(dir: string) {

@@ -115,3 +115,18 @@ test("test/ folders and unknown root entries are reported", () => {
     "extensions/a/test: put tests next to the module they test (x.test.ts beside x.ts)",
   ]);
 });
+
+test("reachability follows static ESM only, so a dynamic import() outside tests is reported", () => {
+  const root = tree({
+    "extensions/a/index.ts": 'export { cap } from "../../src/output.ts";\nimport "../../src/side.ts";\n',
+    "extensions/a/lazy.ts": 'export const load = () => import("../../src/text.ts");\n',
+    "extensions/a/lazy.test.ts": 'await import("./lazy.ts");\n',
+    "src/output.ts": "",
+    "src/side.ts": "",
+    "src/text.ts": "",
+  });
+  assert.deepEqual(structureProblems(root), [
+    "src/text.ts: no extension uses it; delete it or move it into the extension that needs it",
+    "extensions/a/lazy.ts: use static imports; the src/ reachability check follows only static ESM",
+  ]);
+});

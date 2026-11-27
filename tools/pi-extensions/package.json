@@ -20,8 +20,9 @@
     "@oxlint/plugins": "^1.90.0",
     "@types/node": "^26.6.6",
     "knip": "^6.44.1",
+    "oxc-parser": "^0.155.0",
     "oxlint": "^1.90.0",
     "oxlint-tsgolint": "^7.0.2005",
-    "typescript": "~5.9"
+    "typescript": "7.0.2"
   }
 }
