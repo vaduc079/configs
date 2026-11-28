@@ -3,5 +3,9 @@
 # Prints nothing outside Rex.
 [ -n "$REX_BLOCK" ] || exit 0
 cat <<'EOF'
-Rex session name: rename it (`rex session rename <label>`) only while it still has Rex's two-word default label, like `quiet-meadow`. Never replace any other label. Don't wait for the user to ask, and don't load the Rex skill for this. Name it once the task is clear: right away if the first message says it, otherwise before your first reply ends. Use 3-5 lowercase hyphenated words naming the task, such as `fix-login-redirect`.
+Rex session name:
+- Once the task is clear (before your first reply ends), check the label: `rex session inspect --json | jq -r .label`.
+- Only if it is Rex's two-word default, like `quiet-meadow`, run `rex session rename <label>`. Use 3-5 lowercase hyphenated words naming the task, such as `fix-login-redirect`.
+- Any other label was set on purpose: leave it.
+- Never rename without checking first. Don't load the Rex skill for this.
 EOF
